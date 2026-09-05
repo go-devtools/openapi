@@ -94,54 +94,84 @@ func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, 
 	return paths
 }
 
-// 处理单条语句，分支与 return 语义由核心管理。
-// Handle statements while the core owns branching and return semantics.
+// 处理单条语句，表达式备选保持独立直到下一条语句。
+// Handle each statement while keeping expression alternatives independent through subsequent statements.
 func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth int, handler bool) []flow {
 	source := a.project.Source(statement.Pos())
 	switch s := statement.(type) {
 	case *ast.ExprStmt:
-		a.evaluate(fn, s.X, &state, depth)
+		var result []flow
+		for _, e := range a.evaluate(fn, s.X, state, depth) {
+			result = append(result, e.state)
+		}
+		return result
 	case *ast.AssignStmt:
-		var values []Value
-		for _, rhs := range s.Rhs {
-			values = append(values, a.evaluate(fn, rhs, &state, depth))
-		}
-		for i, lhs := range s.Lhs {
-			value := Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
-			if i < len(values) {
-				value = values[i]
+		var result []flow
+		for _, e := range a.expressions(fn, s.Rhs, state, depth) {
+			for i, lhs := range s.Lhs {
+				value := Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
+				if i < len(e.values) {
+					value = e.values[i]
+				}
+				if s.Tok != token.ASSIGN && s.Tok != token.DEFINE {
+					a.unknown(&e.state, source, "复合赋值需要明确运算传播")
+					value = Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
+				}
+				a.assign(fn, lhs, value, &e.state)
 			}
-			a.assign(fn, lhs, value, &state)
+			result = append(result, e.state)
 		}
+		return result
 	case *ast.DeclStmt:
+		paths := []flow{state}
 		if decl, ok := s.Decl.(*ast.GenDecl); ok {
-			for _, spec := range decl.Specs {
-				if spec, ok := spec.(*ast.ValueSpec); ok {
-					for i, name := range spec.Names {
-						obj := fn.Package.Info.Defs[name]
-						value := Value{Type: obj.Type()}
-						if i < len(spec.Values) {
-							value = a.evaluate(fn, spec.Values[i], &state, depth)
+			for _, entry := range decl.Specs {
+				if spec, ok := entry.(*ast.ValueSpec); ok {
+					var next []flow
+					for _, path := range paths {
+						for _, e := range a.expressions(fn, spec.Values, path, depth) {
+							for i, name := range spec.Names {
+								obj := fn.Package.Info.Defs[name]
+								value := zeroValue(obj.Type())
+								if i < len(e.values) {
+									value = e.values[i]
+								}
+								e.state.values[obj] = coerceValue(value, obj.Type())
+							}
+							next = append(next, e.state)
 						}
-						state.values[obj] = value
 					}
+					paths = next
 				}
 			}
 		}
+		return paths
 	case *ast.ReturnStmt:
-		values := []Value{}
-		for _, expr := range s.Results {
-			values = append(values, a.evaluate(fn, expr, &state, depth))
-		}
-		state.returned = values
-		if handler && a.frontend.Return != nil {
-			effects, err := a.frontend.Return(ReturnContext{Function: fn, Values: values, Source: source})
-			if err != nil {
-				a.unknown(&state, source, err.Error())
+		var result []flow
+		for _, e := range a.expressions(fn, s.Results, state, depth) {
+			if len(s.Results) == 0 {
+				for i := 0; i < fn.Signature.Results().Len(); i++ {
+					obj := fn.Signature.Results().At(i)
+					e.values = append(e.values, e.state.values[obj])
+				}
 			}
-			a.effects(&state, effects)
+			for i := range e.values {
+				if i < fn.Signature.Results().Len() {
+					e.values[i] = coerceValue(e.values[i], fn.Signature.Results().At(i).Type())
+				}
+			}
+			e.state.returned = e.values
+			if handler && a.frontend.Return != nil {
+				effects, err := a.frontend.Return(ReturnContext{Function: fn, Values: e.values, Source: source})
+				if err != nil {
+					a.unknown(&e.state, source, err.Error())
+				}
+				a.effects(&e.state, effects)
+			}
+			e.state.ended = true
+			result = append(result, e.state)
 		}
-		state.ended = true
+		return result
 	case *ast.IfStmt:
 		initial := []flow{state}
 		if s.Init != nil {
@@ -149,16 +179,17 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 		}
 		var result []flow
 		for _, start := range initial {
-			condition := a.evaluate(fn, s.Cond, &start, depth)
-			known := condition.Constant != nil && condition.Constant.Kind() == constant.Bool
-			if !known || constant.BoolVal(condition.Constant) {
-				result = append(result, a.statements(fn, s.Body.List, []flow{start.clone()}, depth, handler)...)
-			}
-			if !known || !constant.BoolVal(condition.Constant) {
-				if s.Else != nil {
-					result = append(result, a.statement(fn, s.Else, start.clone(), depth, handler)...)
-				} else {
-					result = append(result, start.clone())
+			for _, condition := range a.evaluate(fn, s.Cond, start, depth) {
+				b, known := knownBool(scalar(condition))
+				if !known || b {
+					result = append(result, a.statements(fn, s.Body.List, []flow{condition.state.clone()}, depth, handler)...)
+				}
+				if !known || !b {
+					if s.Else != nil {
+						result = append(result, a.statement(fn, s.Else, condition.state.clone(), depth, handler)...)
+					} else {
+						result = append(result, condition.state.clone())
+					}
 				}
 			}
 		}
@@ -166,31 +197,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	case *ast.BlockStmt:
 		return a.statements(fn, s.List, []flow{state}, depth, handler)
 	case *ast.SwitchStmt:
-		if s.Init != nil {
-			state = a.statement(fn, s.Init, state, depth, handler)[0]
-		}
-		if s.Tag != nil {
-			a.evaluate(fn, s.Tag, &state, depth)
-		}
-		var result []flow
-		hasDefault := false
-		for _, entry := range s.Body.List {
-			clause := entry.(*ast.CaseClause)
-			if clause.List == nil {
-				hasDefault = true
-			}
-			result = append(result, a.statements(fn, clause.Body, []flow{state.clone()}, depth, handler)...)
-		}
-		if !hasDefault {
-			result = append(result, state)
-		}
-		for i := range result {
-			if result[i].branch == token.BREAK {
-				result[i].ended = false
-				result[i].branch = token.ILLEGAL
-			}
-		}
-		return result
+		return a.switchStatement(fn, s, state, depth, handler)
 	case *ast.RangeStmt, *ast.ForStmt:
 		a.unknown(&state, source, "循环中的效果需要有界摘要或集中适配")
 	case *ast.GoStmt, *ast.DeferStmt:
@@ -210,16 +217,82 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	return []flow{state}
 }
 
+// 按 Go 顺序检查 switch 标签，只将尚未匹配的路径传给下一分支。
+// Check switch cases in Go order and pass only unmatched paths to the next case.
+func (a *analyzer) switchStatement(fn Function, s *ast.SwitchStmt, state flow, depth int, handler bool) []flow {
+	initial := []flow{state}
+	if s.Init != nil {
+		initial = a.statement(fn, s.Init, state, depth, handler)
+	}
+	var pending []evaluation
+	for _, path := range initial {
+		if s.Tag != nil {
+			pending = append(pending, a.evaluate(fn, s.Tag, path, depth)...)
+		} else {
+			pending = append(pending, evaluation{state: path, values: []Value{{Type: types.Typ[types.Bool], Constant: constant.MakeBool(true)}}})
+		}
+	}
+	var result []flow
+	var defaultBody []ast.Stmt
+	for _, entry := range s.Body.List {
+		clause := entry.(*ast.CaseClause)
+		if clause.List == nil {
+			defaultBody = clause.Body
+			continue
+		}
+		var matches []flow
+		for _, label := range clause.List {
+			var remaining []evaluation
+			for _, path := range pending {
+				tag := scalar(path)
+				for _, test := range a.evaluate(fn, label, path.state, depth) {
+					b, known := knownBool(compareValues(tag, token.EQL, scalar(test)))
+					if !known || b {
+						matches = append(matches, test.state.clone())
+					}
+					if !known || !b {
+						remaining = append(remaining, evaluation{state: test.state, values: path.values})
+					}
+				}
+			}
+			pending = a.limitEvaluations(fn, label, remaining)
+		}
+		result = append(result, a.statements(fn, clause.Body, matches, depth, handler)...)
+	}
+	for _, path := range pending {
+		result = append(result, a.statements(fn, defaultBody, []flow{path.state}, depth, handler)...)
+	}
+	for i := range result {
+		if result[i].branch == token.BREAK {
+			result[i].ended = false
+			result[i].branch = token.ILLEGAL
+		}
+	}
+	return result
+}
+
 // 将声明和赋值关联到标准库 types 对象，不按变量名猜测身份。
 // Bind assignments to types objects instead of variable-name guesses.
 func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 	if id, ok := lhs.(*ast.Ident); ok {
 		obj := fn.Package.Info.ObjectOf(id)
 		if obj != nil {
-			state.values[obj] = value
+			state.values[obj] = coerceValue(value, obj.Type())
 		}
 		return
 	}
+	if star, ok := lhs.(*ast.StarExpr); ok {
+		if id, ok := star.X.(*ast.Ident); ok {
+			pointer := state.values[fn.Package.Info.ObjectOf(id)]
+			if pointer.address != nil {
+				state.values[pointer.address] = coerceValue(value, pointer.address.Type())
+				return
+			}
+		}
+		a.unknown(state, a.project.Source(lhs.Pos()), "指针写入的目标身份未解决")
+		return
+	}
+
 	if index, ok := lhs.(*ast.IndexExpr); ok {
 		if id, ok := index.X.(*ast.Ident); ok {
 			obj := fn.Package.Info.ObjectOf(id)
@@ -323,163 +396,4 @@ func callObject(info *types.Info, expr ast.Expr) *types.Func {
 		return callObject(info, x.X)
 	}
 	return nil
-}
-
-// 求值有限常量、对象字面量、字段和可分析 helper；未知值保留明确标志。
-// Evaluate bounded constants, literals, fields, and helpers while preserving unknowns.
-func (a *analyzer) evaluate(fn Function, expr ast.Expr, state *flow, depth int) Value {
-	info := fn.Package.Info
-	value := Value{Type: info.TypeOf(expr)}
-	if tv, ok := info.Types[expr]; ok && tv.Value != nil {
-		value.Constant = tv.Value
-		return value
-	}
-	switch x := expr.(type) {
-	case *ast.Ident:
-		if x.Name == "nil" {
-			value.Nil = true
-			return value
-		}
-		value.Object = info.ObjectOf(x)
-		if v, ok := state.values[info.ObjectOf(x)]; ok {
-			return v
-		}
-	case *ast.ParenExpr:
-		return a.evaluate(fn, x.X, state, depth)
-	case *ast.UnaryExpr:
-		inner := a.evaluate(fn, x.X, state, depth)
-		if x.Op == token.AND {
-			inner.Type = value.Type
-			return inner
-		}
-		if inner.Constant != nil {
-			inner.Constant = constant.UnaryOp(x.Op, inner.Constant, 0)
-			return inner
-		}
-	case *ast.StarExpr:
-		inner := a.evaluate(fn, x.X, state, depth)
-		inner.Type = value.Type
-		return inner
-	case *ast.SelectorExpr:
-		value.Object = info.ObjectOf(x.Sel)
-		base := a.evaluate(fn, x.X, state, depth)
-		if field, ok := base.Fields[x.Sel.Name]; ok {
-			return field
-		}
-	case *ast.BinaryExpr:
-		left := a.evaluate(fn, x.X, state, depth)
-		if left.Constant != nil && left.Constant.Kind() == constant.Bool {
-			if (x.Op == token.LAND && !constant.BoolVal(left.Constant)) || (x.Op == token.LOR && constant.BoolVal(left.Constant)) {
-				return left
-			}
-		}
-		before := len(state.effects)
-		right := a.evaluate(fn, x.Y, state, depth)
-		if (x.Op == token.LAND || x.Op == token.LOR) && left.Constant == nil && len(state.effects) != before {
-			a.unknown(state, a.project.Source(x.Pos()), "短路表达式右侧效果的适用条件尚未收敛")
-		}
-		if left.Constant != nil && right.Constant != nil {
-			switch x.Op {
-			case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
-				value.Constant = constant.MakeBool(constant.Compare(left.Constant, x.Op, right.Constant))
-			case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT, token.LAND, token.LOR:
-				value.Constant = constant.BinaryOp(left.Constant, x.Op, right.Constant)
-			}
-		}
-		return value
-	case *ast.CompositeLit:
-		value.Fields = map[string]Value{}
-		for i, elt := range x.Elts {
-			if kv, ok := elt.(*ast.KeyValueExpr); ok {
-				key := ""
-				if id, ok := kv.Key.(*ast.Ident); ok {
-					key = id.Name
-				} else {
-					constantKey := info.Types[kv.Key].Value
-					if constantKey != nil && constantKey.Kind() == constant.String {
-						key = constant.StringVal(constantKey)
-					}
-				}
-				if key == "" {
-					value.Unknown = true
-				} else {
-					value.Fields[key] = a.evaluate(fn, kv.Value, state, depth)
-				}
-			} else if s, ok := value.Type.Underlying().(*types.Struct); ok && i < s.NumFields() {
-				value.Fields[s.Field(i).Name()] = a.evaluate(fn, elt, state, depth)
-			} else {
-				value.Fields = nil
-			}
-		}
-		return value
-	case *ast.CallExpr:
-		a.calls++
-		if a.calls > a.options.MaxCalls {
-			a.unknown(state, a.project.Source(expr.Pos()), "调用分析超过预算")
-			value.Unknown = true
-			return value
-		}
-		obj := callObject(info, x.Fun)
-		var arguments []Value
-		for _, arg := range x.Args {
-			arguments = append(arguments, a.evaluate(fn, arg, state, depth))
-		}
-		receiver := Value{}
-		if selector, ok := x.Fun.(*ast.SelectorExpr); ok {
-			receiver = a.evaluate(fn, selector.X, state, depth)
-		}
-		call := CallContext{Function: fn, Call: x, Object: obj, Arguments: arguments, Receiver: receiver, Source: a.project.Source(x.Pos())}
-		if a.frontend.Call != nil {
-			effects, err := a.frontend.Call(call)
-			if err != nil {
-				a.unknown(state, call.Source, err.Error())
-			}
-			if len(effects) > 0 {
-				a.effects(state, effects)
-				return value
-			}
-		}
-		if helper, ok := a.project.functions[obj]; ok && helper.Declaration.Body != nil {
-			if depth >= a.options.MaxDepth {
-				a.unknown(state, call.Source, "helper 或递归超过深度预算")
-				value.Unknown = true
-				return value
-			}
-			child := state.clone()
-			child.ended = false
-			child.returned = nil
-			for i := 0; i < helper.Signature.Params().Len() && i < len(arguments); i++ {
-				child.values[helper.Signature.Params().At(i)] = arguments[i]
-			}
-			paths := a.statements(helper, helper.Declaration.Body.List, []flow{child}, depth+1, false)
-			if len(paths) == 1 {
-				ended := state.ended
-				*state = paths[0]
-				state.ended = ended
-				if len(paths[0].returned) == 1 {
-					return paths[0].returned[0]
-				}
-			} else {
-				a.unknown(state, call.Source, "多路径 helper 需要可合并的参数化摘要")
-			}
-			return value
-		}
-		if a.frontend.CarriesEffects != nil {
-			for _, arg := range append(arguments, receiver) {
-				if arg.Type != nil && a.frontend.CarriesEffects(arg.Type) {
-					a.unknown(state, call.Source, "外部调用携带效果对象但没有已注册规则")
-				}
-			}
-		}
-		if value.Type != nil {
-			if _, ok := value.Type.Underlying().(*types.Interface); ok {
-				value.Unknown = true
-			}
-		}
-		return value
-	}
-	if value.Type == nil {
-		value.Unknown = true
-	}
-	return value
 }

@@ -22,6 +22,9 @@ import (
 // 表示有限传播的静态值；未知值从不伪装成具体 payload。
 // Represent a propagated static value without inventing unknown payloads.
 type Value struct {
+	// 保存局部变量地址的分析期身份，用于别名写入和外部调用失效处理。
+	// Track a local address during analysis for alias writes and external-call invalidation.
+	address types.Object
 	// 保留已解析的标准库符号身份，供前端识别显式绑定器和别名。
 	// Preserve resolved standard-library symbol identity for explicit binders and aliases.
 	Object   types.Object
@@ -29,7 +32,10 @@ type Value struct {
 	Constant constant.Value
 	Fields   map[string]Value
 	Nil      bool
-	Unknown  bool
+	// 明确表示 Go 层面的非 nil 返回值，用于条件传播。
+	// Mark a definitely non-nil Go result for conditional propagation.
+	NonNil  bool
+	Unknown bool
 }
 
 // 表示框架前端输出的中立效果。
@@ -99,6 +105,13 @@ type CallContext struct {
 	Source    openapi.Source
 }
 
+// 将一次调用的返回值与其共同发生的效果绑定为有限备选。
+// Associate one call result tuple with its co-occurring effects as a finite alternative.
+type CallOutcome struct {
+	Results []Value
+	Effects []Effect
+}
+
 // 支持返回响应值或 error 的前端形态。
 // Support frontends whose handlers return responses or errors.
 type ReturnContext struct {
@@ -110,6 +123,9 @@ type ReturnContext struct {
 // 显式注册前端规则；未提供的回调表示此类入口没有框架规则。
 // Register frontend rules explicitly; absent callbacks define no rules.
 type Frontend struct {
+	// 优先尝试有限调用备选；空集合回退到 Call，错误阻止可信发布。
+	// Try finite call alternatives first; an empty set falls back to Call and errors prevent trusted publication.
+	CallOutcomes   func(CallContext) ([]CallOutcome, error)
 	Name           string
 	Match          func(Function) bool
 	Entry          func(Function) []Effect

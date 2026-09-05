@@ -163,3 +163,11 @@ The neutral codec regression first rejected a valid byte list, accepted Base64 a
 The external development consumer now runs five public SDK tests, including TestParameterCodecSDK from a module with no framework or internal imports. Go 1.27.1 with GOWORK=off passed make dev, full race, vet, and module verification. Following the final keyword guard, make dev and race for compiler/internal/verify passed again; vet remained clean. The consumer test inside the standard verification harness is not automatically race-enabled by the outer test.
 
 The Gin development workspace separately passed actual Query, URI, Header, explicit JSON, FormPost, and Multipart samples, seven invalid-request branches, embedded-field handling, enum projection, and a centralized custom-parameter mapper. It exposed and fixed a spurious parameter for anonymously embedded time.Time. These workspace checks are development evidence, not the pending fixed-remote-version adapter verification. Automatic method/media selection, implicit MustBind effects, complete parameter conflicts and provenance, CI, and final acceptance remain outstanding.
+
+## 调用返回备选与控制流
+
+公开 CallOutcomes 将返回元组与共同发生的效果关联，核心逐路径处理 helper、短路、switch、return 和后续写入。十组中立源码用例覆盖响应提交顺序、元组、nil 装箱及指针别名写入；公开备选测试覆盖忽略错误、立即返回、提交后写入与无效返回数量。关闭备选传播的变异测试确实失败，恢复后通过。独立 module 测试夹具也消费这些公开 API。
+
+精确 Go 1.27.1、GOWORK=off 的 make dev、全模块 go test -race ./...、go vet ./...、go mod verify 均 exit 0。此处 internal/verify 的开发消费者使用临时 replace；外层 race 不表示其普通子进程自动启用 race。固定远端版本的消费者及 CLI 实证在同步后另行记录。
+
+两个仓库最新 AST 注释审计覆盖 1765 行自然语言 Go 注释，未发现缺失中英对应；所有顶层函数和声明均有注释。完整 Goal 仍有自动方法/媒体绑定条件、完整 helper/Schema 矩阵、CI 与最终冷缓存验收待完成。
