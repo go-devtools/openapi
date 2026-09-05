@@ -183,3 +183,17 @@ Gin 开发 workspace 中 17 组成功请求验证自动 JSON、Query、Form、Mu
 核心在精确 Go 1.27.1、GOWORK=off 下的 make dev、全模块 go test -race ./...、go vet ./...、go mod verify 均通过。外部 SDK 开发夹具新增序列化条件链接和源码条件调用测试；此处临时 module 的核心 replace 是开发检查，固定远端消费将在同步后单独验证，普通 child test 不自动继承 outer race。
 
 两仓库 AST 审计覆盖 1879 行自然语言 Go 注释，无缺失中英对应，所有顶层声明和方法有注释。完整 Goal、最终固定版本的冷缓存验证及尚未完成的矩阵仍保留。
+
+## Actual build inputs and reproducible fingerprints
+
+The compiler now records the Go command's actual target instead of the generator host's platform. Fingerprints include package-qualified source identities, parser snapshots including overlays, inactive source reported by Go, non-Go sources, embedded files, selected module/replacement records, normalized module declarations, local workspace source, architecture settings, CGO/experiment selectors, codec names, declared configuration, budgets, and projected contracts. Owned generated output and unrelated output files are excluded.
+
+The initial regression run failed for host/target confusion, ignored overlay comments, same-name files swapped between packages, inactive source edits, and effective module version changes. The implementation passes all of these cases and retains byte-for-byte relocation determinism. Additional actual-load tests cover new overlay-only files, each build selector independently, embedded resource changes, workspace relocation and source changes, explicit vendor source selection, unchanged module files, and source-byte exhaustion.
+
+A separate regression demonstrated that the old loader could execute a configured project packages driver and accept writable module modes. The loader now selects the builtin driver, rejects executable wrappers and writable modes, and respects the last effective environment entry. Input-budget errors carry source positions instead of producing go/packages internal-error log messages. A linker-configuration regression exposed raw values in the initial profile implementation; only parameter/configuration digests are now serialized, while changes still invalidate freshness.
+
+Compilation with custom TypeMapper functions now requires named JSON Configuration inputs. These identify otherwise opaque closure configuration and are not copied verbatim into Bundle. The Gin centralized custom-parameter fixture was updated through the public SDK and passed development-workspace integration testing; no DTO or business handler change was needed.
+
+With exact Go 1.27.1 and GOWORK=off, final make dev, full go test -race ./..., go vet ./..., and go mod verify all exited zero. The external development consumer now runs 23 public SDK tests, including 14 build-input and loading-boundary tests. Its normal child test does not automatically inherit its parent's race flag. Actual fixed-remote SDK/CLI consumption is verified after the core is published and recorded separately from these development results.
+
+These checks reuse task caches. Runtime/profile mismatch enforcement, every custom C toolchain and external header graph, complete schema/helper/codec matrices, CI, benchmarks, and final independent cold-cache acceptance remain part of the active full goal.

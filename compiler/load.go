@@ -21,12 +21,13 @@ import (
 // 配置只读包加载和资源预算，不执行项目生成脚本。
 // Configure read-only package loading without running generation scripts.
 type LoadOptions struct {
-	Dir         string
-	Patterns    []string
-	BuildFlags  []string
-	Env         []string
-	Overlay     map[string][]byte
-	MaxPackages int
+	Dir            string
+	Patterns       []string
+	BuildFlags     []string
+	Env            []string
+	Overlay        map[string][]byte
+	MaxPackages    int
+	MaxSourceBytes int64
 }
 
 // 暴露标准库类型和 AST；调用方须将这些视图视为只读。
@@ -48,7 +49,7 @@ type Project struct {
 	Packages    []Package
 	comments    map[types.Object]comment.Document
 	functions   map[*types.Func]Function
-	sourceFiles []string
+	inputs      *buildInputs
 	Diagnostics []openapi.Diagnostic
 }
 
@@ -75,7 +76,11 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 		patterns = []string{"."}
 	}
 	flags := append([]string{"-mod=readonly"}, options.BuildFlags...)
-	cfg := &packages.Config{Context: ctx, Dir: dir, Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedModule, Fset: token.NewFileSet(), BuildFlags: flags, Overlay: options.Overlay, Env: append(os.Environ(), options.Env...)}
+	cfg := &packages.Config{Context: ctx, Dir: dir, Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedModule | packages.NeedEmbedFiles, Fset: token.NewFileSet(), BuildFlags: flags, Overlay: options.Overlay, Env: append(os.Environ(), options.Env...)}
+	inputs, err := prepareBuildInputs(ctx, options, cfg)
+	if err != nil {
+		return nil, err
+	}
 	loaded, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		return nil, err
@@ -84,7 +89,7 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	if max == 0 {
 		max = 2048
 	}
-	p := &Project{Dir: dir, Fset: cfg.Fset, comments: map[types.Object]comment.Document{}, functions: map[*types.Func]Function{}}
+	p := &Project{inputs: inputs, Dir: dir, Fset: cfg.Fset, comments: map[types.Object]comment.Document{}, functions: map[*types.Func]Function{}}
 	count := 0
 	var loadErrors []string
 	packages.Visit(loaded, nil, func(pkg *packages.Package) {
@@ -92,7 +97,6 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 		for _, e := range pkg.Errors {
 			loadErrors = append(loadErrors, strings.ReplaceAll(e.Error(), dir+string(filepath.Separator), ""))
 		}
-		p.sourceFiles = append(p.sourceFiles, pkg.CompiledGoFiles...)
 	})
 	if count > max {
 		return nil, fmt.Errorf("openapi.load.budget: 包数量 %d 超过 %d", count, max)
@@ -100,6 +104,9 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	if len(loadErrors) > 0 {
 		sort.Strings(loadErrors)
 		return nil, fmt.Errorf("openapi.load.failed: %s", strings.Join(loadErrors, "\n"))
+	}
+	if err := inputs.collect(loaded, options, flags); err != nil {
+		return nil, err
 	}
 	for _, pkg := range loaded {
 		p.Packages = append(p.Packages, Package{Path: pkg.PkgPath, Name: pkg.Name, Types: pkg.Types, Info: pkg.TypesInfo, Files: pkg.Syntax, SourceFiles: pkg.CompiledGoFiles})

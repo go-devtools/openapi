@@ -17,16 +17,36 @@ type OperationKey string
 // Declare the supported Bundle protocol version.
 const BundleFormatVersion = 1
 
-// 保存生成器和构建条件，用于兼容与新鲜度检查。
-// Record build conditions for compatibility and freshness checks.
+// 记录有效模块选择，不序列化本地替换目录。
+// Record effective module selections without serializing local replacement directories.
+type ModuleProfile struct {
+	Path           string `json:"path"`
+	Version        string `json:"version,omitempty"`
+	GoVersion      string `json:"goVersion,omitempty"`
+	Main           bool   `json:"main,omitempty"`
+	ReplacePath    string `json:"replacePath,omitempty"`
+	ReplaceVersion string `json:"replaceVersion,omitempty"`
+	GoModDigest    string `json:"goModDigest,omitempty"`
+}
+
+// 保存实际加载目标、版本和可重现配置；不是运行时代码一致性的证明。
+// Store actual load targets, versions, and reproducible settings without claiming runtime source equivalence.
 type BuildProfile struct {
-	GoVersion string   `json:"goVersion,omitempty"`
-	GOOS      string   `json:"goos,omitempty"`
-	GOARCH    string   `json:"goarch,omitempty"`
-	Tags      []string `json:"tags,omitempty"`
-	Codec     string   `json:"codec,omitempty"`
-	Generator string   `json:"generator,omitempty"`
-	Frontend  string   `json:"frontend,omitempty"`
+	CGOEnabled          string            `json:"cgoEnabled,omitempty"`
+	GoExperiment        string            `json:"goExperiment,omitempty"`
+	BuildFlagsDigest    string            `json:"buildFlagsDigest,omitempty"`
+	Settings            map[string]string `json:"settings,omitempty"`
+	Modules             []ModuleProfile   `json:"modules,omitempty"`
+	Workspace           bool              `json:"workspace,omitempty"`
+	ConfigurationDigest string            `json:"configurationDigest,omitempty"`
+	Codecs              []string          `json:"codecs,omitempty"`
+	GoVersion           string            `json:"goVersion,omitempty"`
+	GOOS                string            `json:"goos,omitempty"`
+	GOARCH              string            `json:"goarch,omitempty"`
+	Tags                []string          `json:"tags,omitempty"`
+	Codec               string            `json:"codec,omitempty"`
+	Generator           string            `json:"generator,omitempty"`
+	Frontend            string            `json:"frontend,omitempty"`
 }
 
 // 保存可匹配的源码模板与框架中立契约。
