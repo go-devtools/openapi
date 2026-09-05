@@ -205,3 +205,11 @@ The compiler now records known empty tags and experiment selectors and excludes 
 Core `make dev`, full `go test -race ./...`, `go vet ./...`, and `go mod verify` passed with Go 1.27.1 and GOWORK=off. The external SDK harness now has 25 top-level tests. New real executable coverage loads source, exports its profile, builds with stripped symbols/trimpath, checks mismatched targets and tags, accepts equivalent tag sets, and proves runtime environment variables are not used as compile evidence. A real regression exposed unrelated inherited GOAMD64 metadata on arm64; restricting architecture selectors fixed that false warning.
 
 This is development-checkout evidence with the existing task cache. It is not final source-only cold-cache acceptance. Complete build flag/toolchain, module graph, and source identity verification remains outside this runtime check.
+
+## Individual request fields and wire encodings
+
+The public compiler now accepts RequestField effects, explicit request/parameter wire schemas, and per-field encodings. Fields on the same execution path compose as one object; whole-body constraints intersect with that object. Alternative execution paths retain alternatives, while requestBody.required is true only when every path requires the body. A field's Required flag constrains field presence independently of body presence. Distinct encoding entries merge; conflicting definitions for one field fail explicitly.
+
+The initial regressions exposed unknown effects, incorrect whole-map encoding conflicts, and field-required incorrectly requiring the complete body. All now pass. Go 1.27.1 with GOWORK=off passed make dev, full go test -race ./..., go vet ./..., and go mod verify. The external SDK fixture now contains 30 top-level tests; fixed remote consumption is recorded separately after publication. Two-repository comment review covers 2,183 natural-language Go comment lines with no missing translations or undocumented top-level declarations.
+
+This is development-checkout evidence using existing task caches. It does not complete all request-presence inference, codec matrices, or final cold-cache acceptance.

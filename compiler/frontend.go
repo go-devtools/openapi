@@ -41,6 +41,7 @@ type EffectKind string
 // Describe wire facts without framework method names.
 const (
 	RequestBody     EffectKind = "requestBody"
+	RequestField    EffectKind = "requestField"
 	ParameterObject EffectKind = "parameterObject"
 	ParameterRead   EffectKind = "parameter"
 	ResponseBody    EffectKind = "responseBody"
@@ -62,6 +63,10 @@ type HeaderValue struct {
 // 记录请求、响应、状态和控制效果及其来源。
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// 描述单个请求体字段的网络编码；此效果的 Required 只约束字段存在。
+	// Describe one body field's wire encoding; Required constrains field presence only.
+	Encoding *spec.Encoding
+
 	// 同一逻辑输入可能来自多个位置，不能丢弃跨位置必填关系。
 	// One logical input may come from multiple locations, so cross-location presence requirements cannot be dropped.
 	AlternativeLocations bool
@@ -69,8 +74,8 @@ type Effect struct {
 	// Frontends explicitly provide parameter serialization; the core does not infer framework rules.
 	Style   string
 	Explode spec.Optional[bool]
-	// 明确的响应体网络表示由前端提供；省略时复用真实类型投影。
-	// Supply an explicit response-body wire representation; omission uses actual type projection.
+	// 明确的请求或响应网络表示由前端提供；省略时复用真实类型投影。
+	// Supply an explicit request or response wire representation; omission uses actual type projection.
 	WireSchema *spec.Schema
 	// 响应头的替换、删除及仅在当前值为空时设置语义。
 	// Describe header replacement, removal, and insertion only when the current value is empty.
@@ -370,44 +375,10 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 	switch e.Kind {
 	case Unresolved:
 		return fmt.Errorf("%s；%s", e.Message, e.Fix)
-	case RequestBody:
-		schema, err := p.valueSchema(e.Payload, Input, e.MediaType, e.Codec, mappers, components)
-		if err != nil {
-			return err
-		}
-		if e.AlternativeLocations {
-			if err := alternativeLocationRequirements(schema, components); err != nil {
-				return err
-			}
-		}
-		if op.RequestBody == nil {
-			body := spec.Inline(spec.RequestBody{Content: map[string]spec.RefOr[spec.MediaType]{}})
-			op.RequestBody = &body
-		}
-		body := op.RequestBody.Value
-		body.Required = body.Required || e.Required
-		media := body.Content[e.MediaType]
-		if media.Value == nil {
-			media = spec.Inline(spec.MediaType{})
-		}
-		media.Value.Schema = union(media.Value.Schema, schema)
-		body.Content[e.MediaType] = media
 	case ParameterObject:
 		return p.mergeParameterObject(op, e, components, mappers)
 	case ParameterRead:
-		if e.Name == "" {
-			return fmt.Errorf("参数名称不是可求值常量")
-		}
-		for _, existing := range op.Parameters {
-			if existing.Value != nil && existing.Value.Name == e.Name && existing.Value.In == e.In {
-				return nil
-			}
-		}
-		schema, err := p.valueSchema(e.Payload, Input, "application/json", e.Codec, mappers, components)
-		if err != nil {
-			return err
-		}
-		op.Parameters = append(op.Parameters, spec.Inline(spec.Parameter{Name: e.Name, In: e.In, Required: e.Required || e.In == "path", Schema: schema}))
+		return p.mergeParameterRead(op, e, components, mappers)
 	case ResponseBody, ResponseStatus:
 		if e.Status == "" {
 			return fmt.Errorf("响应状态不是可求值常量")

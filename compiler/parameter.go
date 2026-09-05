@@ -120,3 +120,30 @@ func alternativeLocationRequirements(schema *spec.Schema, components map[string]
 	}
 	return nil
 }
+
+// 保留单字段的明确网络类型和序列化；重复观察不能静默覆盖矛盾契约。
+// Preserve explicit single-field wire types and serialization without silently replacing conflicting observations.
+func (p *Project) mergeParameterRead(operation *spec.Operation, effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) error {
+	if effect.Name == "" {
+		return fmt.Errorf("参数名称不是可求值常量")
+	}
+	if effect.MediaType == "" {
+		effect.MediaType = "application/json"
+	}
+	schema, err := p.requestSchema(effect, components, mappers)
+	if err != nil {
+		return err
+	}
+	parameter := spec.Parameter{Name: effect.Name, In: effect.In, Required: effect.Required || effect.In == "path", Schema: schema, Style: effect.Style, Explode: effect.Explode}
+	for _, existing := range operation.Parameters {
+		if existing.Value == nil || existing.Value.Name != effect.Name || existing.Value.In != effect.In {
+			continue
+		}
+		if !sameRequestJSON(existing.Value, parameter) {
+			return fmt.Errorf("同名参数 %s/%s 的投影或序列化不一致", effect.In, effect.Name)
+		}
+		return nil
+	}
+	operation.Parameters = append(operation.Parameters, spec.Inline(parameter))
+	return nil
+}

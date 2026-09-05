@@ -20,7 +20,7 @@
 
 `Project.Type` 解析已加载类型及泛型实例。`Project.Schema` 返回独立投影缓存；`Projection.Standalone()` 将完整组件闭包转为独立 Schema 的 $defs，默认方言为 JSON Schema 二零二零十二。`StandaloneWithOptions` 提供显式基准 URI、离线依赖、后备方言与预算，按资源身份处理引用，保留已有方言；详见[独立 Schema 指南](standalone-schema.md)。不同方向、媒体类型、codec 和泛型身份独立缓存。每次调用的缓存不共享，Project 加载后支持并发只读投影。
 
-`Frontend` 通过显式 Go 值注册，包含 Name、Match、Entry、Call、Return 与 CarriesEffects 回调。回调输出中立 Effect；核心调度值传播、语句顺序、分支、返回及有界 helper。ReturnContext 接收函数返回值，接口不要求特定 context 形态。
+`Frontend` 通过显式 Go 值注册，包含 Name、Match、Entry、Call、CallOutcomes、Return 与 CarriesEffects 回调。回调输出中立 Effect；核心调度值传播、语句顺序、分支、返回及有界 helper。ReturnContext 接收函数返回值，接口不要求特定 context 形态。
 
 `compiler.Compile(context.Context, Options) (*Result, error)` 复用加载、注释、投影与生成。生成器只原子更新带所有权标记的 `zz_openapi.gen.go`，生成文件只导入轻量核心，不执行或导入业务 handler。`Result.Check` 重新生成并比较完整字节。
 
@@ -30,7 +30,7 @@
 
 当前模板诊断随 Bundle 保存，只在实际选中路由时阻断 Build；全局加载、注释语法与前端冲突会阻断编译。所有回调必须确定性、不得执行待分析业务函数，不得依赖机器路径、时间或网络结果。
 
-格式 1 读取器接受能力 oas32、schema2020-12，拒绝未知必需能力与未来格式。首个真实可消费提交同步后，由 Go 命令解析固定伪版本供适配器消费。尚未承诺稳定 SDK SemVer 范围。
+格式 1 读取器接受能力 oas32、schema2020-12、request-conditions-v1，拒绝未知必需能力与未来格式。首个真实可消费提交同步后，由 Go 命令解析固定伪版本供适配器消费。尚未承诺稳定 SDK SemVer 范围。
 
 ## 尚待实现与扩大验证
 
@@ -38,8 +38,12 @@
 
 ## 响应提交与明确网络表示
 
-共享分析器已支持按路径保存响应头、立即提交状态和明确的非 JSON 响应 Schema。Gin 类型与 Renderer 规则继续留在适配器，核心只接收中立效果。`Effect.WireSchema` 仅用于已证明的响应体网络表示，`ResponseHeader` 控制提交前的头值；详见[响应效果 SDK](response-effects.md)。
+共享分析器已支持按路径保存响应头、立即提交状态和明确的非 JSON 响应 Schema。Gin 类型与 Renderer 规则继续留在适配器，核心只接收中立效果。`Effect.WireSchema` 用于已证明的请求或响应网络表示，`ResponseHeader` 控制提交前的头值；详见[响应效果 SDK](response-effects.md)。
 
 ## 参数对象与非 JSON 类型规则
 
 `ParameterObject` 通过共享 Schema 投影将明确对象展开为 query/path/header/cookie 参数，保留字段约束与引用，序列化由前端的 Style/Explode 指定。可选 `WireTypeCodec` 类型回调使用同一次投影的递归预算与组件缓存，已处理结果通过复制隔离调用方。实现该接口的 codec 负责自己的标准类型与自定义方法，不继承 JSON 编解码假设；现有只实现字段选择的 WireCodec 保持旧行为。回调只能同步使用，不得保留或并发调用递归函数。`Value.Object` 保存标准库符号身份用于明确前端匹配。详细所有权、失败方式与边界见[参数 codec SDK](parameter-codec.md)。
+
+## 逐字段请求体与编码
+
+`RequestField` 支持不依赖 DTO 的命名请求体字段，结合 `WireSchema` 或类型/codec 投影并保留标准 `Encoding`。字段 Required 与整个请求体 Required 分开；同路径约束取交集，不同路径使用备选。普通参数读取同时保留显式网络类型、Style/Explode 和冲突诊断。所有权、路径合并及验证边界见[请求字段 SDK](request-fields.md)。

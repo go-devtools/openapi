@@ -61,3 +61,5 @@ Generation frontends can model correlated return values and side effects with [c
 See the [build inputs guide](docs/build-inputs.md) for target profiles, overlays, workspace dependencies, reproducible fingerprints, and custom mapping configuration.
 
 Runtime consumers can call `openapi.CheckRuntimeBuild(profile)` or set `Config.VerifyRuntimeBuild` when linking a document. Known build-condition differences fail; missing metadata is reported. See [build inputs](docs/build-inputs.md) for cross-target exports and verification limits.
+
+The public compiler supports [request-field effects](docs/request-fields.md) for individual body fields, explicit encodings, and composition with whole-body projections. Field presence and body presence remain separate.

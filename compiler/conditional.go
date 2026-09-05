@@ -18,11 +18,14 @@ func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow
 		for _, path := range paths {
 			p.mergePath(&template.Operation, &template.Diagnostics, &template.Facts, path, components, mappers)
 		}
+		p.mergeRequestPaths(&template.Operation, &template.Diagnostics, paths, components, mappers)
 		return
 	}
+	groupPaths := map[string][]flow{}
 	groups := map[string]*openapi.OperationVariant{}
 	for _, path := range paths {
 		key, _ := json.Marshal(path.when)
+		groupPaths[string(key)] = append(groupPaths[string(key)], path)
 		variant := groups[string(key)]
 		if variant == nil {
 			variant = &openapi.OperationVariant{When: path.when, Operation: spec.Operation{Responses: map[string]spec.RefOr[spec.Response]{}}}
@@ -31,6 +34,7 @@ func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow
 		p.mergePath(&variant.Operation, &variant.Diagnostics, &variant.Facts, path, components, mappers)
 	}
 	for _, key := range sortedKeys(groups) {
+		p.mergeRequestPaths(&groups[key].Operation, &groups[key].Diagnostics, groupPaths[key], components, mappers)
 		template.Variants = append(template.Variants, *groups[key])
 	}
 }
@@ -43,6 +47,9 @@ func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Di
 		*facts = append(*facts, effect.Source)
 		for _, name := range sortedKeys(effect.Headers) {
 			*facts = append(*facts, effect.Headers[name].Source)
+		}
+		if effect.Kind == RequestBody || effect.Kind == RequestField {
+			continue
 		}
 		if err := p.mergeEffect(operation, effect, components, mappers); err != nil {
 			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "注册集中前端规则或 TypeMapper", Source: effect.Source})

@@ -390,8 +390,25 @@ func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source
 			}
 			continue
 		}
-		if err := mergeConditionMetadata(old.Value, media.Value, "schema", "itemSchema"); err != nil {
+		if err := mergeConditionMetadata(old.Value, media.Value, "schema", "itemSchema", "encoding"); err != nil {
 			return err
+		}
+		// 编码按字段合并；不同字段可共存，同字段必须保持相同表示。
+		// Merge encodings by field; distinct fields can coexist, while shared fields must keep the same representation.
+		keys := make([]string, 0, len(media.Value.Encoding))
+		for key := range media.Value.Encoding {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			encoding := media.Value.Encoding[key]
+			if previous, exists := old.Value.Encoding[key]; exists && !jsonSame(previous, encoding) {
+				return fmt.Errorf("openapi.condition.ambiguous: 请求字段 %s 的 encoding 不一致", key)
+			}
+			if old.Value.Encoding == nil {
+				old.Value.Encoding = map[string]spec.Encoding{}
+			}
+			old.Value.Encoding[key] = copyJSON(encoding)
 		}
 		old.Value.Schema = conditionalSchemaUnion(old.Value.Schema, media.Value.Schema)
 		if old.Value.ItemSchema != nil || media.Value.ItemSchema != nil {
