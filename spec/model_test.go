@@ -10,6 +10,7 @@ import (
 )
 
 // 验证原生三点二字段与显式零值能够无损序列化。
+// Test lossless serialization of native OAS 3.2 fields and explicit zero values.
 func TestNative32AndPresence(t *testing.T) {
 	fixture, err := os.ReadFile("../testdata/golden/openapi32-full.json")
 	if err != nil {
@@ -62,6 +63,7 @@ func TestNative32AndPresence(t *testing.T) {
 }
 
 // 验证 Schema 布尔分支、类型联合与引用对象不会混淆。
+// Keep boolean Schemas, type unions, and Reference Objects distinct.
 func TestSchemaAndReferenceRoundTrip(t *testing.T) {
 	for _, src := range []string{`false`, `true`, `{}`, `{"type":["string","null"]}`, `{"$ref":"#/$defs/X","minLength":0}`} {
 		var s Schema

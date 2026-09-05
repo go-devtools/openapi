@@ -13,12 +13,14 @@ import (
 )
 
 // 同一网络枚举值可有多个 Go 别名，说明随值聚合而不产生重复枚举。
+// Aggregate descriptions for Go aliases sharing one wire value without duplicating enum values.
 type enumEntry struct {
 	value        any
 	descriptions []string
 }
 
 // 从封闭枚举的真实常量生成值与对应说明，排序后仍保持索引一致。
+// Generate values and descriptions from actual closed-enum constants while preserving alignment after sorting.
 func (p *projector) annotateEnum(schema *spec.Schema, typ types.Type) error {
 	entries := map[string]*enumEntry{}
 	for _, pkg := range p.project.Packages {
@@ -86,6 +88,7 @@ func (p *projector) annotateEnum(schema *spec.Schema, typ types.Type) error {
 }
 
 // 按 Go 常量的实际基本类型构造 JSON 值，浮点有理数不得直接写成分数字符串。
+// Construct JSON values using the constants' underlying types; never serialize floating-point rationals as fractions.
 func constantJSON(value *types.Const) (any, error) {
 	switch value.Val().Kind() {
 	case constant.String:

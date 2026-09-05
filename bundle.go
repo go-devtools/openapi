@@ -10,12 +10,15 @@ import (
 )
 
 // 表示稳定源码模板键，不等于最终 operationId。
+// Identify a source template independently of the final operationId.
 type OperationKey string
 
 // 声明当前 Bundle 协议范围。
+// Declare the supported Bundle protocol version.
 const BundleFormatVersion = 1
 
 // 保存生成器和构建条件，用于兼容与新鲜度检查。
+// Record build conditions for compatibility and freshness checks.
 type BuildProfile struct {
 	GoVersion string   `json:"goVersion,omitempty"`
 	GOOS      string   `json:"goos,omitempty"`
@@ -27,6 +30,7 @@ type BuildProfile struct {
 }
 
 // 保存可匹配的源码模板与框架中立契约。
+// Store a source template and its framework-neutral contract.
 type Template struct {
 	Key            OperationKey   `json:"key"`
 	Symbol         string         `json:"symbol"`
@@ -38,6 +42,7 @@ type Template struct {
 }
 
 // 表示版本化 Bundle 的公开交换格式，构造后由 Bundle 保存不可变副本。
+// Define the public Bundle exchange format; construction saves an immutable copy.
 type BundleData struct {
 	FormatVersion int             `json:"formatVersion"`
 	SpecVersion   string          `json:"specVersion"`
@@ -50,12 +55,14 @@ type BundleData struct {
 }
 
 // 保存不可变的契约快照，可以安全地同时供多个框架实例链接。
+// Store an immutable contract snapshot that can serve multiple framework instances.
 type Bundle struct {
 	data      string
 	loadError string
 }
 
 // 校验协议、模板键与能力后，保存确定性快照。
+// Validate the protocol, keys, and capabilities before saving a deterministic snapshot.
 func NewBundle(data BundleData) (Bundle, error) {
 	if data.FormatVersion != BundleFormatVersion || data.SpecVersion != "3.2.0" {
 		return Bundle{}, fmt.Errorf("openapi.bundle.incompatible: 不支持格式 %d / 规范 %s", data.FormatVersion, data.SpecVersion)
@@ -73,6 +80,7 @@ func NewBundle(data BundleData) (Bundle, error) {
 		keys[t.Key] = true
 	}
 	// 先序列化隔离调用方集合，再排序，避免构造过程改变输入。
+	// Detach collections before sorting to preserve caller-owned data.
 	raw, err := json.Marshal(data)
 	if err != nil {
 		return Bundle{}, err
@@ -88,6 +96,7 @@ func NewBundle(data BundleData) (Bundle, error) {
 }
 
 // 严格读取 Bundle，拒绝不认识的顶层字段和协议版本。
+// Strictly decode Bundle fields and protocol versions.
 func ParseBundle(raw []byte) (Bundle, error) {
 	if len(raw) > 16<<20 {
 		return Bundle{}, fmt.Errorf("openapi.bundle.budget: Bundle 超过体积限制")
@@ -106,6 +115,7 @@ func ParseBundle(raw []byte) (Bundle, error) {
 }
 
 // 返回可变的独立快照，适配器无需访问核心内部包。
+// Return an independent snapshot without exposing internal packages.
 func (b Bundle) Snapshot() BundleData {
 	var data BundleData
 	_ = json.Unmarshal([]byte(b.data), &data)
@@ -113,12 +123,15 @@ func (b Bundle) Snapshot() BundleData {
 }
 
 // 返回独立的编码副本。
+// Return an independent encoded copy.
 func (b Bundle) JSON() []byte { return []byte(b.data) }
 
 // 返回模板索引的独立副本，包含运行时匹配所需证据。
+// Return a copied template index with runtime matching evidence.
 func (b Bundle) Index() []Template { return b.Snapshot().Templates }
 
 // 从生成器固定文本创建 Bundle，错误保留到启动层返回而不触发 panic。
+// Preserve generated-data errors for startup validation instead of panicking.
 func GeneratedBundle(raw string) Bundle {
 	b, err := ParseBundle([]byte(raw))
 	if err != nil {
@@ -128,6 +141,7 @@ func GeneratedBundle(raw string) Bundle {
 }
 
 // 检查静态生成文本和格式兼容性，适配器可在匹配路由前调用。
+// Validate generated text before adapters match routes.
 func (b Bundle) Validate() error {
 	if b.loadError != "" {
 		return fmt.Errorf("openapi.bundle.invalid: %s", b.loadError)

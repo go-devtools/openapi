@@ -6,6 +6,7 @@ import (
 )
 
 // 非 net/http 消费者直接读取同一份 UI 资源与安全元数据。
+// Verify a non-net/http consumer can read resources and security metadata.
 func TestNeutralResourcesAndSafeDefaults(t *testing.T) {
 	ui, err := New(Config{Title: "用户文档"})
 	if err != nil {
@@ -42,6 +43,7 @@ func TestNeutralResourcesAndSafeDefaults(t *testing.T) {
 }
 
 // 验证默认无法通过 URL、目录穿越或脚本注入切换远端规范。
+// Reject remote-spec overrides, traversal, and title injection.
 func TestRejectsRemoteAndTraversal(t *testing.T) {
 	for _, url := range []string{"https://evil.test/spec", "//evil.test/spec", "../spec.json", "/spec.json?url=https://evil.test"} {
 		if _, err := New(Config{SpecURL: url}); err == nil {
@@ -67,6 +69,7 @@ func TestRejectsRemoteAndTraversal(t *testing.T) {
 }
 
 // 只有明确配置才允许指定 HTTP 方法进入提交 UI。
+// Permit submission methods only through explicit configuration.
 func TestExplicitSubmitMethods(t *testing.T) {
 	ui, err := New(Config{SubmitMethods: []string{"get", "post"}})
 	if err != nil {
@@ -82,6 +85,7 @@ func TestExplicitSubmitMethods(t *testing.T) {
 }
 
 // 分组过滤、展开方式与排序是显式配置，不能注入任意可执行排序函数。
+// Accept explicit filtering, expansion, and sorting options without allowing executable sorting functions.
 func TestGroupingConfiguration(t *testing.T) {
 	ui, err := New(Config{Filter: true, DocExpansion: "none", TagsSorter: "alpha", OperationsSorter: "method"})
 	if err != nil {
@@ -104,6 +108,7 @@ func TestGroupingConfiguration(t *testing.T) {
 }
 
 // 整体分类使用固定的本地规范列表和上游选择器，禁止远端地址或重复标签。
+// Use fixed local specification lists with the upstream selector; reject remote URLs and duplicate labels.
 func TestDocumentDefinitions(t *testing.T) {
 	ui, err := New(Config{Definitions: []Definition{{Name: "用户", URL: "./groups/users.json"}, {Name: "管理", URL: "./groups/admin.json"}}, PrimaryDefinition: "用户"})
 	if err != nil {

@@ -1,4 +1,5 @@
 // 离线检查 OpenAPI 三点二结构、约束与引用，不包含任何框架规则。
+// Validate OAS 3.2 structure and references offline without framework rules.
 package validate
 
 import (
@@ -10,6 +11,7 @@ import (
 )
 
 // 保存规范错误及修复建议。
+// Store specification errors and remediation advice.
 type Issue struct {
 	Code    string
 	Path    string
@@ -18,6 +20,7 @@ type Issue struct {
 }
 
 // 保存单次验证状态，实例间不共享可变数据。
+// Keep validation state private to each invocation.
 type checker struct {
 	root   map[string]any
 	issues []Issue
@@ -26,14 +29,17 @@ type checker struct {
 }
 
 // 限制输入体积、深度、对象数量并执行无网络检查。
+// Bound input size, depth, and nodes while validating without network access.
 func Check(raw []byte) []Issue {
 	return CheckWithOptions(raw, Options{})
 }
 
 // 区分输入预算耗尽与普通 JSON 语法错误。
+// Distinguish exhausted input budgets from ordinary JSON syntax errors.
 var errJSONBudget = errors.New("JSON 深度或节点数超过预算")
 
 // 用 token 解码检测重复键，并保留所有数值的十进制文本。
+// Decode tokens to detect duplicate keys and preserve decimal number text.
 func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 	*count++
 	if depth > 128 || *count > 200000 {
@@ -87,6 +93,7 @@ func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 }
 
 // 聚合稳定命名空间的错误，不隐藏失败位置。
+// Collect namespaced diagnostics without hiding error locations.
 func (c *checker) add(code, path, msg string) {
 	if c.graph != nil && !c.graph.spend(len(code), len(path), len(msg), 128) {
 		return
@@ -95,15 +102,19 @@ func (c *checker) add(code, path, msg string) {
 }
 
 // 以 JSON Pointer 编码路径片段。
+// Escape a JSON Pointer segment.
 func escape(s string) string { return strings.ReplaceAll(strings.ReplaceAll(s, "~", "~0"), "/", "~1") }
 
 // 获取字符串字段；缺失和类型错误由具体规则区分。
+// Read a string field; individual rules handle missing or invalid values.
 func str(m map[string]any, k string) string { v, _ := m[k].(string); return v }
 
 // 检查键是否明确存在。
+// Check whether a key is explicitly present.
 func has(m map[string]any, k string) bool { _, ok := m[k]; return ok }
 
 // 按标准对象上下文遍历，示例值和扩展值作为数据而不是规范关键字。
+// Traverse standard object roles while treating examples and extensions as data.
 func (c *checker) walk(v any, path, role string, depth int) {
 	if c.stopped() {
 		return
@@ -303,7 +314,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	case "security":
 		c.security(m, path)
 	case "discriminator":
-		if has(m, "defaultMapping") && !has(m, "mapping") { /* 默认映射可以单独表达，不推断业务分派。 */
+		if has(m, "defaultMapping") && !has(m, "mapping") { /* 默认映射可以单独表达，不推断业务分派。 A default mapping can stand alone without inferring business dispatch. */
 		}
 	case "xml":
 		if node := str(m, "nodeType"); node != "" && node != "element" && node != "attribute" && node != "text" && node != "cdata" && node != "none" {
@@ -326,6 +337,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 }
 
 // 返回已知结构字段的子对象上下文。
+// Select the child role for a recognized structural field.
 func childRole(role, k string) string {
 	if role == "schema" {
 		switch k {
@@ -358,6 +370,7 @@ func childRole(role, k string) string {
 		return "operation"
 	}
 	// 相同字段名在 Link 等对象中可能是业务数据，不能按名字跨上下文解释。
+	// Interpret fields within their object context; matching names inside Links may be business data.
 	children := map[string]map[string]string{
 		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tag", "servers": "server"},
 		"info":        {"license": "license", "contact": "contact"},
@@ -375,6 +388,7 @@ func childRole(role, k string) string {
 }
 
 // 检查中立路径花括号结构，不解释框架专用语法。
+// Validate standard path braces without interpreting framework syntax.
 func (c *checker) checkPath(path, parent string) {
 	if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#\r\n") {
 		c.add("path", parent, "非法 OpenAPI 路径："+path)
@@ -405,6 +419,7 @@ func (c *checker) checkPath(path, parent string) {
 }
 
 // 判断 OpenAPI 已定义的固定方法。
+// Recognize the fixed OpenAPI methods.
 func isFixed(method string) bool {
 	switch method {
 	case "GET", "PUT", "POST", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE", "QUERY":
@@ -414,6 +429,7 @@ func isFixed(method string) bool {
 }
 
 // 接受具体状态码、规范范围和显式 default。
+// Accept concrete status codes, status ranges, and explicit default responses.
 func validStatus(status string) bool {
 	if status == "default" {
 		return true
@@ -429,6 +445,7 @@ func validStatus(status string) bool {
 }
 
 // 验证参数 schema/content 与序列化限制。
+// Validate parameter schema/content and serialization constraints.
 func (c *checker) parameterContent(m map[string]any, path string) {
 	if has(m, "schema") == has(m, "content") {
 		c.add("parameter.content", path, "参数必须且只能使用 schema 或 content")
@@ -452,6 +469,7 @@ func (c *checker) parameterContent(m map[string]any, path string) {
 }
 
 // 检查同一接口的重复参数以及 querystring 与 query 冲突。
+// Check duplicate parameters and querystring/query conflicts.
 func (c *checker) parameters(m map[string]any, path string) {
 	list, _ := m["parameters"].([]any)
 	seen := map[string]bool{}
@@ -479,6 +497,7 @@ func (c *checker) parameters(m map[string]any, path string) {
 }
 
 // 判断显式类型约束是否包含指定类型。
+// Check whether a type constraint contains a specified type.
 func schemaHasType(m map[string]any, want string) bool {
 	if str(m, "type") == want {
 		return true
@@ -494,6 +513,7 @@ func schemaHasType(m map[string]any, want string) bool {
 }
 
 // 验证标签引用存在并检查父级环。
+// Validate tag parents and detect hierarchy cycles.
 func (c *checker) checkTags() {
 	tags, _ := c.root["tags"].([]any)
 	parents := map[string]string{}
@@ -537,6 +557,7 @@ func (c *checker) checkTags() {
 }
 
 // 校验安全方案的必需字段及设备授权端点。
+// Check required security fields and device authorization endpoints.
 func (c *checker) security(m map[string]any, path string) {
 	switch str(m, "type") {
 	case "apiKey":

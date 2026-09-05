@@ -41,3 +41,5 @@ The optional `contracttest` package accepts explicitly preloaded resources and v
 ## License
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.
+
+Project-owned source comments are bilingual (Simplified Chinese and English). Compiler directives and upstream assets retain their original form. In examples and schema fixtures, companion translations are separated from attached Go documentation by a blank line so generated descriptions keep their intended language. Commit messages use English.

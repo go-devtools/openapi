@@ -6,6 +6,7 @@ import (
 )
 
 // 检查标准关键字的取值形状；不适用的约束与不可满足的 Schema 仍属于合法规范。
+// Check standard keyword shapes; inapplicable constraints and unsatisfiable schemas remain valid specifications.
 func (c *checker) schema(m map[string]any, path string) {
 	if has(m, "nullable") {
 		c.add("schema.nullable", path+"/nullable", "应使用联合 null，不能输出旧版 nullable")
@@ -77,6 +78,7 @@ func (c *checker) schema(m map[string]any, path string) {
 }
 
 // 判断标准允许的七种类型名。
+// Recognize the seven standard type names.
 func simpleType(value string) bool {
 	switch value {
 	case "null", "boolean", "object", "array", "number", "string", "integer":
@@ -86,6 +88,7 @@ func simpleType(value string) bool {
 }
 
 // 空数组合法，非空项必须是互不重复的字符串。
+// Allow empty arrays and require nonempty entries to be unique strings.
 func uniqueStrings(values []any) bool {
 	seen := map[string]bool{}
 	for _, value := range values {
@@ -99,6 +102,7 @@ func uniqueStrings(values []any) bool {
 }
 
 // 按十进制文本识别符号、零和整数，不按指数展开大整数或转换为浮点数。
+// Recognize signs, zero, and integers from decimal text without exponent expansion or floating-point conversion.
 func numberTraits(number json.Number) (negative, zero, integer bool) {
 	text := string(number)
 	negative = strings.HasPrefix(text, "-")
@@ -123,6 +127,7 @@ func numberTraits(number json.Number) (negative, zero, integer bool) {
 	}
 	exponent = strings.TrimLeft(exponent, "+-")
 	// 判定阈值不超过输入长度；饱和后继续扫描，不产生指数相关分配。
+	// Bound classification thresholds by input length and continue scanning after saturation without exponent-sized allocations.
 	limit := len(text) + 1
 	value := 0
 	for _, digit := range exponent {
@@ -137,6 +142,7 @@ func numberTraits(number json.Number) (negative, zero, integer bool) {
 }
 
 // 在类型化解码前检查单个 Schema 对象的关键字值，不解析引用或判断实例可满足性。
+// Check a schema object's keyword values before typed decoding without resolving references or testing satisfiability.
 func SchemaKeywordValues(object map[string]any) []Issue {
 	c := checker{}
 	c.schema(object, "#")

@@ -7,6 +7,7 @@ import (
 )
 
 // 独立引擎和固定官方元 Schema 验证与自有检查器相同的原始 JSON 样例。
+// Validate the same raw JSON examples using the independent engine, official meta-schema, and local checker.
 func TestOfficialSchemaKeywordMatrix(t *testing.T) {
 	validator := official32(t)
 	raw, err := os.ReadFile("../testdata/golden/schema-keywords.json")

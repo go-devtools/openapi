@@ -12,6 +12,7 @@ import (
 )
 
 // 查找公开报告中的稳定错误编码，不绑定可调整的提示文本。
+// Find stable error codes in public reports without depending on editable message text.
 func hasCode(report openapi.Report, code string) bool {
 	for _, d := range report.Diagnostics {
 		if d.Code == "openapi.spec."+code {
@@ -22,6 +23,7 @@ func hasCode(report openapi.Report, code string) bool {
 }
 
 // 参照 OAS 三点二的多文档示例，验证检索地址、$self 和 $id 各自改变基准。
+// Verify retrieval addresses, $self, and $id change their respective bases using the OAS 3.2 multi-document example.
 func TestCheckExplicitOfflineResources(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","$self":"/api/openapi","info":{"title":"main","version":"1"},"paths":{"/foo":{"post":{"requestBody":{"$ref":"shared/foo#/components/requestBodies/Foo"},"responses":{"200":{"description":"OK"}}}}}}`)
 	options := openapi.CheckOptions{BaseURI: "https://example.test/staging/openapi.json", Resources: map[string][]byte{
@@ -42,6 +44,7 @@ func TestCheckExplicitOfflineResources(t *testing.T) {
 }
 
 // 允许列表提供真实内容；列出地址并不授权网络请求。
+// Allowlisted resources supply actual content; listing an address never authorizes a network request.
 func TestCheckNeverFetchesResources(t *testing.T) {
 	var hits atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1); w.Write([]byte(`true`)) }))
@@ -60,6 +63,7 @@ func TestCheckNeverFetchesResources(t *testing.T) {
 }
 
 // 原始外部示例只检查提供性，不把内容中的引用当作加载指令。
+// Check only whether raw external examples are supplied; their references are not loading instructions.
 func TestCheckExplicitExampleResources(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","$self":"https://example.test/api/openapi.json","info":{"title":"a","version":"1"},"components":{"examples":{"Message":{"externalValue":"../samples/message.txt"}}}}`)
 	options := openapi.CheckOptions{ExampleResources: map[string][]byte{"https://example.test/samples/message.txt": []byte("event: update\ndata: {\"$ref\":\"file:///secret\"}\n\n")}}
@@ -72,6 +76,7 @@ func TestCheckExplicitExampleResources(t *testing.T) {
 }
 
 // 总预算覆盖所有资源，循环引用只检查边而不无限展开。
+// Apply aggregate budgets to all resources and check cyclic edges without expanding them indefinitely.
 func TestCheckResourceBudgets(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"components":{"schemas":{"A":{"$ref":"https://example.test/a"}}}}`)
 	a, b := []byte(`{"$ref":"b"}`), []byte(`{"$ref":"a"}`)
@@ -103,6 +108,7 @@ func TestCheckResourceBudgets(t *testing.T) {
 }
 
 // 不完整 JSON、重复键、身份冲突与资源种类错误必须报告资源位置。
+// Report resource locations for incomplete JSON, duplicate keys, identity conflicts, and incorrect resource kinds.
 func TestCheckInvalidPreloadedResources(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"components":{"schemas":{"A":{"$ref":"https://example.test/a"}}}}`)
 	for _, tc := range []struct{ key, body, code string }{
@@ -131,6 +137,7 @@ func TestCheckInvalidPreloadedResources(t *testing.T) {
 }
 
 // 内嵌 $id 同样占用资源预算，累计 JSON 节点不能通过拆分文档绕过限制。
+// Count embedded $id resources and aggregate JSON nodes so splitting documents cannot bypass limits.
 func TestCheckEmbeddedAndAggregateBudgets(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"components":{"schemas":{"A":{"$id":"a"},"B":{"$id":"b"}}}}`)
 	if report := openapi.CheckWithOptions(raw, openapi.CheckOptions{MaxResources: 2}); !hasCode(report, "budget") {

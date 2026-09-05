@@ -1,4 +1,5 @@
 // 解析普通语义说明与单一 @openapi 指令语法。
+// Parse ordinary documentation and the shared @openapi directive syntax.
 package comment
 
 import (
@@ -9,9 +10,11 @@ import (
 )
 
 // 限制单条注释的资源占用。
+// Bound the size of each comment.
 const MaxBytes = 65536
 
 // 保存语义说明及有来源位置的指令。
+// Store semantic documentation and located directives.
 type Document struct {
 	Summary     string
 	Description string
@@ -19,6 +22,7 @@ type Document struct {
 }
 
 // 保存一个指令行；空 Kind 表示普通约束。
+// Represent one directive; an empty kind means ordinary constraints.
 type Directive struct {
 	Kind   string
 	Values map[string]json.RawMessage
@@ -27,6 +31,7 @@ type Directive struct {
 }
 
 // 提供可映射为公开诊断的稳定错误位置。
+// Expose stable parse locations for public diagnostics.
 type Error struct {
 	Code    string
 	Line    int
@@ -35,11 +40,13 @@ type Error struct {
 }
 
 // 输出适合命令行阅读的错误信息。
+// Format errors for command-line readers.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s %d:%d %s", e.Code, e.Line, e.Column, e.Message)
 }
 
 // 枚举统一语法允许的名称；具体上下文适用性由投影阶段检查。
+// List recognized directive names; projection checks contextual applicability.
 var allowed = func() map[string]bool {
 	m := map[string]bool{}
 	for _, k := range strings.Fields("required nonnull nullable operationId tags deprecated ignore enum const default examples format pattern minLength maxLength minimum maximum exclusiveMinimum exclusiveMaximum multipleOf minItems maxItems uniqueItems minContains maxContains minProperties maxProperties readOnly writeOnly contentEncoding contentMediaType title description mediaType type status") {
@@ -49,6 +56,7 @@ var allowed = func() map[string]bool {
 }()
 
 // 扫描真实 JSON 值，不按空格切分嵌套对象、数组或字符串。
+// Scan real JSON values without splitting nested content on whitespace.
 func Parse(src string) (Document, error) {
 	var out Document
 	if len(src) > MaxBytes {

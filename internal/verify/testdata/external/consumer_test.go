@@ -12,6 +12,8 @@ import (
 	"github.com/openapi-golang/openapi/swaggerui"
 )
 
+// Register a return-value frontend through the public SDK from another module and validate actual call samples.
+
 // 从另一个 module 仅通过公开 SDK 注册返回值前端并校验实际调用样本。
 func TestPublicFrontend(t *testing.T) {
 	front := compiler.Frontend{Name: "external-return-v1", Match: func(f compiler.Function) bool {
@@ -64,6 +66,8 @@ func TestPublicFrontend(t *testing.T) {
 		t.Fatal("响应整数类型没有生效")
 	}
 }
+
+// Simulate a non-net/http consumer and verify defensive copying of shared asset bytes and metadata.
 
 // 模拟非 net/http 传输层消费共享资源，验证字节与元数据的防御性复制。
 func TestTransportNeutralResources(t *testing.T) {

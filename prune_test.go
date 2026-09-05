@@ -10,6 +10,7 @@ import (
 )
 
 // 根据实际引用闭包保留完整组件，示例数据不能让无关模型变成可达。
+// Retain complete reachable components without allowing example data to make unrelated models reachable.
 func TestBuildPrunesWithSchemaResourceSemantics(t *testing.T) {
 	cases := []struct {
 		name, schemas, ref string
@@ -58,6 +59,7 @@ func TestBuildPrunesWithSchemaResourceSemantics(t *testing.T) {
 }
 
 // 外部 Schema 回指本地模型时，构建和裁剪必须使用同一组离线配置。
+// Use identical offline options for building and pruning external schemas that refer back to local models.
 func TestBuildOfflineResourceBackReference(t *testing.T) {
 	data := testBundle(t).Snapshot()
 	data.Templates[0].Operation.Responses["200"].Value.Content["application/json"].Value.Schema = &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "https://example.test/external"}}
@@ -95,6 +97,7 @@ func TestBuildOfflineResourceBackReference(t *testing.T) {
 }
 
 // 作为 externalValue 内容的已识别 Schema 资源也必须在裁剪后存在。
+// Retain recognized schema resources used as externalValue contents after pruning.
 func TestBuildKeepsSchemaUsedAsExampleResource(t *testing.T) {
 	data := testBundle(t).Snapshot()
 	data.Components.Schemas["User"].ID = "https://example.test/schema-example"

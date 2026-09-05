@@ -12,6 +12,7 @@ import (
 )
 
 // 保存单条可达路径的值状态、效果和函数结束标志。
+// Track values, effects, and termination for one reachable path.
 type flow struct {
 	values      map[types.Object]Value
 	effects     []Effect
@@ -25,6 +26,7 @@ type flow struct {
 }
 
 // 保存有界分析调度器，每个 handler 使用独立状态。
+// Keep a bounded analyzer with independent state for each handler.
 type analyzer struct {
 	ctx         context.Context
 	project     *Project
@@ -35,6 +37,7 @@ type analyzer struct {
 }
 
 // 复制路径状态，分支不会修改另一条路径的值或效果。
+// Copy path state so branches cannot mutate each other.
 func (s flow) clone() flow {
 	out := s
 	out.values = map[types.Object]Value{}
@@ -47,11 +50,13 @@ func (s flow) clone() flow {
 }
 
 // 对无法可靠继续的路径保留明确诊断。
+// Record a diagnostic when reliable analysis cannot continue.
 func (a *analyzer) unknown(s *flow, source openapi.Source, message string) {
 	s.diagnostics = append(s.diagnostics, openapi.Diagnostic{Code: "openapi.analysis.unresolved", Severity: openapi.Error, Message: message, Fix: "提供一次性集中前端规则，或收敛到预算内可分析的控制流", Source: source})
 }
 
 // 按 Go 控制流顺序传播值，已返回路径不再分析后续语句。
+// Propagate values in Go execution order and stop after return.
 func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, depth int, handler bool) []flow {
 	if depth > a.options.MaxDepth {
 		for i := range paths {
@@ -87,6 +92,7 @@ func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, 
 }
 
 // 处理单条语句，分支与 return 语义由核心管理。
+// Handle statements while the core owns branching and return semantics.
 func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth int, handler bool) []flow {
 	source := a.project.Source(statement.Pos())
 	switch s := statement.(type) {
@@ -202,6 +208,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 }
 
 // 将声明和赋值关联到标准库 types 对象，不按变量名猜测身份。
+// Bind assignments to types objects instead of variable-name guesses.
 func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 	if id, ok := lhs.(*ast.Ident); ok {
 		obj := fn.Package.Info.ObjectOf(id)
@@ -232,6 +239,7 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 }
 
 // 处理写入顺序；Abort 本身不等于 Go return。
+// Track write order; Abort does not imply a Go return.
 func (a *analyzer) effects(state *flow, effects []Effect) {
 	for _, e := range effects {
 		switch e.Kind {
@@ -274,6 +282,7 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 }
 
 // 解析完整符号与方法选择，包括显式泛型实例。
+// Resolve complete function and method identities, including generic instances.
 func callObject(info *types.Info, expr ast.Expr) *types.Func {
 	switch x := expr.(type) {
 	case *ast.Ident:
@@ -297,6 +306,7 @@ func callObject(info *types.Info, expr ast.Expr) *types.Func {
 }
 
 // 求值有限常量、对象字面量、字段和可分析 helper；未知值保留明确标志。
+// Evaluate bounded constants, literals, fields, and helpers while preserving unknowns.
 func (a *analyzer) evaluate(fn Function, expr ast.Expr, state *flow, depth int) Value {
 	info := fn.Package.Info
 	value := Value{Type: info.TypeOf(expr)}

@@ -16,18 +16,22 @@ import (
 )
 
 // 表示网络输入与输出投影方向。
+// Identify input and output wire projections.
 type Direction string
 
 // 输入约束与输出存在性分别计算。
+// Compute input constraints and output presence independently.
 const (
 	Input  Direction = "request"
 	Output Direction = "response"
 )
 
 // 为自定义类型提供集中映射，不执行用户编解码方法。
+// Map custom types centrally without executing user codecs.
 type TypeMapper func(ProjectionRequest) (*spec.Schema, bool, error)
 
 // 声明一个网络字段及其实际编解码属性。
+// Describe a wire field and its actual encoding properties.
 type WireField struct {
 	Name          string
 	Field         *types.Var
@@ -37,12 +41,14 @@ type WireField struct {
 }
 
 // 由适配器提供非标准字段选择规则，核心不认识框架 tag。
+// Let adapters select fields without introducing framework tags into the core.
 type WireCodec interface {
 	Name() string
 	Fields(*types.Struct) ([]WireField, error)
 }
 
 // 缓存身份包含类型、方向、媒体类型与 codec，非标准 codec 显式传入。
+// Include type, direction, media type, and codec in projection identity.
 type ProjectionRequest struct {
 	Type      types.Type
 	Direction Direction
@@ -53,6 +59,7 @@ type ProjectionRequest struct {
 }
 
 // 返回结构化根 Schema 与完整依赖组件。
+// Return a root Schema and its complete component closure.
 type Projection struct {
 	Root       *spec.Schema
 	Components map[string]*spec.Schema
@@ -60,6 +67,7 @@ type Projection struct {
 }
 
 // 保存一次投影的私有递归缓存。
+// Keep a private recursion cache for one projection.
 type projector struct {
 	project     *Project
 	request     ProjectionRequest
@@ -70,6 +78,7 @@ type projector struct {
 }
 
 // 从真实类型与共享注释索引生成 Schema，不执行类型的方法。
+// Project actual types and indexed comments without invoking their methods.
 func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	if request.Type == nil {
 		return nil, fmt.Errorf("openapi.schema.type: 缺少真实 Go 类型")
@@ -98,6 +107,7 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 }
 
 // 导出 JSON Schema 二零二零十二，递归将组件引用转换为 $defs。
+// Export JSON Schema 2020-12 and rewrite component references to $defs.
 func (p *Projection) Standalone() ([]byte, error) {
 	raw, err := json.Marshal(p.Root)
 	if err != nil {
@@ -140,6 +150,7 @@ func (p *Projection) Standalone() ([]byte, error) {
 }
 
 // 只遍历标准 Schema 位置；examples、default、const 等数据中的同名键保持原值。
+// Visit only standard schema locations, preserving matching keys inside examples, default, and const data.
 func rewriteStandaloneRefs(value any) {
 	object, ok := value.(map[string]any)
 	if !ok {
@@ -171,6 +182,7 @@ func rewriteStandaloneRefs(value any) {
 }
 
 // 构造允许显式 null 的联合 Schema。
+// Build a union that permits explicit null.
 func nullable(s *spec.Schema) *spec.Schema {
 	if s.SchemaObject != nil && len(s.Type) > 0 {
 		for _, kind := range s.Type {
@@ -185,6 +197,7 @@ func nullable(s *spec.Schema) *spec.Schema {
 }
 
 // 按类型身份与实际编码规则递归投影。
+// Project recursively according to type identity and encoding rules.
 func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 	p.count++
 	if p.count > p.request.MaxTypes {
@@ -260,6 +273,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			}
 		}
 		// title 只用于展示，组件键继续保留类型与投影的完整区分身份。
+		// Use title for display while component keys distinguish types and projections.
 		if s.SchemaObject != nil && s.Title == "" {
 			s.Title = types.TypeString(named, func(*types.Package) string { return "" })
 		}
@@ -387,6 +401,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 }
 
 // 判断已解析指令中的裸或显式真标志。
+// Recognize bare flags and explicitly true directive values.
 func flag(doc comment.Document, key string) bool {
 	for _, d := range doc.Directives {
 		if string(d.Values[key]) == "true" {
@@ -397,9 +412,11 @@ func flag(doc comment.Document, key string) bool {
 }
 
 // 只有类型上的裸 enum 才封闭已知常量。
+// Only a type-level enum flag closes the set of declared constants.
 func closedEnum(doc comment.Document) bool { return flag(doc, "enum") }
 
 // 将统一约束应用到 Schema，结构事实与契约声明分别处理。
+// Apply contract annotations without overriding structural facts.
 func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, site string) error {
 	if doc.Summary == "" && len(doc.Directives) == 0 {
 		return nil
@@ -517,6 +534,7 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 }
 
 // 按标准 JSON 的嵌入深度、tag 优先级和冲突规则选择字段。
+// Select JSON fields by embedding depth, tag priority, and conflict rules.
 func jsonFields(root *types.Struct) ([]WireField, error) {
 	type candidate struct {
 		wire   WireField

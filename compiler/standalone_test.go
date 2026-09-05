@@ -9,6 +9,7 @@ import (
 )
 
 // 根值和示例中的大整数保持精确；示例内名为 $ref 的业务字段不得被重写。
+// Preserve large integers in roots and examples; never rewrite business fields named $ref inside examples.
 func TestStandalonePreservesValuesAndDataReferences(t *testing.T) {
 	root := spec.Typed("object")
 	root.Properties = map[string]*spec.Schema{"ID": {SchemaObject: &spec.SchemaObject{Ref: "#/components/schemas/ID"}}}
@@ -41,6 +42,7 @@ func TestStandalonePreservesValuesAndDataReferences(t *testing.T) {
 }
 
 // 导出不能静默覆盖自有定义，也不能通过浮点数中转根级边界。
+// Reject conflicting definitions and preserve root bounds without floating-point conversion.
 func TestStandaloneRootNumberAndDefinitionConflict(t *testing.T) {
 	root := spec.Typed("integer")
 	root.Maximum = spec.Set(json.Number("9007199254740993"))

@@ -1,4 +1,5 @@
 // 提供原生 OpenAPI 三点二模型及无损 JSON 存在性表示。
+// Provide native OAS 3.2 models with lossless JSON presence semantics.
 package spec
 
 import (
@@ -8,24 +9,30 @@ import (
 )
 
 // 标准规定的默认 Schema 方言，不由 OpenAPI 版本字符串拼接。
+// Use the standard default dialect rather than deriving it from the OpenAPI version.
 const DefaultDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
 
 // 区分字段不存在与字段显式为零、空集合或 null。
+// Distinguish absence from explicit zero, empty collections, and null.
 type Optional[T any] struct {
 	Value   T
 	Present bool
 }
 
 // 构造一个明确存在的字段。
+// Construct an explicitly present value.
 func Set[T any](value T) Optional[T] { return Optional[T]{Value: value, Present: true} }
 
 // 供 encoding/json 的 omitzero 判断字段是否省略。
+// Support encoding/json omitzero presence checks.
 func (v Optional[T]) IsZero() bool { return !v.Present }
 
 // 序列化已存在的值，保留其 JSON 零值。
+// Serialize a present value without dropping JSON zero values.
 func (v Optional[T]) MarshalJSON() ([]byte, error) { return json.Marshal(v.Value) }
 
 // 从 JSON 恢复显式存在标志。
+// Restore explicit presence from JSON.
 func (v *Optional[T]) UnmarshalJSON(b []byte) error {
 	v.Present = true
 	dec := json.NewDecoder(bytes.NewReader(b))
@@ -34,9 +41,11 @@ func (v *Optional[T]) UnmarshalJSON(b []byte) error {
 }
 
 // 表示 Schema 类型关键字的单值或联合形式。
+// Represent a single Schema type or a type union.
 type Types []string
 
 // 单类型输出字符串，多类型输出数组。
+// Encode one type as a string and multiple types as an array.
 func (t Types) MarshalJSON() ([]byte, error) {
 	if len(t) == 1 {
 		return json.Marshal(t[0])
@@ -45,6 +54,7 @@ func (t Types) MarshalJSON() ([]byte, error) {
 }
 
 // 接受标准允许的单类型和类型数组。
+// Accept standard single-type and type-array forms.
 func (t *Types) UnmarshalJSON(b []byte) error {
 	var s string
 	if json.Unmarshal(b, &s) == nil {
@@ -55,9 +65,11 @@ func (t *Types) UnmarshalJSON(b []byte) error {
 }
 
 // 保存标准对象的 x- 扩展，值仍为合法 JSON。
+// Store x- extensions as valid raw JSON.
 type Extensions map[string]json.RawMessage
 
 // 表示标准 Reference Object，与 Schema 中的引用独立。
+// Represent a Reference Object separately from Schema references.
 type Reference struct {
 	Ref         string `json:"$ref"`
 	Summary     string `json:"summary,omitempty"`
@@ -65,18 +77,22 @@ type Reference struct {
 }
 
 // 明确区分引用对象与内联标准对象。
+// Distinguish a reference from an inline standard object.
 type RefOr[T any] struct {
 	Reference *Reference
 	Value     *T
 }
 
 // 构造内联标准对象。
+// Construct an inline standard object.
 func Inline[T any](v T) RefOr[T] { return RefOr[T]{Value: &v} }
 
 // 构造标准引用对象。
+// Construct a standard Reference Object.
 func Ref[T any](ref string) RefOr[T] { return RefOr[T]{Reference: &Reference{Ref: ref}} }
 
 // 防止双分支或空分支被静默序列化。
+// Reject empty or conflicting branches during serialization.
 func (r RefOr[T]) MarshalJSON() ([]byte, error) {
 	if (r.Reference == nil) == (r.Value == nil) {
 		return nil, fmt.Errorf("引用必须且只能选择一个分支")
@@ -88,6 +104,7 @@ func (r RefOr[T]) MarshalJSON() ([]byte, error) {
 }
 
 // 按 $ref 区分引用，不把引用兄弟字段当内联对象。
+// Recognize reference objects by $ref without treating siblings as inline objects.
 func (r *RefOr[T]) UnmarshalJSON(b []byte) error {
 	var keys map[string]json.RawMessage
 	if err := json.Unmarshal(b, &keys); err != nil {
@@ -106,6 +123,7 @@ func (r *RefOr[T]) UnmarshalJSON(b []byte) error {
 }
 
 // 合并对象扩展，并拒绝覆盖标准字段。
+// Merge extensions while refusing to replace standard fields.
 func marshalExtensions(v any, ext Extensions) ([]byte, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -131,6 +149,7 @@ func marshalExtensions(v any, ext Extensions) ([]byte, error) {
 }
 
 // 只恢复扩展字段，标准字段由类型自身解码。
+// Decode extension fields separately from the standard typed fields.
 func readExtensions(b []byte) (Extensions, error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {

@@ -11,6 +11,7 @@ import (
 )
 
 // 保存显式离线输入及预算，所有零值使用有界默认值。
+// Store explicit offline inputs and budgets with bounded defaults for zero values.
 type Options struct {
 	BaseURI                               string
 	Resources                             map[string][]byte
@@ -20,18 +21,21 @@ type Options struct {
 }
 
 // 保存已解码文档的检索地址和标准对象上下文。
+// Store decoded documents with their retrieval addresses and standard object contexts.
 type parsedResource struct {
 	value            any
 	path, base, role string
 }
 
 // 保存本次调用的独立资源集合，不共享调用方的可变 JSON 数据。
+// Keep a per-call resource set without sharing mutable JSON data with the caller.
 type resourceSet struct {
 	documents []parsedResource
 	graph     *referenceGraph
 }
 
 // 验证显式资源配置，并应用默认预算。
+// Validate explicit resource options and apply default budgets.
 func normalizeOptions(options Options) (Options, error) {
 	if options.MaxBytes == 0 {
 		options.MaxBytes = 8 << 20
@@ -66,6 +70,7 @@ func normalizeOptions(options Options) (Options, error) {
 }
 
 // 检索地址必须是无片段的绝对 URI，但不会据此读取地址内容。
+// Require absolute, fragment-free retrieval URIs without loading their contents.
 func retrievalURI(value string) (string, error) {
 	u, err := parseURIReference(value)
 	if err != nil || !u.IsAbs() || strings.Contains(value, "#") {
@@ -75,6 +80,7 @@ func retrievalURI(value string) (string, error) {
 }
 
 // 用稳定次序读取资源键，确保诊断可复现。
+// Read resource keys in stable order for reproducible diagnostics.
 func resourceKeys(values map[string][]byte) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -85,6 +91,7 @@ func resourceKeys(values map[string][]byte) []string {
 }
 
 // 在任何解析前限制累计字节数和显式输入数量。
+// Limit aggregate bytes and explicit input counts before parsing anything.
 func prepareResources(raw []byte, options Options) (*resourceSet, []Issue) {
 	return prepareSchemaResources(raw, options, true)
 }
@@ -223,6 +230,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 }
 
 // 检查全部明确提供的规范资源；示例原始字节仅用于证明已离线提供。
+// Check all explicitly supplied specification resources; raw examples only establish offline availability.
 func CheckWithOptions(raw []byte, options Options) []Issue {
 	set, issues := prepareResources(raw, options)
 	if len(issues) > 0 {
@@ -239,6 +247,7 @@ func CheckWithOptions(raw []byte, options Options) []Issue {
 			c.checkTags()
 		}
 		// 外部文档内标签诊断需要带上资源位置。
+		// Include resource locations in tag diagnostics from external documents.
 		for _, issue := range c.issues {
 			if entry.path != "#" && strings.HasPrefix(issue.Path, "#") {
 				if !set.graph.spend(len(entry.path), len(issue.Path)-1) {
@@ -255,6 +264,7 @@ func CheckWithOptions(raw []byte, options Options) []Issue {
 }
 
 // 对同位置的错误继续按编码及消息排序，避免映射遍历造成差异。
+// Sort diagnostics sharing a location by code and message to remove map-order differences.
 func sortedIssues(issues []Issue) []Issue {
 	sort.Slice(issues, func(i, j int) bool {
 		if issues[i].Path != issues[j].Path {
@@ -269,6 +279,7 @@ func sortedIssues(issues []Issue) []Issue {
 }
 
 // 识别主文档顶层组件名，目标指向组件内部时仍保留整个组件。
+// Identify root component names and retain the entire component when a reference targets its interior.
 func mainSchemaName(path string) string {
 	const prefix = "#/components/schemas/"
 	if !strings.HasPrefix(path, prefix) {
@@ -279,6 +290,7 @@ func mainSchemaName(path string) string {
 }
 
 // 基于与 Check 相同的资源图计算闭包，不解释示例或扩展中的数据引用。
+// Compute reachability using the same resource graph as Check, excluding references inside examples and extensions.
 func ReachableSchemas(raw []byte, options Options) ([]string, []Issue) {
 	set, issues := prepareResources(raw, options)
 	if len(issues) > 0 {

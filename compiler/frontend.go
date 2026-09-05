@@ -20,6 +20,7 @@ import (
 )
 
 // 表示有限传播的静态值；未知值从不伪装成具体 payload。
+// Represent a propagated static value without inventing unknown payloads.
 type Value struct {
 	Type     types.Type
 	Constant constant.Value
@@ -29,9 +30,11 @@ type Value struct {
 }
 
 // 表示框架前端输出的中立效果。
+// Represent a framework-neutral frontend effect.
 type EffectKind string
 
 // 共同效果描述网络事实，不包含任何框架方法名。
+// Describe wire facts without framework method names.
 const (
 	RequestBody    EffectKind = "requestBody"
 	ParameterRead  EffectKind = "parameter"
@@ -45,6 +48,7 @@ const (
 )
 
 // 记录请求、响应、状态和控制效果及其来源。
+// Record request, response, status, and control effects with their sources.
 type Effect struct {
 	Kind      EffectKind
 	Name      string
@@ -60,6 +64,7 @@ type Effect struct {
 }
 
 // 提供标准库调用视图和核心已传播的实参，不暴露第三方 SSA。
+// Expose standard-library call views and propagated arguments without third-party SSA.
 type CallContext struct {
 	Function  Function
 	Call      *ast.CallExpr
@@ -70,6 +75,7 @@ type CallContext struct {
 }
 
 // 支持返回响应值或 error 的前端形态。
+// Support frontends whose handlers return responses or errors.
 type ReturnContext struct {
 	Function Function
 	Values   []Value
@@ -77,6 +83,7 @@ type ReturnContext struct {
 }
 
 // 显式注册前端规则；未提供的回调表示此类入口没有框架规则。
+// Register frontend rules explicitly; absent callbacks define no rules.
 type Frontend struct {
 	Name           string
 	Match          func(Function) bool
@@ -87,6 +94,7 @@ type Frontend struct {
 }
 
 // 配置通用编译调度、资源预算及集中类型映射。
+// Configure analysis budgets, frontend dispatch, and centralized type mappings.
 type Options struct {
 	Load      LoadOptions
 	Frontends []Frontend
@@ -97,12 +105,14 @@ type Options struct {
 }
 
 // 保存可写入的 Bundle 和编译报告。
+// Store a writable Bundle and its compilation report.
 type Result struct {
 	Bundle openapi.Bundle
 	Report openapi.Report
 }
 
 // 将显式注册的前端应用于真实项目，复用注释、控制流与类型投影。
+// Compile real projects with registered frontends and shared annotations and projections.
 func Compile(ctx context.Context, options Options) (*Result, error) {
 	if len(options.Frontends) == 0 {
 		return nil, fmt.Errorf("openapi.frontend.missing: 至少显式注册一个前端")
@@ -169,6 +179,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			paths = a.statements(fn, fn.Declaration.Body.List, []flow{initial}, 0, true)
 		}
 		// 仅在 handler 所有语句结束后提交尚未写 body 的最终状态。
+		// Finalize a pending bodyless status only after all handler statements finish.
 		for i := range paths {
 			if paths[i].writes == 0 && paths[i].pending != nil {
 				paths[i].effects = append(paths[i].effects, *paths[i].pending)
@@ -180,6 +191,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			template.RuntimeSymbols = []string{symbol}
 			if fn.Package.Name == "main" {
 				// 主程序二进制与 go test 使用两种真实符号名，分别保留完整证据。
+				// Preserve the complete symbols observed in main binaries and go test.
 				template.RuntimeSymbols = append(template.RuntimeSymbols, "main."+fn.Object.Name())
 			}
 		}
@@ -228,6 +240,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 }
 
 // 返回字符串键的稳定排序。
+// Return string keys in stable order.
 func sortedKeys[T any](m map[string]T) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -238,11 +251,13 @@ func sortedKeys[T any](m map[string]T) []string {
 }
 
 // 从源码字节、有效依赖源码和前端预算计算可复现指纹。
+// Fingerprint source bytes, effective dependencies, and frontend budgets.
 func (p *Project) fingerprint(options Options) (string, error) {
 	hash := sha256.New()
 	files := append([]string(nil), p.sourceFiles...)
 	sort.Strings(files)
 	// 哈希条目按内容摘要排序，避免绝对目录变化改变指纹。
+	// Sort content entries so absolute checkout paths do not affect fingerprints.
 	var entries []string
 	for _, file := range files {
 		raw, err := os.ReadFile(file)
@@ -269,6 +284,7 @@ func (p *Project) fingerprint(options Options) (string, error) {
 }
 
 // 合并有限备选 Schema；相同结果去重，重叠备选使用 anyOf。
+// Deduplicate alternatives and use anyOf when their shapes may overlap.
 func union(a, b *spec.Schema) *spec.Schema {
 	if a == nil {
 		return b
@@ -292,6 +308,7 @@ func union(a, b *spec.Schema) *spec.Schema {
 }
 
 // 将已传播的字面对象或真实类型转换为共同 Schema。
+// Project propagated literals or real types into shared Schemas.
 func (p *Project) valueSchema(v Value, direction Direction, media string, codec WireCodec, mappers []TypeMapper, components map[string]*spec.Schema) (*spec.Schema, error) {
 	if v.Unknown || v.Type == nil {
 		return nil, fmt.Errorf("关键 payload 类型未解决")
@@ -323,6 +340,7 @@ func (p *Project) valueSchema(v Value, direction Direction, media string, codec 
 }
 
 // 将前端效果链接到共同模型；不将未知响应伪装成 default。
+// Link neutral effects without disguising unknown responses as default.
 func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[string]*spec.Schema, mappers []TypeMapper) error {
 	switch e.Kind {
 	case Unresolved:
@@ -384,6 +402,7 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		op.Responses[e.Status] = response
 	case ResponseHeader, Abort:
 		// 状态提交和终止副作用由分析器处理，单独效果不虚构响应。
+		// The analyzer handles commits and termination without inventing responses.
 	default:
 		return fmt.Errorf("未知前端效果 %s", e.Kind)
 	}

@@ -8,6 +8,7 @@ import (
 )
 
 // 验证真实零 tag 类型、注释、递归、bytes 和 map key 投影。
+// Verify tag-free types, annotations, recursion, bytes, and map-key projections.
 func TestProjectSchemaFromSource(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -40,6 +41,7 @@ func TestProjectSchemaFromSource(t *testing.T) {
 }
 
 // 验证未知用户序列化返回诊断而不是执行用户函数。
+// Require diagnostics instead of executing unknown user serialization methods.
 func TestCustomCodecRequiresMapper(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -55,6 +57,7 @@ func TestCustomCodecRequiresMapper(t *testing.T) {
 }
 
 // 验证泛型具体化与显式枚举能通过同一公共入口使用。
+// Verify generic instances and explicit enums through the public API.
 func TestGenericAndExplicitEnum(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -80,6 +83,7 @@ func TestGenericAndExplicitEnum(t *testing.T) {
 }
 
 // 展示名称与内部组件身份分离；不同投影可区分但页面标题不带标识。
+// Separate clean display titles from distinct internal projection identities.
 func TestReadableSchemaTitles(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -116,6 +120,7 @@ func TestReadableSchemaTitles(t *testing.T) {
 }
 
 // 枚举值排序与说明同步，读取分组常量和单独常量的源码注释。
+// Keep sorted enum values aligned with descriptions from grouped and standalone constants.
 func TestEnumDescriptionsFromSource(t *testing.T) {
 	project, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {

@@ -1,4 +1,5 @@
 // 公开静态加载、源码视图与前端扩展能力；运行时包不导入本包。
+// Expose static loading and frontend extensions separately from runtime packages.
 package compiler
 
 import (
@@ -18,6 +19,7 @@ import (
 )
 
 // 配置只读包加载和资源预算，不执行项目生成脚本。
+// Configure read-only package loading without running generation scripts.
 type LoadOptions struct {
 	Dir         string
 	Patterns    []string
@@ -28,6 +30,7 @@ type LoadOptions struct {
 }
 
 // 暴露标准库类型和 AST；调用方须将这些视图视为只读。
+// Expose standard-library types and AST as read-only views.
 type Package struct {
 	Path        string
 	Name        string
@@ -38,6 +41,7 @@ type Package struct {
 }
 
 // 保存可组合的静态项目视图，加载后可并发读取。
+// Store a composable project view that supports concurrent reads after loading.
 type Project struct {
 	Dir         string
 	Fset        *token.FileSet
@@ -49,6 +53,7 @@ type Project struct {
 }
 
 // 用标准库视图表示任何函数形态，不预设 context 参数或返回值模式。
+// Describe functions without assuming context parameters or return conventions.
 type Function struct {
 	Object      *types.Func
 	Signature   *types.Signature
@@ -59,6 +64,7 @@ type Function struct {
 }
 
 // 按实际构建条件加载源码与类型，默认禁止修改模块文件。
+// Load actual build-selected source and types without changing module files.
 func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	dir, err := filepath.Abs(options.Dir)
 	if err != nil {
@@ -112,6 +118,7 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 }
 
 // 为函数、类型、字段及常量建立共享语义注释索引。
+// Index semantic comments for functions, types, fields, and constants.
 func (p *Project) indexFile(pkg *Package, file *ast.File) {
 	attach := func(obj types.Object, groups ...*ast.CommentGroup) {
 		if obj == nil {
@@ -164,6 +171,7 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 				case *ast.ValueSpec:
 					groups := []*ast.CommentGroup{s.Doc, s.Comment}
 					// 单独声明的常量注释位于 GenDecl；分组标题不冒充单个枚举的含义。
+					// Read standalone constant comments from GenDecl; group headings do not describe individual enum values.
 					if s.Doc == nil && !d.Lparen.IsValid() {
 						groups = append([]*ast.CommentGroup{d.Doc}, groups...)
 					}
@@ -177,6 +185,7 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 }
 
 // 将源码位置转换为项目相对路径。
+// Convert positions into project-relative source paths.
 func (p *Project) Source(pos token.Pos) openapi.Source {
 	v := p.Fset.Position(pos)
 	file, err := filepath.Rel(p.Dir, v.Filename)
@@ -187,6 +196,7 @@ func (p *Project) Source(pos token.Pos) openapi.Source {
 }
 
 // 解析当前包或已加载模块限定的真实类型及泛型实例。
+// Resolve real types and generic instances from already loaded packages.
 func (p *Project) Type(name string) (types.Type, error) {
 	for _, pkg := range p.Packages {
 		expr := name
@@ -204,6 +214,7 @@ func (p *Project) Type(name string) (types.Type, error) {
 }
 
 // 返回按稳定符号排序的只读函数视图。
+// Return function views sorted by stable source symbols.
 func (p *Project) Functions() []Function {
 	out := make([]Function, 0, len(p.functions))
 	for _, f := range p.functions {
