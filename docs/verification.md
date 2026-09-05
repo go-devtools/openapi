@@ -171,3 +171,15 @@ The Gin development workspace separately passed actual Query, URI, Header, expli
 精确 Go 1.27.1、GOWORK=off 的 make dev、全模块 go test -race ./...、go vet ./...、go mod verify 均 exit 0。此处 internal/verify 的开发消费者使用临时 replace；外层 race 不表示其普通子进程自动启用 race。固定远端版本的消费者及 CLI 实证在同步后另行记录。
 
 两个仓库最新 AST 注释审计覆盖 1765 行自然语言 Go 注释，未发现缺失中英对应；所有顶层函数和声明均有注释。完整 Goal 仍有自动方法/媒体绑定条件、完整 helper/Schema 矩阵、CI 与最终冷缓存验收待完成。
+
+## 有限请求条件与选择性诊断
+
+新增 RequestCondition、OperationVariant、CallOutcome.When、Route.RequestMediaTypes 与 Source.When，条件 Bundle 必须声明 request-conditions-v1。生成阶段对连续调用条件求交，再按相同条件合并完整路径；运行时仅选择已投影的数据，不包含 Gin、AST 或执行回调。未选中的 codec 诊断不影响当前路由。
+
+序列化决策表回归最初因缺少 variants 失败，连续调用回归最初把互斥分支的诊断混到一起。实现后，方法/媒体选择、未知范围、能力门禁、条件交集与所有权、多个兼容媒体、声明来源和无效 codec 范围均通过。额外回归先暴露了复合 Schema 同级约束错误收窄另一备选，以及不同媒体的请求体 required 被静默合并；两项均修复并通过。
+
+Gin 开发 workspace 中 17 组成功请求验证自动 JSON、Query、Form、Multipart、GET/POST/PUT/PATCH/DELETE/QUERY 方法与真实优先顺序；八组错误/体积限制请求验证 422、400、413 和不读取 GET JSON 体时不存在虚假 413。多个位置的 required 歧义明确诊断，字段约束不被静默丢弃。独立验证器进一步检查请求数字、非 null 表单数组、重复查询序列化和真实响应。
+
+核心在精确 Go 1.27.1、GOWORK=off 下的 make dev、全模块 go test -race ./...、go vet ./...、go mod verify 均通过。外部 SDK 开发夹具新增序列化条件链接和源码条件调用测试；此处临时 module 的核心 replace 是开发检查，固定远端消费将在同步后单独验证，普通 child test 不自动继承 outer race。
+
+两仓库 AST 审计覆盖 1879 行自然语言 Go 注释，无缺失中英对应，所有顶层声明和方法有注释。完整 Goal、最终固定版本的冷缓存验证及尚未完成的矩阵仍保留。

@@ -18,11 +18,14 @@ import (
 // 仅接收标准化 OpenAPI 路径，不识别任何框架路由语法。
 // Accept normalized OpenAPI paths without framework route syntax.
 type Route struct {
-	Method       string
-	Path         string
-	OperationKey OperationKey
-	Source       Source
-	Extensions   spec.Extensions
+	// 显式声明此路由的请求媒体类型；空切片表示尚未确定。
+	// Explicitly declare request media types for this route; an empty slice means unresolved.
+	RequestMediaTypes []string
+	Method            string
+	Path              string
+	OperationKey      OperationKey
+	Source            Source
+	Extensions        spec.Extensions
 }
 
 // 配置核心文档信息与类型化高级表达入口。
@@ -118,9 +121,13 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 			add("openapi.route.unresolved", key, "提供可匹配的 OperationKey")
 			continue
 		}
-		op := copyJSON(template.Operation)
-		report.Diagnostics = append(report.Diagnostics, template.Diagnostics...)
-		report.Facts = append(report.Facts, template.Facts...)
+		op, diagnostics, facts, err := linkConditionalTemplate(template, route)
+		if err != nil {
+			add("openapi.condition.unresolved", key, err.Error())
+			continue
+		}
+		report.Diagnostics = append(report.Diagnostics, diagnostics...)
+		report.Facts = append(report.Facts, facts...)
 		if op.OperationID == "" {
 			sum := sha256.Sum256([]byte(key))
 			op.OperationID = strings.ToLower(route.Method) + "_" + hex.EncodeToString(sum[:8])

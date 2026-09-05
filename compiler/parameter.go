@@ -36,6 +36,9 @@ func (p *Project) mergeParameterObject(op *spec.Operation, effect Effect, compon
 	if err := parameterObjectKeywords(schema, false); err != nil {
 		return err
 	}
+	if effect.AlternativeLocations && len(schema.Required.Value) > 0 {
+		return fmt.Errorf("多个输入位置之间的 required 关系需要集中契约，不能同时要求每个位置")
+	}
 	required := map[string]bool{}
 	for _, name := range schema.Required.Value {
 		if schema.Properties[name] == nil {
@@ -96,6 +99,24 @@ func parameterObjectKeywords(schema *spec.Schema, reference bool) error {
 			}
 		}
 		return fmt.Errorf("参数对象的 %s 不能在展开时无损保留，需要集中参数规则", key)
+	}
+	return nil
+}
+
+// 检查替代输入位置的必填关系，不能用局部属性展开伪装跨位置约束。
+// Check presence requirements across alternative locations without disguising them as local property constraints.
+func alternativeLocationRequirements(schema *spec.Schema, components map[string]*spec.Schema) error {
+	seen := map[string]bool{}
+	for schema != nil && schema.SchemaObject != nil && schema.Ref != "" {
+		ref := schema.Ref
+		if seen[ref] || !strings.HasPrefix(ref, "#/components/schemas/") {
+			return fmt.Errorf("多个输入位置的根引用无法明确解决")
+		}
+		seen[ref] = true
+		schema = components[strings.TrimPrefix(ref, "#/components/schemas/")]
+	}
+	if schema == nil || schema.SchemaObject == nil || len(schema.Required.Value) > 0 {
+		return fmt.Errorf("多个输入位置之间的 required 关系需要集中契约")
 	}
 	return nil
 }

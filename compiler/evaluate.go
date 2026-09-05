@@ -333,6 +333,16 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 			var results []evaluation
 			for _, outcome := range outcomes {
 				branch := state.clone()
+				when, reachable, err := state.when.Intersect(outcome.When)
+				if err != nil {
+					a.unknown(&branch, call.Source, err.Error())
+					results = append(results, evaluation{state: branch, values: values})
+					continue
+				}
+				if !reachable {
+					continue
+				}
+				branch.when = when
 				if len(outcome.Results) != len(values) {
 					a.unknown(&branch, call.Source, "前端返回备选的结果数量与 Go 签名不一致")
 					results = append(results, evaluation{state: branch, values: values})

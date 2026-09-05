@@ -23,12 +23,15 @@ const (
 // 使用相对文件位置记录来源，不携带机器专属路径。
 // Record relative source locations without machine-specific paths.
 type Source struct {
-	File   string `json:"file,omitempty"`
-	Line   int    `json:"line,omitempty"`
-	Column int    `json:"column,omitempty"`
-	Symbol string `json:"symbol,omitempty"`
-	Rule   string `json:"rule,omitempty"`
-	Kind   string `json:"kind,omitempty"`
+	// 保留此事实生效的有限请求条件。
+	// Preserve the finite request condition under which this fact applies.
+	When   *RequestCondition `json:"when,omitempty"`
+	File   string            `json:"file,omitempty"`
+	Line   int               `json:"line,omitempty"`
+	Column int               `json:"column,omitempty"`
+	Symbol string            `json:"symbol,omitempty"`
+	Rule   string            `json:"rule,omitempty"`
+	Kind   string            `json:"kind,omitempty"`
 }
 
 // 表示可解释、可修复且稳定编码的诊断。

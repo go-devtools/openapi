@@ -55,3 +55,5 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 公开编译器支持[参数对象与网络类型 codec 扩展](docs/parameter-codec.md)，不依赖框架。
 
 生成前端可以通过[调用返回备选](docs/call-outcomes.md)关联返回值、响应提交与后续控制流。
+
+[有限请求条件](docs/request-conditions.md)将方法和媒体类型决策从源码生成保留到运行时链接。

@@ -14,6 +14,7 @@ import (
 // 保存单条可达路径的值状态、效果和函数结束标志。
 // Track values, effects, and termination for one reachable path.
 type flow struct {
+	when        openapi.RequestCondition
 	hasCommit   bool
 	headers     map[string]HeaderValue
 	values      map[types.Object]Value

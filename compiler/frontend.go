@@ -67,6 +67,9 @@ type HeaderValue struct {
 // 记录请求、响应、状态和控制效果及其来源。
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// 同一逻辑输入可能来自多个位置，不能丢弃跨位置必填关系。
+	// One logical input may come from multiple locations, so cross-location presence requirements cannot be dropped.
+	AlternativeLocations bool
 	// 参数序列化由前端明确提供，核心不猜测框架规则。
 	// Frontends explicitly provide parameter serialization; the core does not infer framework rules.
 	Style   string
@@ -108,6 +111,9 @@ type CallContext struct {
 // 将一次调用的返回值与其共同发生的效果绑定为有限备选。
 // Associate one call result tuple with its co-occurring effects as a finite alternative.
 type CallOutcome struct {
+	// 仅在该有限请求条件下发生此返回备选。
+	// Apply this result alternative only under the finite request condition.
+	When    openapi.RequestCondition
 	Results []Value
 	Effects []Effect
 }
@@ -259,21 +265,16 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			}
 		}
 		template.Diagnostics = append(template.Diagnostics, a.diagnostics...)
-		for _, path := range paths {
-			template.Diagnostics = append(template.Diagnostics, path.diagnostics...)
-			for _, effect := range path.effects {
-				template.Facts = append(template.Facts, effect.Source)
-				for _, name := range sortedKeys(effect.Headers) {
-					template.Facts = append(template.Facts, effect.Headers[name].Source)
-				}
-				if err := project.mergeEffect(&template.Operation, effect, data.Components.Schemas, options.Mappers); err != nil {
-					template.Diagnostics = append(template.Diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "注册集中前端规则或 TypeMapper", Source: effect.Source})
-				}
-			}
-		}
+		project.mergeConditionalPaths(&template, paths, data.Components.Schemas, options.Mappers)
 		data.Templates = append(data.Templates, template)
 	}
 	data.Profile.Frontend = strings.Join(sortedKeys(names), ",")
+	for _, template := range data.Templates {
+		if len(template.Variants) > 0 {
+			data.Capabilities = append(data.Capabilities, openapi.RequestConditionsCapability)
+			break
+		}
+	}
 	bundle, err := openapi.NewBundle(data)
 	if err != nil {
 		return nil, err
@@ -391,6 +392,11 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		schema, err := p.valueSchema(e.Payload, Input, e.MediaType, e.Codec, mappers, components)
 		if err != nil {
 			return err
+		}
+		if e.AlternativeLocations {
+			if err := alternativeLocationRequirements(schema, components); err != nil {
+				return err
+			}
 		}
 		if op.RequestBody == nil {
 			body := spec.Inline(spec.RequestBody{Content: map[string]spec.RefOr[spec.MediaType]{}})

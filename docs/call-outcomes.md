@@ -26,3 +26,5 @@ Method receivers are evaluated before call arguments. Expressions and arguments 
 MaxPaths applies within expressions and call alternatives as well as statement paths. MaxCalls and MaxDepth remain shared analysis limits. Truncation is reported and blocks document construction for an included operation. This implementation does not claim complete heap alias analysis, higher-order closures, arbitrary pointer/field mutation, generic specialization, or a cached parameterized-helper summary engine. Unsupported operations and the remaining full-goal matrix still need explicit work.
 
 Tests exercise a neutral carrier, public SDK consumers outside the core module, ignored and checked errors, malformed callback results, helper tuples, switch and short-circuit branches, pointer aliases, boxed nil values, and receiver/argument write ordering. Framework-specific error statuses and codec selection belong to adapters.
+
+`CallOutcome.When` optionally restricts an alternative to a finite request domain. See [request conditions](request-conditions.md) for generation, Bundle compatibility, linking, and provenance.

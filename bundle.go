@@ -32,13 +32,16 @@ type BuildProfile struct {
 // 保存可匹配的源码模板与框架中立契约。
 // Store a source template and its framework-neutral contract.
 type Template struct {
-	Key            OperationKey   `json:"key"`
-	Symbol         string         `json:"symbol"`
-	RuntimeSymbols []string       `json:"runtimeSymbols,omitempty"`
-	Operation      spec.Operation `json:"operation"`
-	Source         Source         `json:"source,omitempty"`
-	Diagnostics    []Diagnostic   `json:"diagnostics,omitempty"`
-	Facts          []Source       `json:"facts,omitempty"`
+	// 有限条件变体在路由链接时选择。
+	// Select finite conditional variants when linking routes.
+	Variants       []OperationVariant `json:"variants,omitempty"`
+	Key            OperationKey       `json:"key"`
+	Symbol         string             `json:"symbol"`
+	RuntimeSymbols []string           `json:"runtimeSymbols,omitempty"`
+	Operation      spec.Operation     `json:"operation"`
+	Source         Source             `json:"source,omitempty"`
+	Diagnostics    []Diagnostic       `json:"diagnostics,omitempty"`
+	Facts          []Source           `json:"facts,omitempty"`
 }
 
 // 表示版本化 Bundle 的公开交换格式，构造后由 Bundle 保存不可变副本。
@@ -68,7 +71,7 @@ func NewBundle(data BundleData) (Bundle, error) {
 		return Bundle{}, fmt.Errorf("openapi.bundle.incompatible: 不支持格式 %d / 规范 %s", data.FormatVersion, data.SpecVersion)
 	}
 	for _, cap := range data.Capabilities {
-		if cap != "schema2020-12" && cap != "oas32" {
+		if cap != "schema2020-12" && cap != "oas32" && cap != RequestConditionsCapability {
 			return Bundle{}, fmt.Errorf("openapi.bundle.capability: 未知必需能力 %s", cap)
 		}
 	}
@@ -78,6 +81,21 @@ func NewBundle(data BundleData) (Bundle, error) {
 			return Bundle{}, fmt.Errorf("openapi.bundle.key: 模板键为空或重复：%s", t.Key)
 		}
 		keys[t.Key] = true
+		if len(t.Variants) > 0 && !stringMember(data.Capabilities, RequestConditionsCapability) {
+			return Bundle{}, fmt.Errorf("openapi.bundle.capability: 条件变体缺少声明能力")
+		}
+		if len(t.Variants) > 1024 {
+			return Bundle{}, fmt.Errorf("openapi.condition.budget: 模板变体超过限制")
+		}
+		for _, variant := range t.Variants {
+			_, ok, err := normalizeCondition(variant.When)
+			if err != nil {
+				return Bundle{}, err
+			}
+			if !ok {
+				return Bundle{}, fmt.Errorf("openapi.condition.empty: 条件变体不可达")
+			}
+		}
 	}
 	// 先序列化隔离调用方集合，再排序，避免构造过程改变输入。
 	// Detach collections before sorting to preserve caller-owned data.
@@ -91,6 +109,12 @@ func NewBundle(data BundleData) (Bundle, error) {
 	}
 	sort.Slice(detached.Templates, func(i, j int) bool { return detached.Templates[i].Key < detached.Templates[j].Key })
 	sort.Strings(detached.Capabilities)
+	for i := range detached.Templates {
+		for j := range detached.Templates[i].Variants {
+			normalized, _, _ := normalizeCondition(detached.Templates[i].Variants[j].When)
+			detached.Templates[i].Variants[j].When = normalized
+		}
+	}
 	raw, err = json.Marshal(detached)
 	return Bundle{data: string(raw)}, err
 }

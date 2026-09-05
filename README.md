@@ -55,3 +55,5 @@ Project-owned source comments are bilingual (Simplified Chinese and English). Co
 The public compiler supports [parameter object and wire-type codec extensions](docs/parameter-codec.md) without framework dependencies.
 
 Generation frontends can model correlated return values and side effects with [call outcomes](docs/call-outcomes.md).
+
+[Finite request conditions](docs/request-conditions.md) preserve method/media decisions across source generation and runtime linking.
