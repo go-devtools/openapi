@@ -44,3 +44,19 @@ func TextResult(left bool) string {
 	}
 	return "right"
 }
+
+// 普通查询输入，不依赖任何网络框架。
+// Ordinary query input without a network framework.
+type Search struct {
+	// 查询名称。 Search name.
+	// @openapi required minLength=2
+	Name string
+	// 原始编号。 Raw identifiers.
+	IDs []byte
+	// 可选限制。 Optional limit.
+	Limit *int
+}
+
+// 使用普通参数和返回值提供中立入口。
+// Provide a neutral entry point with ordinary arguments and return values.
+func Find(input Search) string { return input.Name }

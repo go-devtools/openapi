@@ -209,3 +209,85 @@ func TestExplicitWireResponseSDK(t *testing.T) {
 		t.Fatal("shared frontend schema was mutated")
 	}
 }
+
+// 外部 codec 控制文本参数的空值和集合形态，仍复用核心字段注释。
+// An external codec controls text-parameter nulls and collections while reusing core field annotations.
+type parameterCodec struct{}
+
+// 返回固定的公开扩展身份。
+// Return a stable public extension identity.
+func (parameterCodec) Name() string { return "external-text-v1" }
+
+// 返回标准字段对象，不复制核心注释解析器。
+// Return standard field objects without duplicating the core comment parser.
+func (parameterCodec) Fields(value *types.Struct) ([]compiler.WireField, error) {
+	var fields []compiler.WireField
+	for i := 0; i < value.NumFields(); i++ {
+		if value.Field(i).Exported() {
+			fields = append(fields, compiler.WireField{Name: value.Field(i).Name(), Field: value.Field(i)})
+		}
+	}
+	return fields, nil
+}
+
+// 类型回调复用同一次投影的预算、枚举和引用缓存。
+// Type callbacks reuse the projection's budget, enums, and reference cache.
+func (parameterCodec) ProjectType(request compiler.ProjectionRequest, project func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error) {
+	switch value := types.Unalias(request.Type).(type) {
+	case *types.Pointer:
+		schema, err := project(value.Elem())
+		return schema, true, err
+	case *types.Slice:
+		item, err := project(value.Elem())
+		schema := spec.Typed("array")
+		schema.Items = item
+		return schema, true, err
+	}
+	return nil, false, nil
+}
+
+// 从独立模块调用可选 codec 接口并通过中立参数效果构建最终文档。
+// Use the optional codec interface from an independent module and build a document through neutral parameter effects.
+func TestParameterCodecSDK(t *testing.T) {
+	var _ compiler.WireTypeCodec = parameterCodec{}
+	frontend := compiler.Frontend{Name: "external-parameter-v1", Match: func(f compiler.Function) bool { return f.Object.Name() == "Find" }, Entry: func(f compiler.Function) []compiler.Effect {
+		return []compiler.Effect{{Kind: compiler.ParameterObject, In: "query", Style: "form", Explode: spec.Set(true), MediaType: "application/x-www-form-urlencoded", Payload: compiler.Value{Type: f.Signature.Params().At(0).Type()}, Codec: parameterCodec{}, Source: f.Source}}
+	}, Return: func(c compiler.ReturnContext) ([]compiler.Effect, error) {
+		return []compiler.Effect{{Kind: compiler.ResponseBody, Status: "200", MediaType: "text/plain", WireSchema: spec.Typed("string"), Source: c.Source}}, nil
+	}}
+	result, err := compiler.Compile(context.Background(), compiler.Options{Load: compiler.LoadOptions{Dir: "."}, Frontends: []compiler.Frontend{frontend}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "GET", Path: "/search", OperationKey: result.Bundle.Index()[0].Key}}, openapi.Config{Title: "External parameters", Version: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	op := result.Bundle.Index()[0].Operation
+	for i, parameter := range op.Parameters {
+		validator, err := contracttest.Compile(doc.JSON(), fmt.Sprintf("/paths/~1search/get/parameters/%d/schema", i), contracttest.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var good, bad any
+		switch parameter.Value.Name {
+		case "Name":
+			good, bad = "Ada", "A"
+		case "IDs":
+			good, bad = []any{1, 2}, "AQI="
+		case "Limit":
+			good, bad = 3, nil
+		default:
+			t.Fatal("unexpected parameter")
+		}
+		if err := validator.Value(good); err != nil {
+			t.Fatal(err)
+		}
+		if validator.Value(bad) == nil {
+			t.Fatalf("lost wire constraint for %s", parameter.Value.Name)
+		}
+	}
+	if len(op.Parameters) != 3 {
+		t.Fatal("parameter projection is incomplete")
+	}
+}

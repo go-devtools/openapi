@@ -51,3 +51,5 @@ The public compiler SDK supports commit-time response headers and explicit non-J
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.
 
 Project-owned source comments are bilingual (Simplified Chinese and English). Compiler directives and upstream assets retain their original form. In examples and schema fixtures, companion translations are separated from attached Go documentation by a blank line so generated descriptions keep their intended language. Commit messages use English.
+
+The public compiler supports [parameter object and wire-type codec extensions](docs/parameter-codec.md) without framework dependencies.

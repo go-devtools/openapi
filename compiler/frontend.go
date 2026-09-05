@@ -22,6 +22,9 @@ import (
 // 表示有限传播的静态值；未知值从不伪装成具体 payload。
 // Represent a propagated static value without inventing unknown payloads.
 type Value struct {
+	// 保留已解析的标准库符号身份，供前端识别显式绑定器和别名。
+	// Preserve resolved standard-library symbol identity for explicit binders and aliases.
+	Object   types.Object
 	Type     types.Type
 	Constant constant.Value
 	Fields   map[string]Value
@@ -36,15 +39,16 @@ type EffectKind string
 // 共同效果描述网络事实，不包含任何框架方法名。
 // Describe wire facts without framework method names.
 const (
-	RequestBody    EffectKind = "requestBody"
-	ParameterRead  EffectKind = "parameter"
-	ResponseBody   EffectKind = "responseBody"
-	ResponseStatus EffectKind = "status"
-	ResponseCommit EffectKind = "commit"
-	Handled        EffectKind = "handled"
-	ResponseHeader EffectKind = "header"
-	Abort          EffectKind = "abort"
-	Unresolved     EffectKind = "unresolved"
+	RequestBody     EffectKind = "requestBody"
+	ParameterObject EffectKind = "parameterObject"
+	ParameterRead   EffectKind = "parameter"
+	ResponseBody    EffectKind = "responseBody"
+	ResponseStatus  EffectKind = "status"
+	ResponseCommit  EffectKind = "commit"
+	Handled         EffectKind = "handled"
+	ResponseHeader  EffectKind = "header"
+	Abort           EffectKind = "abort"
+	Unresolved      EffectKind = "unresolved"
 )
 
 // 保存响应头值和推导来源，供提交快照与报告共同使用。
@@ -57,6 +61,10 @@ type HeaderValue struct {
 // 记录请求、响应、状态和控制效果及其来源。
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// 参数序列化由前端明确提供，核心不猜测框架规则。
+	// Frontends explicitly provide parameter serialization; the core does not infer framework rules.
+	Style   string
+	Explode spec.Optional[bool]
 	// 明确的响应体网络表示由前端提供；省略时复用真实类型投影。
 	// Supply an explicit response-body wire representation; omission uses actual type projection.
 	WireSchema *spec.Schema
@@ -380,6 +388,8 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		}
 		media.Value.Schema = union(media.Value.Schema, schema)
 		body.Content[e.MediaType] = media
+	case ParameterObject:
+		return p.mergeParameterObject(op, e, components, mappers)
 	case ParameterRead:
 		if e.Name == "" {
 			return fmt.Errorf("参数名称不是可求值常量")

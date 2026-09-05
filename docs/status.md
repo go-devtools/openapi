@@ -25,3 +25,5 @@
 历史验证按阶段保存在 [verification.md](verification.md)；早期段落中的 SHA、文案和未完成项描述其当时状态。
 
 公开编译器新增响应头提交快照、来源、空值回退及明确的非 JSON 网络 Schema。中立载体与外部 SDK 测试、核心 dev/race/vet 均已通过；真实 Gin 响应矩阵在专用开发 workspace 中通过。适配器新验收包与最终固定版本的复验记录会继续追加，不以开发 workspace 结果替代独立消费。
+
+公开 WireTypeCodec 和 ParameterObject 已通过中立源码及外部 SDK 消费测试，核心 dev/race/vet/模块校验均通过。回调预算与所有权、整体参数约束丢失诊断已经验证。Gin 请求绑定开发矩阵已通过，仍需在同步本次核心版本后关闭 workspace 复验适配器；自动绑定条件与隐含错误提交等完整矩阵仍未完成。

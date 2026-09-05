@@ -47,6 +47,12 @@ type WireCodec interface {
 	Fields(*types.Struct) ([]WireField, error)
 }
 
+// 可选类型投影规则由 codec 显式实现，递归回调共享当前预算和引用缓存。
+// Codecs may explicitly override type projection; recursive callbacks share the current budget and reference cache.
+type WireTypeCodec interface {
+	ProjectType(ProjectionRequest, func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error)
+}
+
 // 缓存身份包含类型、方向、媒体类型与 codec，非标准 codec 显式传入。
 // Include type, direction, media type, and codec in projection identity.
 type ProjectionRequest struct {
@@ -103,7 +109,13 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	if err = pr.checkAnnotations(); err != nil {
 		return nil, err
 	}
-	return &Projection{Root: root, Components: pr.components, Audit: []string{"请求 Schema 表达规范契约；未穷尽标准 JSON 对 null、大小写和固定数组的宽松接受形式。"}}, nil
+	audit := []string{"请求 Schema 表达规范契约，不证明业务代码执行所有声明约束。"}
+	if request.Codec == nil {
+		audit = append(audit, "未穷尽标准 JSON 对 null、大小写和固定数组的宽松接受形式。")
+	} else {
+		audit = append(audit, fmt.Sprintf("使用显式 codec %s；核心不执行实际解码方法。", request.Codec.Name()))
+	}
+	return &Projection{Root: root, Components: pr.components, Audit: audit}, nil
 }
 
 // 配置可移植 Schema 的基准、离线依赖与有界导出；输入在调用期间只读。
@@ -229,6 +241,20 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			return s, err
 		}
 	}
+	if codec, ok := p.request.Codec.(WireTypeCodec); ok {
+		request := p.request
+		request.Type = t
+		schema, handled, err := codec.ProjectType(request, p.projectType)
+		if err != nil {
+			return nil, err
+		}
+		if handled {
+			if schema == nil {
+				return nil, fmt.Errorf("openapi.codec.invalid: 类型规则声明已处理但没有 Schema")
+			}
+			return copyWireSchema(schema)
+		}
+	}
 	t = types.Unalias(t)
 	if ptr, ok := t.(*types.Pointer); ok {
 		s, err := p.projectType(ptr.Elem())
@@ -239,32 +265,35 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 	}
 	if named, ok := t.(*types.Named); ok {
 		identity := types.TypeString(named, func(pkg *types.Package) string { return pkg.Path() })
-		switch identity {
-		case "time.Time":
-			s := spec.Typed("string")
-			s.Format = "date-time"
-			return s, nil
-		case "time.Duration":
-			s := spec.Typed("integer")
-			s.Format = "int64"
-			return s, nil
-		case "encoding/json.Number":
-			return spec.Typed("number"), nil
-		case "encoding/json.RawMessage", "encoding/json/jsontext.Value":
-			return spec.Boolean(true), nil
-		}
-		method := "MarshalJSON"
-		textMethod := "MarshalText"
-		if p.request.Direction == Input {
-			method = "UnmarshalJSON"
-			textMethod = "UnmarshalText"
-		}
-		for _, mt := range []types.Type{t, types.NewPointer(t)} {
-			set := types.NewMethodSet(mt)
-			for i := 0; i < set.Len(); i++ {
-				name := set.At(i).Obj().Name()
-				if name == method || name == textMethod {
-					return nil, fmt.Errorf("openapi.codec.custom: %s 定义 %s，需要方向明确的 TypeMapper", identity, name)
+		_, ownsTypes := p.request.Codec.(WireTypeCodec)
+		if !ownsTypes {
+			switch identity {
+			case "time.Time":
+				s := spec.Typed("string")
+				s.Format = "date-time"
+				return s, nil
+			case "time.Duration":
+				s := spec.Typed("integer")
+				s.Format = "int64"
+				return s, nil
+			case "encoding/json.Number":
+				return spec.Typed("number"), nil
+			case "encoding/json.RawMessage", "encoding/json/jsontext.Value":
+				return spec.Boolean(true), nil
+			}
+			method := "MarshalJSON"
+			textMethod := "MarshalText"
+			if p.request.Direction == Input {
+				method = "UnmarshalJSON"
+				textMethod = "UnmarshalText"
+			}
+			for _, mt := range []types.Type{t, types.NewPointer(t)} {
+				set := types.NewMethodSet(mt)
+				for i := 0; i < set.Len(); i++ {
+					name := set.At(i).Obj().Name()
+					if name == method || name == textMethod {
+						return nil, fmt.Errorf("openapi.codec.custom: %s 定义 %s，需要方向明确的 TypeMapper", identity, name)
+					}
 				}
 			}
 		}

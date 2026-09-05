@@ -39,3 +39,7 @@
 ## 响应提交与明确网络表示
 
 共享分析器已支持按路径保存响应头、立即提交状态和明确的非 JSON 响应 Schema。Gin 类型与 Renderer 规则继续留在适配器，核心只接收中立效果。`Effect.WireSchema` 仅用于已证明的响应体网络表示，`ResponseHeader` 控制提交前的头值；详见[响应效果 SDK](response-effects.md)。
+
+## 参数对象与非 JSON 类型规则
+
+`ParameterObject` 通过共享 Schema 投影将明确对象展开为 query/path/header/cookie 参数，保留字段约束与引用，序列化由前端的 Style/Explode 指定。可选 `WireTypeCodec` 类型回调使用同一次投影的递归预算与组件缓存，已处理结果通过复制隔离调用方。实现该接口的 codec 负责自己的标准类型与自定义方法，不继承 JSON 编解码假设；现有只实现字段选择的 WireCodec 保持旧行为。回调只能同步使用，不得保留或并发调用递归函数。`Value.Object` 保存标准库符号身份用于明确前端匹配。详细所有权、失败方式与边界见[参数 codec SDK](parameter-codec.md)。

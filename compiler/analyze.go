@@ -340,6 +340,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state *flow, depth int) 
 			value.Nil = true
 			return value
 		}
+		value.Object = info.ObjectOf(x)
 		if v, ok := state.values[info.ObjectOf(x)]; ok {
 			return v
 		}
@@ -360,6 +361,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state *flow, depth int) 
 		inner.Type = value.Type
 		return inner
 	case *ast.SelectorExpr:
+		value.Object = info.ObjectOf(x.Sel)
 		base := a.evaluate(fn, x.X, state, depth)
 		if field, ok := base.Fields[x.Sel.Name]; ok {
 			return field
