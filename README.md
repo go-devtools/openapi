@@ -59,3 +59,5 @@ Generation frontends can model correlated return values and side effects with [c
 [Finite request conditions](docs/request-conditions.md) preserve method/media decisions across source generation and runtime linking.
 
 See the [build inputs guide](docs/build-inputs.md) for target profiles, overlays, workspace dependencies, reproducible fingerprints, and custom mapping configuration.
+
+Runtime consumers can call `openapi.CheckRuntimeBuild(profile)` or set `Config.VerifyRuntimeBuild` when linking a document. Known build-condition differences fail; missing metadata is reported. See [build inputs](docs/build-inputs.md) for cross-target exports and verification limits.

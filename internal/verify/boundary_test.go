@@ -73,7 +73,7 @@ func TestExternalFrontend(t *testing.T) {
 		// Use this existing initial version only for temporary development replacement, not final remote acceptance.
 		version = "v0.0.0-20260905054024-c28ea4b52b58"
 	}
-	for _, name := range []string{"types.go", "consumer_test.go", "call_flow_test.go", "call_outcome_test.go", "runtime_conditions_test.go", "compiler_conditions_test.go", "build_inputs_test.go", "build_inputs_boundary_test.go"} {
+	for _, name := range []string{"types.go", "consumer_test.go", "call_flow_test.go", "call_outcome_test.go", "runtime_conditions_test.go", "compiler_conditions_test.go", "build_inputs_test.go", "build_inputs_boundary_test.go", "runtime_build_test.go", "runtime_inputs_test.go"} {
 		raw, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)

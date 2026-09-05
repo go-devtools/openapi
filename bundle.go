@@ -32,9 +32,11 @@ type ModuleProfile struct {
 // 保存实际加载目标、版本和可重现配置；不是运行时代码一致性的证明。
 // Store actual load targets, versions, and reproducible settings without claiming runtime source equivalence.
 type BuildProfile struct {
-	CGOEnabled          string            `json:"cgoEnabled,omitempty"`
-	GoExperiment        string            `json:"goExperiment,omitempty"`
-	BuildFlagsDigest    string            `json:"buildFlagsDigest,omitempty"`
+	CGOEnabled       string `json:"cgoEnabled,omitempty"`
+	GoExperiment     string `json:"goExperiment,omitempty"`
+	BuildFlagsDigest string `json:"buildFlagsDigest,omitempty"`
+	// map 中的空值表示已记录的默认选择，缺少键表示未知。
+	// Empty map values record known default selectors; absent keys represent unknown values.
 	Settings            map[string]string `json:"settings,omitempty"`
 	Modules             []ModuleProfile   `json:"modules,omitempty"`
 	Workspace           bool              `json:"workspace,omitempty"`

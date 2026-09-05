@@ -59,3 +59,5 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 [有限请求条件](docs/request-conditions.md)将方法和媒体类型决策从源码生成保留到运行时链接。
 
 目标构建条件、overlay、工作区依赖、可复现指纹及集中映射配置见[构建输入指南](docs/build-inputs.md)。
+
+运行时调用方可使用 `openapi.CheckRuntimeBuild(profile)`，或在链接文档时启用 `Config.VerifyRuntimeBuild`。已知构建条件不匹配时失败，缺少元数据时保留诊断。跨目标导出与验证范围见[构建输入](docs/build-inputs.md)。

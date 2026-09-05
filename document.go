@@ -31,6 +31,10 @@ type Route struct {
 // 配置核心文档信息与类型化高级表达入口。
 // Configure document metadata and typed advanced extensions.
 type Config struct {
+	// 运行时链接可选择核对当前程序；离线跨目标导出默认不启用。
+	// Optionally verify the current executable when linking; leave disabled for cross-target offline exports.
+	VerifyRuntimeBuild bool
+
 	Title       string
 	Version     string
 	Description string
@@ -93,6 +97,12 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 		return nil, err
 	}
 	report := Report{Diagnostics: append([]Diagnostic{}, data.Diagnostics...)}
+	if cfg.VerifyRuntimeBuild {
+		report.Diagnostics = append(report.Diagnostics, CheckRuntimeBuild(data.Profile).Diagnostics...)
+		if report.HasErrors() {
+			return nil, report
+		}
+	}
 	add := func(code, msg, fix string) {
 		report.Diagnostics = append(report.Diagnostics, Diagnostic{Code: code, Severity: Error, Message: msg, Fix: fix})
 	}

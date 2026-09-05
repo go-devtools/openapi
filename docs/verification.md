@@ -197,3 +197,11 @@ Compilation with custom TypeMapper functions now requires named JSON Configurati
 With exact Go 1.27.1 and GOWORK=off, final make dev, full go test -race ./..., go vet ./..., and go mod verify all exited zero. The external development consumer now runs 23 public SDK tests, including 14 build-input and loading-boundary tests. Its normal child test does not automatically inherit its parent's race flag. Actual fixed-remote SDK/CLI consumption is verified after the core is published and recorded separately from these development results.
 
 These checks reuse task caches. Runtime/profile mismatch enforcement, every custom C toolchain and external header graph, complete schema/helper/codec matrices, CI, benchmarks, and final independent cold-cache acceptance remain part of the active full goal.
+
+## Runtime build condition checks
+
+The compiler now records known empty tags and experiment selectors and excludes selectors belonging to other architectures. The public runtime checks actual executable metadata, preserving unknown/legacy warnings and permitting offline cross-target core exports. Known mismatches stop runtime document construction. Language-version differences fail; patch/toolchain differences within one language version warn.
+
+Core `make dev`, full `go test -race ./...`, `go vet ./...`, and `go mod verify` passed with Go 1.27.1 and GOWORK=off. The external SDK harness now has 25 top-level tests. New real executable coverage loads source, exports its profile, builds with stripped symbols/trimpath, checks mismatched targets and tags, accepts equivalent tag sets, and proves runtime environment variables are not used as compile evidence. A real regression exposed unrelated inherited GOAMD64 metadata on arm64; restricting architecture selectors fixed that false warning.
+
+This is development-checkout evidence with the existing task cache. It is not final source-only cold-cache acceptance. Complete build flag/toolchain, module graph, and source identity verification remains outside this runtime check.

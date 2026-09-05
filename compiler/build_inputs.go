@@ -26,7 +26,7 @@ import (
 
 // 标识编译器输入清单与投影算法的版本，不使用进程地址或机器路径。
 // Version compiler input accounting and projection semantics without process addresses or machine paths.
-const compilerInputVersion = "openapi/compiler-inputs-v2"
+const compilerInputVersion = "openapi/compiler-inputs-v3"
 
 // 保存实际解析的文件摘要，避免 overlay 或并发磁盘修改改变已加载视图。
 // Preserve digests of parsed files so overlays and later disk changes cannot alter the loaded view.
@@ -100,8 +100,11 @@ func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.
 	if err = validateLoadFlags(append(inheritedFlags, cfg.BuildFlags...)); err != nil {
 		return nil, err
 	}
-	inputs.profile = openapi.BuildProfile{GoVersion: e["GOVERSION"], GOOS: e["GOOS"], GOARCH: e["GOARCH"], CGOEnabled: e["CGO_ENABLED"], GoExperiment: e["GOEXPERIMENT"], Generator: compilerInputVersion, Codec: "explicit-profile", Settings: map[string]string{}}
-	for _, key := range []string{"GOAMD64", "GO386", "GOARM", "GOARM64", "GOMIPS", "GOMIPS64", "GOPPC64", "GORISCV64", "GOWASM", "GOFIPS140"} {
+	inputs.profile = openapi.BuildProfile{GoVersion: e["GOVERSION"], GOOS: e["GOOS"], GOARCH: e["GOARCH"], CGOEnabled: e["CGO_ENABLED"], GoExperiment: e["GOEXPERIMENT"], Generator: compilerInputVersion, Codec: "explicit-profile", Settings: map[string]string{"GOEXPERIMENT": e["GOEXPERIMENT"]}}
+	// 只记录目标架构实际使用的特性设置，避免继承其他架构环境造成误报。
+	// Record only feature selectors used by the target architecture to avoid warnings from unrelated inherited settings.
+	architectureKey := map[string]string{"amd64": "GOAMD64", "386": "GO386", "arm": "GOARM", "arm64": "GOARM64", "mips": "GOMIPS", "mipsle": "GOMIPS", "mips64": "GOMIPS64", "mips64le": "GOMIPS64", "ppc64": "GOPPC64", "ppc64le": "GOPPC64", "riscv64": "GORISCV64", "wasm": "GOWASM"}[e["GOARCH"]]
+	for _, key := range []string{architectureKey, "GOFIPS140"} {
 		if e[key] != "" {
 			inputs.profile.Settings[key] = e[key]
 		}
@@ -239,6 +242,7 @@ func (b *buildInputs) collect(loaded []*packages.Package, options LoadOptions, f
 	if err != nil {
 		return err
 	}
+	b.profile.Settings["-tags"] = strings.Join(b.profile.Tags, ",")
 	b.profile.BuildFlagsDigest = inputDigest(rawFlags)
 	for _, key := range []string{"CC", "CXX", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS", "CGO_LDFLAGS"} {
 		b.entries["environment:"+key] = b.logicalSetting(b.environment[key], options.Dir, modules)
