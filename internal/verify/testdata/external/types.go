@@ -35,3 +35,12 @@ type Response struct {
 //
 // 返回独立前端的创建结果。
 func Create(req Request) (Response, error) { return Response{ID: 1, Name: req.Name}, nil }
+
+// 按输入返回普通文本，不依赖服务器框架。
+// Return ordinary text according to the input without a server framework.
+func TextResult(left bool) string {
+	if left {
+		return "left"
+	}
+	return "right"
+}

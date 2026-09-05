@@ -47,9 +47,26 @@ const (
 	Unresolved     EffectKind = "unresolved"
 )
 
+// 保存响应头值和推导来源，供提交快照与报告共同使用。
+// Store a response header value and provenance for commit snapshots and reports.
+type HeaderValue struct {
+	Value  Value
+	Source openapi.Source
+}
+
 // 记录请求、响应、状态和控制效果及其来源。
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// 明确的响应体网络表示由前端提供；省略时复用真实类型投影。
+	// Supply an explicit response-body wire representation; omission uses actual type projection.
+	WireSchema *spec.Schema
+	// 响应头的替换、删除及仅在当前值为空时设置语义。
+	// Describe header replacement, removal, and insertion only when the current value is empty.
+	DeleteHeader  bool
+	HeaderIfEmpty bool
+	// 分析器记录提交时的响应头快照及其来源。
+	// Record response headers and provenance at commit time.
+	Headers   map[string]HeaderValue
 	Kind      EffectKind
 	Name      string
 	In        string
@@ -181,9 +198,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 		// 仅在 handler 所有语句结束后提交尚未写 body 的最终状态。
 		// Finalize a pending bodyless status only after all handler statements finish.
 		for i := range paths {
-			if paths[i].writes == 0 && paths[i].pending != nil {
-				paths[i].effects = append(paths[i].effects, *paths[i].pending)
-			}
+			a.finishResponse(&paths[i])
 		}
 		template := openapi.Template{Key: openapi.OperationKey(fn.Symbol), Symbol: fn.Symbol, Source: fn.Source, Operation: spec.Operation{Responses: map[string]spec.RefOr[spec.Response]{}}}
 		if fn.Signature.Recv() == nil {
@@ -224,6 +239,9 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			template.Diagnostics = append(template.Diagnostics, path.diagnostics...)
 			for _, effect := range path.effects {
 				template.Facts = append(template.Facts, effect.Source)
+				for _, name := range sortedKeys(effect.Headers) {
+					template.Facts = append(template.Facts, effect.Headers[name].Source)
+				}
 				if err := project.mergeEffect(&template.Operation, effect, data.Components.Schemas, options.Mappers); err != nil {
 					template.Diagnostics = append(template.Diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "注册集中前端规则或 TypeMapper", Source: effect.Source})
 				}
@@ -388,7 +406,13 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 			if e.MediaType == "" {
 				return fmt.Errorf("响应媒体类型未解决")
 			}
-			schema, err := p.valueSchema(e.Payload, Output, e.MediaType, e.Codec, mappers, components)
+			var schema *spec.Schema
+			var err error
+			if e.WireSchema != nil {
+				schema, err = copyWireSchema(e.WireSchema)
+			} else {
+				schema, err = p.valueSchema(e.Payload, Output, e.MediaType, e.Codec, mappers, components)
+			}
 			if err != nil {
 				return err
 			}
@@ -398,6 +422,9 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 			}
 			media.Value.Schema = union(media.Value.Schema, schema)
 			response.Value.Content[e.MediaType] = media
+		}
+		if err := mergeResponseHeaders(response.Value, e.Headers); err != nil {
+			return err
 		}
 		op.Responses[e.Status] = response
 	case ResponseHeader, Abort:

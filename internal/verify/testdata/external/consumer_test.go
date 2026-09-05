@@ -5,12 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/constant"
+	"go/types"
 	"strings"
 	"testing"
 
 	"github.com/openapi-golang/openapi"
 	"github.com/openapi-golang/openapi/compiler"
 	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/openapi-golang/openapi/spec"
 	"github.com/openapi-golang/openapi/swaggerui"
 )
 
@@ -162,5 +165,47 @@ func TestStandaloneSchemaSDK(t *testing.T) {
 	after, err := json.Marshal(projection)
 	if err != nil || !bytes.Equal(before, after) || string(resource) != `{"$id":"extra","type":"string"}` {
 		t.Fatal("export changed caller-owned data")
+	}
+}
+
+// 从外部 module 提供明确的非 JSON 网络 Schema，验证响应头与共享输入不变性。
+// Supply an explicit non-JSON wire schema from an external module and verify headers and shared-input immutability.
+func TestExplicitWireResponseSDK(t *testing.T) {
+	wire := spec.Typed("string")
+	before, _ := json.Marshal(wire)
+	frontend := compiler.Frontend{Name: "external-text", Match: func(f compiler.Function) bool { return f.Object.Name() == "TextResult" }, Entry: func(f compiler.Function) []compiler.Effect {
+		return []compiler.Effect{{Kind: compiler.ResponseHeader, Name: "X-Source", Payload: compiler.Value{Type: types.Typ[types.String], Constant: constant.MakeString("external")}, Source: f.Source}}
+	}, Return: func(c compiler.ReturnContext) ([]compiler.Effect, error) {
+		return []compiler.Effect{{Kind: compiler.ResponseBody, Status: "200", MediaType: "text/plain", WireSchema: wire, Source: c.Source}}, nil
+	}}
+	result, err := compiler.Compile(context.Background(), compiler.Options{Load: compiler.LoadOptions{Dir: "."}, Frontends: []compiler.Frontend{frontend}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := result.Bundle.Index()
+	if len(index) != 1 {
+		t.Fatalf("unexpected candidates: %d", len(index))
+	}
+	doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "GET", Path: "/text", OperationKey: index[0].Key}}, openapi.Config{Title: "External text", Version: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator, err := contracttest.Compile(doc.JSON(), "/paths/~1text/get/responses/200/content/text~1plain/schema", contracttest.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validator.Value(TextResult(true)); err != nil {
+		t.Fatal(err)
+	}
+	if validator.Value(42) == nil {
+		t.Fatal("text response schema accepts a number")
+	}
+	header, err := contracttest.Compile(doc.JSON(), "/paths/~1text/get/responses/200/headers/X-Source/schema", contracttest.Options{})
+	if err != nil || header.Value("external") != nil || header.Value("other") == nil {
+		t.Fatal("response header was not preserved")
+	}
+	after, _ := json.Marshal(wire)
+	if !bytes.Equal(before, after) {
+		t.Fatal("shared frontend schema was mutated")
 	}
 }

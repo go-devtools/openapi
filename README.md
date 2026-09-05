@@ -42,6 +42,10 @@ The optional `contracttest` package accepts explicitly preloaded resources and v
 
 `Projection.StandaloneWithOptions` exports one offline document with resource-aware references, embedded explicit dependencies, preserved dialects, and bounded output. The CLI exposes the same options through `openapi schema`. See the [standalone schema guide](docs/standalone-schema.md) for the public SDK, resource rules, and limits.
 
+## Neutral response effects
+
+The public compiler SDK supports commit-time response headers and explicit non-JSON wire schemas. See the [response effect guide](docs/response-effects.md) for ordering, provenance, and limits.
+
 ## License
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.

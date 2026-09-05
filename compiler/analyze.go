@@ -14,6 +14,8 @@ import (
 // 保存单条可达路径的值状态、效果和函数结束标志。
 // Track values, effects, and termination for one reachable path.
 type flow struct {
+	hasCommit   bool
+	headers     map[string]HeaderValue
 	values      map[types.Object]Value
 	effects     []Effect
 	diagnostics []openapi.Diagnostic
@@ -40,6 +42,7 @@ type analyzer struct {
 // Copy path state so branches cannot mutate each other.
 func (s flow) clone() flow {
 	out := s
+	out.headers = copyHeaders(s.headers)
 	out.values = map[types.Object]Value{}
 	for k, v := range s.values {
 		out.values[k] = v
@@ -245,21 +248,29 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 		switch e.Kind {
 		case Handled:
 			continue
+		case ResponseHeader:
+			a.responseHeader(state, e)
 		case ResponseStatus, ResponseCommit:
-			if state.committed != "" {
+			if state.hasCommit {
 				continue
 			}
-			if e.Status == "-1" && state.pending != nil {
-				e.Status = state.pending.Status
+			if e.Status == "-1" {
+				if state.pending != nil {
+					e.Status = state.pending.Status
+				} else {
+					e.Status = "200"
+				}
 			}
 			if e.Kind == ResponseCommit {
+				state.hasCommit = true
 				state.committed = e.Status
+				e.Headers = copyHeaders(state.headers)
 			}
 			e.Kind = ResponseStatus
 			copy := e
 			state.pending = &copy
 		case ResponseBody:
-			if state.committed != "" {
+			if state.hasCommit {
 				e.Status = state.committed
 			} else if e.Status == "-1" {
 				if state.pending != nil {
@@ -268,7 +279,16 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 					e.Status = "200"
 				}
 			}
+			a.checkResponseMedia(state, e)
+			state.hasCommit = true
 			state.committed = e.Status
+			e.Headers = copyHeaders(state.headers)
+			if bodylessStatus(e.Status) {
+				e.Kind = ResponseStatus
+				copy := e
+				state.pending = &copy
+				continue
+			}
 			state.writes++
 			if state.writes > 1 {
 				a.unknown(state, e.Source, "同一路径连续写入多个 body，不能表示为响应备选")

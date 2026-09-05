@@ -35,3 +35,7 @@
 ## 尚待实现与扩大验证
 
 公开前端已有非 Gin 返回值形态的源码测试，并已通过真正临时外部 module 的公开 API 消费测试。开发测试使用隔离临时 replace；最终固定远端版本测试由 OPENAPI_TEST_CORE_VERSION 选择，届时禁止 replace。多路径 helper 参数化摘要缓存、集中兜底类型解析、闭包与 receiver 消歧、完整构建 profile 指纹、导入类型的注释和所有标准矩阵尚未验收。当前对未完成的关键行为返回诊断，不能描述为全部自动支持。
+
+## 响应提交与明确网络表示
+
+共享分析器已支持按路径保存响应头、立即提交状态和明确的非 JSON 响应 Schema。Gin 类型与 Renderer 规则继续留在适配器，核心只接收中立效果。`Effect.WireSchema` 仅用于已证明的响应体网络表示，`ResponseHeader` 控制提交前的头值；详见[响应效果 SDK](response-effects.md)。

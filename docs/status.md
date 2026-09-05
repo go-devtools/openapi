@@ -23,3 +23,5 @@
 完整编解码与 Schema 组合矩阵、Gin binder/render 和 helper/闭包/receiver 消歧、UI 外部资源本地呈现、原生 3.2 的完整语义矩阵、Gin 专用 internal/integration 与 internal/verify 验收包、GitHub CI 及最终固定版本验收尚未全部完成。未知行为仍应给出诊断。未来 Fiber/Echo 仅作为扩展边界，不计为本次产品交付。
 
 历史验证按阶段保存在 [verification.md](verification.md)；早期段落中的 SHA、文案和未完成项描述其当时状态。
+
+公开编译器新增响应头提交快照、来源、空值回退及明确的非 JSON 网络 Schema。中立载体与外部 SDK 测试、核心 dev/race/vet 均已通过；真实 Gin 响应矩阵在专用开发 workspace 中通过。适配器新验收包与最终固定版本的复验记录会继续追加，不以开发 workspace 结果替代独立消费。

@@ -42,6 +42,10 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 
 `Projection.StandaloneWithOptions` 按资源作用域处理引用，把显式依赖嵌入单个离线文档，保留方言并限制输出预算。`openapi schema` 提供对应命令行选项。公开 SDK、资源规则和限制见[独立 Schema 指南](docs/standalone-schema.md)。
 
+## 中立响应效果
+
+公开编译 SDK 支持提交时的响应头和明确的非 JSON 网络 Schema。顺序、来源与限制见[响应效果指南](docs/response-effects.md)。
+
 ## 许可证
 
 项目新增代码采用 [MIT](LICENSE)。第三方资源保留原许可证与声明。
