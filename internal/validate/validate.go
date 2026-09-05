@@ -329,6 +329,9 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		if strings.HasPrefix(k, "x-") {
 			continue
 		}
+		if c.graph != nil && c.graph.schemaOnly && role == "schema" && (k == "discriminator" || k == "xml") {
+			continue
+		}
 		child := childRole(role, k)
 		if child != "" {
 			c.walk(item, path+"/"+escape(k), child, depth+1)

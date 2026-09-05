@@ -106,9 +106,38 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	return &Projection{Root: root, Components: pr.components, Audit: []string{"请求 Schema 表达规范契约；未穷尽标准 JSON 对 null、大小写和固定数组的宽松接受形式。"}}, nil
 }
 
-// 导出 JSON Schema 二零二零十二，递归将组件引用转换为 $defs。
-// Export JSON Schema 2020-12 and rewrite component references to $defs.
+// 配置可移植 Schema 的基准、离线依赖与有界导出；输入在调用期间只读。
+// Configure portable schema bases, offline dependencies, and bounded export with read-only inputs.
+type StandaloneOptions struct {
+	// 为根 Schema 提供绝对检索 URI；相对资源身份基于此地址解析。
+	// Set the root schema's absolute retrieval URI for resolving relative resource identities.
+	BaseURI string
+	// 只读取明确提供的 JSON Schema 文档，不按 URI 访问网络或文件。
+	// Read only explicitly supplied JSON Schema documents without loading URIs from networks or files.
+	Resources map[string][]byte
+	// 仅在根未声明方言时采用此值，默认使用 JSON Schema 2020-12。
+	// Use this dialect only when the root has none; default to JSON Schema 2020-12.
+	Dialect string
+	// 零值采用与核心离线检查相同的输入、资源、引用及索引预算。
+	// Zero selects the core offline checker's input, resource, reference, and index budgets.
+	MaxBytes, MaxResources, MaxReferences, MaxIndexBytes int
+	// 零值采用十六 MiB 的规范化输出预算。
+	// Zero selects a sixteen-MiB normalized output budget.
+	MaxNormalizedBytes int
+}
+
+// 使用默认预算导出独立 Schema，未声明方言时采用 JSON Schema 二零二零十二。
+// Export a standalone schema with default budgets, using JSON Schema 2020-12 when no dialect is declared.
 func (p *Projection) Standalone() ([]byte, error) {
+	return p.StandaloneWithOptions(StandaloneOptions{})
+}
+
+// 使用显式基准和离线资源导出独立 Schema，保留已声明的方言。
+// Export a standalone schema using explicit bases and offline resources while preserving declared dialects.
+func (p *Projection) StandaloneWithOptions(options StandaloneOptions) ([]byte, error) {
+	if p == nil || p.Root == nil {
+		return nil, fmt.Errorf("openapi.schema.root: 缺少根 Schema")
+	}
 	raw, err := json.Marshal(p.Root)
 	if err != nil {
 		return nil, err
@@ -123,12 +152,27 @@ func (p *Projection) Standalone() ([]byte, error) {
 	if !ok {
 		obj = map[string]any{"allOf": []any{root}}
 	}
-	obj["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+	if _, exists := obj["$schema"]; !exists {
+		dialect := options.Dialect
+		if dialect == "" {
+			dialect = "https://json-schema.org/draft/2020-12/schema"
+		}
+		obj["$schema"] = dialect
+	}
 	defs, _ := obj["$defs"].(map[string]any)
 	if defs == nil {
 		defs = map[string]any{}
 	}
-	for name, s := range p.Components {
+	names := make([]string, 0, len(p.Components))
+	for name := range p.Components {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		s := p.Components[name]
+		if s == nil {
+			return nil, fmt.Errorf("openapi.schema.component: 组件不能为 nil：%s", name)
+		}
 		if _, exists := defs[name]; exists {
 			return nil, fmt.Errorf("openapi.schema.defs.conflict: 已有定义与组件重名：%s", name)
 		}
@@ -145,40 +189,15 @@ func (p *Projection) Standalone() ([]byte, error) {
 		defs[name] = v
 	}
 	obj["$defs"] = defs
-	rewriteStandaloneRefs(obj)
-	return json.Marshal(obj)
-}
-
-// 只遍历标准 Schema 位置；examples、default、const 等数据中的同名键保持原值。
-// Visit only standard schema locations, preserving matching keys inside examples, default, and const data.
-func rewriteStandaloneRefs(value any) {
-	object, ok := value.(map[string]any)
-	if !ok {
-		return
+	encoded, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
 	}
-	for _, key := range []string{"$ref", "$dynamicRef"} {
-		if ref, ok := object[key].(string); ok && strings.HasPrefix(ref, "#/components/schemas/") {
-			object[key] = strings.Replace(ref, "#/components/schemas/", "#/$defs/", 1)
-		}
+	encoded, issues := validate.Standalone(encoded, names, validate.Options{BaseURI: options.BaseURI, Resources: options.Resources, MaxBytes: options.MaxBytes, MaxResources: options.MaxResources, MaxReferences: options.MaxReferences, MaxIndexBytes: options.MaxIndexBytes, MaxNormalizedBytes: options.MaxNormalizedBytes})
+	if len(issues) > 0 {
+		return nil, fmt.Errorf("openapi.schema.export: %s %s: %s", issues[0].Code, issues[0].Path, issues[0].Message)
 	}
-	for key, child := range object {
-		switch key {
-		case "$defs", "properties", "patternProperties", "dependentSchemas":
-			if entries, ok := child.(map[string]any); ok {
-				for _, schema := range entries {
-					rewriteStandaloneRefs(schema)
-				}
-			}
-		case "prefixItems", "allOf", "anyOf", "oneOf":
-			if entries, ok := child.([]any); ok {
-				for _, schema := range entries {
-					rewriteStandaloneRefs(schema)
-				}
-			}
-		case "items", "contains", "unevaluatedItems", "additionalProperties", "unevaluatedProperties", "propertyNames", "not", "if", "then", "else", "contentSchema":
-			rewriteStandaloneRefs(child)
-		}
-	}
+	return encoded, nil
 }
 
 // 构造允许显式 null 的联合 Schema。

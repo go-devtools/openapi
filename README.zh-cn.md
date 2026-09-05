@@ -38,6 +38,10 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 
 可选 contracttest 包接收显式预载资源，使用独立引擎验证实际 JSON 样本，覆盖动态递归引用，不自动获取缺失资源。选项、预算和未完成边界见[契约验证指南](docs/contracttest.md)。
 
+## 独立 JSON Schema
+
+`Projection.StandaloneWithOptions` 按资源作用域处理引用，把显式依赖嵌入单个离线文档，保留方言并限制输出预算。`openapi schema` 提供对应命令行选项。公开 SDK、资源规则和限制见[独立 Schema 指南](docs/standalone-schema.md)。
+
 ## 许可证
 
 项目新增代码采用 [MIT](LICENSE)。第三方资源保留原许可证与声明。

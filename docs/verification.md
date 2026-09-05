@@ -125,3 +125,21 @@ CLI 清单测试验证资源路径相对于清单目录、普通文件读取预�
 自有 Go、UI 扩展和构建脚本注释已补齐中英双语，生成器同步输出双语注释；第三方资产与机器指令保留原文。AST 注释清单检查覆盖当前 1316 行自然语言注释，未发现缺少对应翻译的条目（生成文件另由重新生成验证）。80 个 Go 文件的 token 对比确认仅生成器中的三段注释字符串变化；8 个示例或测试数据文件绑定到声明的文档保持原值，13 个业务及路由函数体与英文翻译前一致。
 
 核心 `GOWORK=off make dev` 退出 0，9 项 Node 展示及初始化回归全部通过；改动文件的 `git diff --check` 通过。历史提交说明的英文改写与双语源码提交分开验证，不将过去的版本号当作新的固定依赖依据。
+
+## Standalone resource export and public SDK
+
+The standalone exporter now resolves projection components within their actual resource scopes, preserves declared dialects and exact numbers, embeds explicitly supplied JSON Schema resources, and checks the final document without external resources. Its SDK options and CLI share bounded offline resource handling. CLI output is replaced only after a successful export, and its trailing newline counts toward the output budget.
+
+New regression cases first failed for nil roots/components, missing references, overwritten dialects, resource-local references incorrectly rebound to root components, identified recursive components, missing embedded dependencies, ignored embedding budgets, OpenAPI annotation mappings treated as resource loads, missing CLI flags/help handling, invalid dialect URIs, and the uncharged trailing newline. The fixes passed the complete core dev target.
+
+The independent jsonschema/v6 engine receives only the exported document and a loader that rejects implicit access. Positive and negative instances verify dynamic recursive constraints, identified components, retrieval aliases, relative identities, boolean resources, and annotation preservation. No custom-vocabulary implementation is claimed.
+
+With Go 1.27.1 and GOWORK=off:
+
+- `make dev`: exit 0; all packages tested and built.
+- `go test -race ./...`: exit 0.
+- `go vet ./...`: exit 0.
+- `go test ./compiler -run '^$' -fuzz '^FuzzStandaloneComponentIdentity$' -fuzztime=30s -parallel=2`: exit 0, 57,081 executions. This checks URI and JSON Pointer escaping against an independent engine; it is not exhaustive schema fuzz coverage.
+- `go test ./internal/verify -run '^TestExternalFrontend$' -count=1 -v`: exit 0. The external module now also runs TestStandaloneSchemaSDK, validating source constraints and eight concurrent read-only exports. This development invocation uses a temporary local replacement, not a remote-version claim. The outer race invocation does not implicitly add race instrumentation to that child process.
+
+AST review found no missing bilingual counterparts among existing comments, and all 37 newly reviewed translation pairs contain both languages. The declaration audit included untracked source and found no undocumented top-level function or declaration. Example handler source was not changed in this stage. These checks use the existing task cache and do not constitute final cold-cache or full-goal acceptance.

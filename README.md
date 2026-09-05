@@ -38,6 +38,10 @@ Raw document checking accepts legal JSON Schemas even when their constraints are
 
 The optional `contracttest` package accepts explicitly preloaded resources and validates actual JSON samples with an independent engine, including dynamic recursive references. It never fetches missing resources. See the [contract validation guide](docs/contracttest.md) for options, budgets, and remaining boundaries.
 
+## Standalone JSON Schema
+
+`Projection.StandaloneWithOptions` exports one offline document with resource-aware references, embedded explicit dependencies, preserved dialects, and bounded output. The CLI exposes the same options through `openapi schema`. See the [standalone schema guide](docs/standalone-schema.md) for the public SDK, resource rules, and limits.
+
 ## License
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.

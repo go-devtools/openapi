@@ -18,7 +18,7 @@
 
 `compiler.Load(context.Context, LoadOptions) (*Project, error)` 使用真实构建条件加载 Go AST 与类型。公开视图只使用 go/ast、go/token、go/types、go/constant，不暴露第三方 SSA。视图由 Project 拥有，外部仅能读取；修改视图属于违反接口约定。
 
-`Project.Type` 解析已加载类型及泛型实例。`Project.Schema` 返回独立投影缓存；`Projection.Standalone()` 将完整组件闭包转为 JSON Schema 二零二零十二的 $defs。不同方向、媒体类型、codec 和泛型身份独立缓存。每次调用的缓存不共享，Project 加载后支持并发只读投影。
+`Project.Type` 解析已加载类型及泛型实例。`Project.Schema` 返回独立投影缓存；`Projection.Standalone()` 将完整组件闭包转为独立 Schema 的 $defs，默认方言为 JSON Schema 二零二零十二。`StandaloneWithOptions` 提供显式基准 URI、离线依赖、后备方言与预算，按资源身份处理引用，保留已有方言；详见[独立 Schema 指南](standalone-schema.md)。不同方向、媒体类型、codec 和泛型身份独立缓存。每次调用的缓存不共享，Project 加载后支持并发只读投影。
 
 `Frontend` 通过显式 Go 值注册，包含 Name、Match、Entry、Call、Return 与 CarriesEffects 回调。回调输出中立 Effect；核心调度值传播、语句顺序、分支、返回及有界 helper。ReturnContext 接收函数返回值，接口不要求特定 context 形态。
 

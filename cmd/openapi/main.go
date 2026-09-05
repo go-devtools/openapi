@@ -15,7 +15,6 @@ import (
 	"runtime/debug"
 
 	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
 )
 
 // 响应中断取消，不运行用户项目脚本。
@@ -94,44 +93,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	case "schema":
-		flags := flag.NewFlagSet("schema", flag.ContinueOnError)
-		flags.SetOutput(stderr)
-		dir := flags.String("dir", ".", "待分析项目目录")
-		name := flags.String("type", "", "真实 Go 类型引用")
-		direction := flags.String("projection", "response", "request 或 response")
-		output := flags.String("output", "", "输出文件，省略时写到标准输出")
-		if err := flags.Parse(args[1:]); err != nil {
-			return 2
-		}
-		if *name == "" {
-			return fail(fmt.Errorf("缺少 --type"))
-		}
-		project, err := compiler.Load(ctx, compiler.LoadOptions{Dir: *dir})
-		if err != nil {
-			return fail(err)
-		}
-		typ, err := project.Type(*name)
-		if err != nil {
-			return fail(err)
-		}
-		schema, err := project.Schema(compiler.ProjectionRequest{Type: typ, Direction: compiler.Direction(*direction), MediaType: "application/json"})
-		if err != nil {
-			return fail(err)
-		}
-		raw, err := schema.Standalone()
-		if err != nil {
-			return fail(err)
-		}
-		raw = append(raw, '\n')
-		if *output == "" {
-			_, err = stdout.Write(raw)
-		} else {
-			err = os.WriteFile(*output, raw, 0644)
-		}
-		if err != nil {
-			return fail(err)
-		}
-		return 0
+		return runSchema(ctx, args[1:], stdout, stderr, fail)
 	default:
 		return fail(fmt.Errorf("未知命令 %s", args[0]))
 	}

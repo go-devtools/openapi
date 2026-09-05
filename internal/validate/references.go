@@ -24,6 +24,7 @@ type referenceUse struct {
 // 对已提供内容建立离线资源图，不包含文件或网络加载器。
 // Index supplied content as an offline resource graph without file or network loaders.
 type referenceGraph struct {
+	schemaOnly            bool
 	nodes                 map[string]*referenceNode
 	resources             map[string]*referenceNode
 	anchors               map[string]*referenceNode
@@ -275,6 +276,9 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 			return
 		}
 		if strings.HasPrefix(key, "x-") {
+			continue
+		}
+		if g.schemaOnly && role == "schema" && (key == "discriminator" || key == "xml") {
 			continue
 		}
 		child := childRole(role, key)

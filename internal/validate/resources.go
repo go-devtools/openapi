@@ -13,6 +13,9 @@ import (
 // 保存显式离线输入及预算，所有零值使用有界默认值。
 // Store explicit offline inputs and budgets with bounded defaults for zero values.
 type Options struct {
+	// 独立 Schema 不把 OpenAPI 专有注解解释为结构或引用指令。
+	// Standalone schemas do not interpret OpenAPI-specific annotations as structures or references.
+	schemaOnly                            bool
 	BaseURI                               string
 	Resources                             map[string][]byte
 	ExampleResources                      map[string][]byte
@@ -115,6 +118,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 	}
 	graph.budget = byteBudget{remaining: options.MaxIndexBytes}
 	graph.maxNormalizedBytes = options.MaxNormalizedBytes
+	graph.schemaOnly = options.schemaOnly
 	if !graph.spend(len(options.BaseURI)) {
 		return nil, graph.issues
 	}
@@ -236,6 +240,28 @@ func CheckWithOptions(raw []byte, options Options) []Issue {
 	if len(issues) > 0 {
 		return issues
 	}
+	return set.check()
+}
+
+// 独立 Schema 复用同一离线资源与引用检查，只改变主文档的根类型要求。
+// Standalone schemas reuse offline resource and reference checks with a schema root requirement.
+func CheckSchemaWithOptions(raw []byte, options Options) []Issue {
+	options.schemaOnly = true
+	set, issues := prepareSchemaResources(raw, options, false)
+	if len(issues) > 0 {
+		return issues
+	}
+	if set.documents[0].role != "schema" {
+		set.graph.add("resource.type", "#", "独立 Schema 入口不能接受 OpenAPI 文档")
+		return set.graph.issues
+	}
+	return set.check()
+}
+
+// 检查已索引文档的结构与引用，所有入口共享确定性诊断与预算。
+// Check indexed structures and references with shared deterministic diagnostics and budgets.
+func (set *resourceSet) check() []Issue {
+	var issues []Issue
 	for _, entry := range set.documents {
 		object, _ := entry.value.(map[string]any)
 		if set.graph.budget.exceeded {

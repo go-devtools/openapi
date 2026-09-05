@@ -86,6 +86,15 @@ func readCheckInputs(ctx context.Context, specFile, manifestFile string, options
 	if err != nil {
 		return nil, options, err
 	}
+	return readResourceManifest(ctx, raw, manifestFile, options)
+}
+
+// 对显式清单应用共享读取预算，供文档检查及 Schema 导出复用。
+// Apply shared read budgets to explicit manifests for document checks and schema exports.
+func readResourceManifest(ctx context.Context, raw []byte, manifestFile string, options openapi.CheckOptions) ([]byte, openapi.CheckOptions, error) {
+	if options.MaxBytes < 1 || options.MaxResources < 1 || options.MaxReferences < 1 || options.MaxIndexBytes < 0 {
+		return nil, options, fmt.Errorf("openapi.cli.budget: 所有预算必须大于零")
+	}
 	if manifestFile == "" {
 		return raw, options, nil
 	}

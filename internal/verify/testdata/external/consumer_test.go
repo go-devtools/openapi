@@ -1,8 +1,10 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -100,5 +102,65 @@ func TestTransportNeutralResources(t *testing.T) {
 	fresh, err := ui.Resource("index.html")
 	if err != nil || fresh.Bytes()[0] != '<' || fresh.Headers()["Content-Type"] == "invalid" {
 		t.Fatal("共享资源被外部修改")
+	}
+}
+
+// 从独立 module 使用公开导出选项，并验证同一投影的并发只读行为。
+// Use public export options from an independent module and verify concurrent read-only projection access.
+func TestStandaloneSchemaSDK(t *testing.T) {
+	project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: "."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	typ, err := project.Type("Request")
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection, err := project.Schema(compiler.ProjectionRequest{Type: typ, Direction: compiler.Input})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resource := []byte(`{"$id":"extra","type":"string"}`)
+	options := compiler.StandaloneOptions{
+		BaseURI:            "https://consumer.test/schema/request.json",
+		Resources:          map[string][]byte{"https://consumer.test/schema/extra": resource},
+		MaxNormalizedBytes: 64 << 10,
+	}
+	before, err := json.Marshal(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := projection.StandaloneWithOptions(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator, err := contracttest.Compile(raw, "", contracttest.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = validator.JSON([]byte(`{"Name":"小明"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if validator.JSON([]byte(`{"Name":"A"}`)) == nil {
+		t.Fatal("standalone schema lost the source constraint")
+	}
+	errors := make(chan error, 8)
+	for i := 0; i < cap(errors); i++ {
+		go func() {
+			got, err := projection.StandaloneWithOptions(options)
+			if err == nil && !bytes.Equal(got, raw) {
+				err = fmt.Errorf("concurrent export changed its output")
+			}
+			errors <- err
+		}()
+	}
+	for i := 0; i < cap(errors); i++ {
+		if err := <-errors; err != nil {
+			t.Error(err)
+		}
+	}
+	after, err := json.Marshal(projection)
+	if err != nil || !bytes.Equal(before, after) || string(resource) != `{"$id":"extra","type":"string"}` {
+		t.Fatal("export changed caller-owned data")
 	}
 }

@@ -18,6 +18,13 @@ func (c *checker) schema(m map[string]any, path string) {
 		value := m[key]
 		valid := true
 		switch key {
+		case "$schema":
+			text, ok := value.(string)
+			valid = ok
+			if valid {
+				uri, err := parseURIReference(text)
+				valid = err == nil && uri.IsAbs()
+			}
 		case "type":
 			if text, ok := value.(string); ok {
 				valid = simpleType(text)
