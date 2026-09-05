@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go/constant"
 	"go/types"
 	"reflect"
 	"sort"
 	"strings"
 
 	"github.com/openapi-golang/openapi/internal/comment"
+	"github.com/openapi-golang/openapi/internal/validate"
 	"github.com/openapi-golang/openapi/spec"
 )
 
@@ -61,11 +61,12 @@ type Projection struct {
 
 // 保存一次投影的私有递归缓存。
 type projector struct {
-	project    *Project
-	request    ProjectionRequest
-	components map[string]*spec.Schema
-	seen       map[string]string
-	count      int
+	project     *Project
+	request     ProjectionRequest
+	components  map[string]*spec.Schema
+	seen        map[string]string
+	count       int
+	annotations []annotationCheck
 }
 
 // 从真实类型与共享注释索引生成 Schema，不执行类型的方法。
@@ -90,6 +91,9 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = pr.checkAnnotations(); err != nil {
+		return nil, err
+	}
 	return &Projection{Root: root, Components: pr.components, Audit: []string{"请求 Schema 表达规范契约；未穷尽标准 JSON 对 null、大小写和固定数组的宽松接受形式。"}}, nil
 }
 
@@ -100,7 +104,9 @@ func (p *Projection) Standalone() ([]byte, error) {
 		return nil, err
 	}
 	var root any
-	if err = json.Unmarshal(raw, &root); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.UseNumber()
+	if err = decoder.Decode(&root); err != nil {
 		return nil, err
 	}
 	obj, ok := root.(map[string]any)
@@ -108,8 +114,14 @@ func (p *Projection) Standalone() ([]byte, error) {
 		obj = map[string]any{"allOf": []any{root}}
 	}
 	obj["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-	defs := map[string]any{}
+	defs, _ := obj["$defs"].(map[string]any)
+	if defs == nil {
+		defs = map[string]any{}
+	}
 	for name, s := range p.Components {
+		if _, exists := defs[name]; exists {
+			return nil, fmt.Errorf("openapi.schema.defs.conflict: 已有定义与组件重名：%s", name)
+		}
 		b, err := json.Marshal(s)
 		if err != nil {
 			return nil, err
@@ -123,31 +135,49 @@ func (p *Projection) Standalone() ([]byte, error) {
 		defs[name] = v
 	}
 	obj["$defs"] = defs
-	var rewrite func(any)
-	rewrite = func(v any) {
-		switch x := v.(type) {
-		case map[string]any:
-			for k, item := range x {
-				if k == "$ref" || k == "$dynamicRef" {
-					if ref, ok := item.(string); ok && strings.HasPrefix(ref, "#/components/schemas/") {
-						x[k] = strings.Replace(ref, "#/components/schemas/", "#/$defs/", 1)
-					}
-				}
-				rewrite(item)
-			}
-		case []any:
-			for _, item := range x {
-				rewrite(item)
-			}
+	rewriteStandaloneRefs(obj)
+	return json.Marshal(obj)
+}
+
+// 只遍历标准 Schema 位置；examples、default、const 等数据中的同名键保持原值。
+func rewriteStandaloneRefs(value any) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return
+	}
+	for _, key := range []string{"$ref", "$dynamicRef"} {
+		if ref, ok := object[key].(string); ok && strings.HasPrefix(ref, "#/components/schemas/") {
+			object[key] = strings.Replace(ref, "#/components/schemas/", "#/$defs/", 1)
 		}
 	}
-	rewrite(obj)
-	return json.Marshal(obj)
+	for key, child := range object {
+		switch key {
+		case "$defs", "properties", "patternProperties", "dependentSchemas":
+			if entries, ok := child.(map[string]any); ok {
+				for _, schema := range entries {
+					rewriteStandaloneRefs(schema)
+				}
+			}
+		case "prefixItems", "allOf", "anyOf", "oneOf":
+			if entries, ok := child.([]any); ok {
+				for _, schema := range entries {
+					rewriteStandaloneRefs(schema)
+				}
+			}
+		case "items", "contains", "unevaluatedItems", "additionalProperties", "unevaluatedProperties", "propertyNames", "not", "if", "then", "else", "contentSchema":
+			rewriteStandaloneRefs(child)
+		}
+	}
 }
 
 // 构造允许显式 null 的联合 Schema。
 func nullable(s *spec.Schema) *spec.Schema {
 	if s.SchemaObject != nil && len(s.Type) > 0 {
+		for _, kind := range s.Type {
+			if kind == "null" {
+				return s
+			}
+		}
 		s.Type = append(s.Type, "null")
 		return s
 	}
@@ -221,34 +251,17 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = p.annotate(s, p.project.comments[named.Obj()], false); err != nil {
+		if err = p.annotate(s, p.project.comments[named.Obj()], false, named.Obj().Name()); err != nil {
 			return nil, err
 		}
 		if doc := p.project.comments[named.Obj()]; closedEnum(doc) {
-			var values []any
-			for _, pkg := range p.project.Packages {
-				for _, n := range pkg.Types.Scope().Names() {
-					if c, ok := pkg.Types.Scope().Lookup(n).(*types.Const); ok && types.Identical(c.Type(), t) {
-						switch c.Val().Kind() {
-						case constant.String:
-							values = append(values, constant.StringVal(c.Val()))
-						case constant.Int, constant.Float:
-							values = append(values, json.Number(c.Val().ExactString()))
-						case constant.Bool:
-							values = append(values, constant.BoolVal(c.Val()))
-						}
-					}
-				}
+			if err := p.annotateEnum(s, t); err != nil {
+				return nil, err
 			}
-			sort.Slice(values, func(i, j int) bool {
-				a, _ := json.Marshal(values[i])
-				b, _ := json.Marshal(values[j])
-				return string(a) < string(b)
-			})
-			if s.SchemaObject == nil {
-				s.SchemaObject = &spec.SchemaObject{}
-			}
-			s.Enum = spec.Set(values)
+		}
+		// title 只用于展示，组件键继续保留类型与投影的完整区分身份。
+		if s.SchemaObject != nil && s.Title == "" {
+			s.Title = types.TypeString(named, func(*types.Package) string { return "" })
 		}
 		p.components[name] = s
 		return &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "#/components/schemas/" + name}}, nil
@@ -356,7 +369,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 				}
 			}
 			doc := p.project.comments[f.Field]
-			if err = p.annotate(field, doc, true); err != nil {
+			if err = p.annotate(field, doc, true, f.Name); err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Name, err)
 			}
 			s.Properties[f.Name] = field
@@ -387,7 +400,7 @@ func flag(doc comment.Document, key string) bool {
 func closedEnum(doc comment.Document) bool { return flag(doc, "enum") }
 
 // 将统一约束应用到 Schema，结构事实与契约声明分别处理。
-func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool) error {
+func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, site string) error {
 	if doc.Summary == "" && len(doc.Directives) == 0 {
 		return nil
 	}
@@ -406,6 +419,10 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool) e
 	if err != nil {
 		return err
 	}
+	var before spec.Schema
+	if err = json.Unmarshal(raw, &before); err != nil {
+		return err
+	}
 	var obj map[string]json.RawMessage
 	if err = json.Unmarshal(raw, &obj); err != nil {
 		return err
@@ -414,9 +431,18 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool) e
 		if d.Kind != "" {
 			return fmt.Errorf("openapi.comment.context: 请求响应声明不能用于字段或类型")
 		}
-		for k, v := range d.Values {
+		for _, k := range directiveKeys(d.Values) {
+			v := d.Values[k]
+			if k == "required" || k == "nonnull" || k == "nullable" || k == "ignore" {
+				if string(v) != "true" && string(v) != "false" {
+					return fmt.Errorf("openapi.comment.value: %s 必须是布尔值", k)
+				}
+			}
 			switch k {
 			case "required":
+				if !field {
+					return fmt.Errorf("openapi.comment.context: required 仅用于字段")
+				}
 				continue
 			case "nonnull":
 				if string(v) == "true" {
@@ -439,7 +465,7 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool) e
 						return fmt.Errorf("openapi.comment.conflict: nullable 与 nonnull 冲突")
 					}
 					if len(s.Type) > 0 {
-						s.Type = append(s.Type, "null")
+						nullable(s)
 						obj["type"], _ = json.Marshal(s.Type)
 					} else {
 						return fmt.Errorf("openapi.schema.nullable: 此引用联合需要集中类型扩展")
@@ -472,7 +498,22 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool) e
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(encoded, s)
+	var values map[string]any
+	decoder := json.NewDecoder(strings.NewReader(string(encoded)))
+	decoder.UseNumber()
+	if err = decoder.Decode(&values); err != nil {
+		return err
+	}
+	if issues := validate.SchemaKeywordValues(values); len(issues) > 0 {
+		return fmt.Errorf("openapi.comment.value: %s %s", issues[0].Path, issues[0].Message)
+	}
+	if err = json.Unmarshal(encoded, s); err != nil {
+		return fmt.Errorf("openapi.comment.value: %w", err)
+	}
+	if len(doc.Directives) > 0 {
+		p.annotations = append(p.annotations, annotationCheck{schema: s, before: &before, doc: doc, site: site})
+	}
+	return nil
 }
 
 // 按标准 JSON 的嵌入深度、tag 优先级和冲突规则选择字段。

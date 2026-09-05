@@ -162,8 +162,13 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 						return true
 					})
 				case *ast.ValueSpec:
+					groups := []*ast.CommentGroup{s.Doc, s.Comment}
+					// 单独声明的常量注释位于 GenDecl；分组标题不冒充单个枚举的含义。
+					if s.Doc == nil && !d.Lparen.IsValid() {
+						groups = append([]*ast.CommentGroup{d.Doc}, groups...)
+					}
 					for _, name := range s.Names {
-						attach(pkg.Info.Defs[name], s.Doc, s.Comment)
+						attach(pkg.Info.Defs[name], groups...)
 					}
 				}
 			}

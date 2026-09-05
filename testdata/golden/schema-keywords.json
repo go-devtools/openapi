@@ -1,0 +1,416 @@
+[
+  {
+    "name": "忽略不适用关键字",
+    "schema": {
+      "type": "string",
+      "minimum": 1
+    },
+    "valid": true
+  },
+  {
+    "name": "不可满足长度",
+    "schema": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 2
+    },
+    "valid": true
+  },
+  {
+    "name": "不可满足数值",
+    "schema": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 2
+    },
+    "valid": true
+  },
+  {
+    "name": "空枚举",
+    "schema": {
+      "enum": []
+    },
+    "valid": true
+  },
+  {
+    "name": "重复枚举建议不作为错误",
+    "schema": {
+      "enum": [
+        1,
+        1
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "任意示例数据",
+    "schema": {
+      "examples": [
+        {
+          "$ref": "file:///example"
+        },
+        null,
+        false
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "布尔拒绝",
+    "schema": false,
+    "valid": true
+  },
+  {
+    "name": "任意值",
+    "schema": true,
+    "valid": true
+  },
+  {
+    "name": "非负整数表示",
+    "schema": {
+      "minLength": 1.0,
+      "maxItems": 1000.0
+    },
+    "valid": true
+  },
+  {
+    "name": "负零",
+    "schema": {
+      "minLength": -0.0
+    },
+    "valid": true
+  },
+  {
+    "name": "组合布尔",
+    "schema": {
+      "allOf": [
+        true,
+        false
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "属性名称类似关键字",
+    "schema": {
+      "properties": {
+        "x-type": {
+          "type": "string"
+        },
+        "examples": false
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "非断言默认值",
+    "schema": {
+      "type": "string",
+      "default": 12
+    },
+    "valid": true
+  },
+  {
+    "name": "可为空联合",
+    "schema": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "未知扩展数据",
+    "schema": {
+      "x-data": {
+        "items": []
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "空必需和依赖",
+    "schema": {
+      "required": [],
+      "dependentRequired": {
+        "a": []
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "未知类型",
+    "schema": {
+      "type": "unknown"
+    },
+    "valid": false
+  },
+  {
+    "name": "空类型数组",
+    "schema": {
+      "type": []
+    },
+    "valid": false
+  },
+  {
+    "name": "重复类型",
+    "schema": {
+      "type": [
+        "string",
+        "string"
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "类型数组包含对象",
+    "schema": {
+      "type": [
+        "string",
+        {}
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "空值类型",
+    "schema": {
+      "type": null
+    },
+    "valid": false
+  },
+  {
+    "name": "数字类型",
+    "schema": {
+      "type": 1
+    },
+    "valid": false
+  },
+  {
+    "name": "错误枚举",
+    "schema": {
+      "enum": true
+    },
+    "valid": false
+  },
+  {
+    "name": "空值枚举",
+    "schema": {
+      "enum": null
+    },
+    "valid": false
+  },
+  {
+    "name": "错误示例",
+    "schema": {
+      "examples": {}
+    },
+    "valid": false
+  },
+  {
+    "name": "负长度",
+    "schema": {
+      "minLength": -1
+    },
+    "valid": false
+  },
+  {
+    "name": "小数长度",
+    "schema": {
+      "maxLength": 1.25
+    },
+    "valid": false
+  },
+  {
+    "name": "小数数组长度",
+    "schema": {
+      "maxItems": 1.25
+    },
+    "valid": false
+  },
+  {
+    "name": "字符串最小值",
+    "schema": {
+      "minimum": "0"
+    },
+    "valid": false
+  },
+  {
+    "name": "布尔排除值",
+    "schema": {
+      "exclusiveMinimum": true
+    },
+    "valid": false
+  },
+  {
+    "name": "零倍数",
+    "schema": {
+      "multipleOf": 0
+    },
+    "valid": false
+  },
+  {
+    "name": "负倍数",
+    "schema": {
+      "multipleOf": -1
+    },
+    "valid": false
+  },
+  {
+    "name": "空组合",
+    "schema": {
+      "anyOf": []
+    },
+    "valid": false
+  },
+  {
+    "name": "错误组合",
+    "schema": {
+      "allOf": {}
+    },
+    "valid": false
+  },
+  {
+    "name": "错误组合成员",
+    "schema": {
+      "oneOf": [
+        true,
+        []
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "旧数组形式",
+    "schema": {
+      "items": [
+        true
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "空元组",
+    "schema": {
+      "prefixItems": []
+    },
+    "valid": false
+  },
+  {
+    "name": "元组不是数组",
+    "schema": {
+      "prefixItems": true
+    },
+    "valid": false
+  },
+  {
+    "name": "数组属性字典",
+    "schema": {
+      "properties": []
+    },
+    "valid": false
+  },
+  {
+    "name": "布尔定义字典",
+    "schema": {
+      "$defs": true
+    },
+    "valid": false
+  },
+  {
+    "name": "错误子属性",
+    "schema": {
+      "properties": {
+        "x-invalid": {
+          "type": "unknown"
+        }
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "顶层数组",
+    "schema": [],
+    "valid": false
+  },
+  {
+    "name": "字符串必需",
+    "schema": {
+      "required": "a"
+    },
+    "valid": false
+  },
+  {
+    "name": "重复必需",
+    "schema": {
+      "required": [
+        "a",
+        "a"
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "数字必需",
+    "schema": {
+      "required": [
+        1
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "错误依赖",
+    "schema": {
+      "dependentRequired": {
+        "a": [
+          1
+        ]
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "依赖不是对象",
+    "schema": {
+      "dependentRequired": []
+    },
+    "valid": false
+  },
+  {
+    "name": "错误布尔",
+    "schema": {
+      "uniqueItems": 1
+    },
+    "valid": false
+  },
+  {
+    "name": "空值只读",
+    "schema": {
+      "readOnly": null
+    },
+    "valid": false
+  },
+  {
+    "name": "错误说明",
+    "schema": {
+      "description": []
+    },
+    "valid": false
+  },
+  {
+    "name": "错误内容类型",
+    "schema": {
+      "contentMediaType": false
+    },
+    "valid": false
+  },
+  {
+    "name": "错误模式",
+    "schema": {
+      "pattern": 5
+    },
+    "valid": false
+  }
+]

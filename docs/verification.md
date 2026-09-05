@@ -1,33 +1,121 @@
 # 验证记录
 
-## 环境预检
+## 环境与仓库
 
-- `uname -srm`：Darwin 27.0.0 arm64，退出 0。
-- `go version`：go1.26.3 darwin/arm64，退出 0；不满足目标精确工具链。
-- `gh --version`：命令不存在，退出 127。
-- 适用父目录未发现 AGENTS.md；遵循会话提供的简体中文、无子 agent、中文注释要求。
-- 父目录 `git rev-parse --show-toplevel`：不是 Git 仓库，退出 128；未初始化父目录。
-- Go 1.27.1 官方归档请求 HTTP 200；限时探测下载超时，不计为工具链验证。
-- Gin 模块代理返回 v1.12.0，源码提交 73726dc606796a025971fe451f0aa6f1b9b847f6。
-- GitHub 连接器两个仓库元数据请求均为 404，组织列表为空；可能是授权范围不足，未执行创建操作。
-- 指定核心远端 `git ls-remote`：Authentication failed；适配器远端：terminal prompts disabled。尚未获得任何远端提交。
+- 实际平台：Darwin 27.0.0 arm64。
+- 使用隔离下载并校验的精确 Go 1.27.1；Gin 固定 v1.12.0。
+- 两个目标目录各自是 Git 根和独立 module；父目录未初始化 Git。
+- SSH 成功认证为 Rainer-Yu；两个 private 远端创建后均通过 ls-remote，并已非强制推送首次提交。
+- 核心首批提交：c28ea4b52b58b60732b80b65968ad6c7d6d9035e；适配器首批提交：86bcb463014574551129cf19ce5e1d6d0f57250f。
+- 当前本地还有未提交实现增量，因此上述 SHA 不代表最终交付版本。
 
-## 实现验证
+## 已执行的产品检查
 
-尚未执行产品测试、构建、UI 或冷环境独立验收。任何未执行项均不算通过。
+- 核心 `GOWORK=off make dev` 退出 0：根包、CLI、compiler、contracttest、comment、validate、spec、swaggerui 测试及完整构建。
+- 适配器专用 workspace 的 `make dev` 退出 0：首次或重复生成、运行时、CLI、前端、路径与完整示例测试及构建。
+- `TestReadableSchemaTitles`：先观察到缺少 title 的失败，修复后退出 0。输入输出组件仍独立，展示标题相同。
+- `TestFlowWriteOrdering`：内联条件读取、pending 状态、switch break、先提交状态后写 body，退出 0。
+- `TestRequestContracts`：有效 ASCII/中文、字段缺失/null、太短/太长、非法 JSON/空 body，分别校验真实状态和响应 Schema；比较挂载前后完整响应，退出 0。
+- `TestAllFieldTypesContract`：真实 GET 类型样本通过独立引擎；非法字符串和数字枚举被拒绝，退出 0。
+- `node --test swaggerui/display-names.test.cjs swaggerui/startup.test.cjs`：Node v22.22.3，9 项通过、0 skip；验证名称隐藏、零值/复杂示例、枚举及注释、安全文本和分类恢复，拒绝任意查询配置覆盖。
 
-## 已解除的环境限制
+## 实际浏览器
 
-- 隔离工具链 `go version`：go1.27.1 darwin/arm64，退出 0。精确工具链从 Go 官方模块服务取得并通过 Go 校验。
-- GitHub CLI v2.100.0 官方 arm64 安装包 SHA256：45f9a62da2f6e641a7fad57e2ce39656dfd7ef331372d80a2a2aed65abb01642，校验通过；用户选择 SSH，无需 gh 登录。
-- `ssh -T git@github.com`：成功认证 Rainer-Yu；GitHub 不提供 shell，状态 1 是该探测的预期行为。
-- 用户登录内置浏览器后，组织页面确认原先没有仓库；已创建 openapi 和 gin-swagger 两个 private 仓库，均未初始化远端文件。
-- 两个本地 origin 均为对应的 git@github.com:openapi-golang/名称.git；两个 `git ls-remote origin` 均退出 0、无引用，符合新建空仓库。
+本机 `/docs/` 加载固定 swagger-ui-dist 5.32.15，展示 OAS 3.2、中文接口和 10 个示例操作（7 个标准路径）。通过内置浏览器逐次点击 Schema 标签、字段展开与模型列表，核对以下行为：
 
-## 首批实现增量
+- 列表及响应模型显示 User、APIError、CreateUserRequest，不显示内部后缀。
+- 字段 ID 展示紧凑 Example 1024，不显示带 #0 的 Schema 数组。
+- 复制图标为高对比度双页图标，与展开箭头独立占位。
+- 默认不存在 Try it out/Execute；浏览器重载网络记录仅有本机文档、脚本、CSS、图标和 data URI，没有外部 validator/CDN 请求。
+- 旧深链接曾触发上游关于下划线转义的弃用日志；尚不能将浏览器控制台宣称为全历史零错误。
+- Swagger UI 依赖 JavaScript Number，超过安全整数范围的显示存在上游精度限制。教学示例的六十四位数选择能准确显示且超过三十二位范围的值；核心独立精度测试仍使用 9007199254740993。
 
-精确 Go 1.27.1、GOWORK=off：`go test ./...` 退出 0。覆盖根包、compiler、internal/comment、internal/validate、spec 五组包。每组新增行为先观察到缺失 API 的编译失败，再实现通过。
+## 方法、鉴权与整体分类
 
-源码投影首次失败于 RawMessage 的真实类型别名；核对 Go 1.27.1 的 v2_stream.go 与 jsontext/value.go 后增加 jsontext.Value 原始 JSON 映射，`go test ./compiler` 退出 0。未执行用户的自定义序列化方法。
+- `TestHTTPMethodExamples`：13 个真实 HTTP 样本通过，包括五种方法、404、非法输入、PATCH 的 false/null、DELETE 204 空响应及 Deprecated。请求与响应使用独立 Schema 引擎。
+- `TestExampleDocumentDefinitions`：all/resources/types/auth/legacy 分别包含 10/6/2/1/1 个操作，标签范围同步匹配。
+- `TestDocumentGroups`、`TestInvalidGroupsLeaveRoutesUnchanged`、`TestGroupScopeIntersectionAndCache`：独立文档、ETag、HEAD、304、未知分类 404、错误配置无路由修改、全局范围求交，均通过。
+- `TestExampleGroupsAndSecurity` 与 `TestEnumRequestExamples`：Bearer 的缺失/错误/正确凭据、三组命名请求及非法枚举，均通过；API Key 路由已按用户要求移除，并验证返回 404。
+- 浏览器：分类下拉、刷新保留选择、Legacy 删除线及 Warning: Deprecated、Authorize 弹窗仅包含 Bearer、枚举 editor/1 和 viewer/2 实际切换均已观察。1280×900 和 390×844 页面没有横向溢出；当前独立验收页 error/warn 记录为空。未将浏览器窗口的历史日志概括为零错误。
 
-`compiler.TestReturnValueFrontend` 使用临时真实 Go 源码的 `(Request) (Response, error)` 形态，复用注释、Schema、生成和 Build，验证源码说明改变使生成物过期；这还不是最终外部模块 SDK 验收。
+标签筛选框已按用户要求在示例配置中关闭，页面介绍也移除对应说明；整体文档分类继续通过顶部选择器提供。
+
+## 枚举注释
+
+`TestEnumDescriptionsFromSource` 从真实常量的普通注释生成 `x-enum-descriptions`，与排序后的 enum 数组对应。字符串、数字/iota、单独常量及别名、浮点枚举经过测试。共享 UI 直接展示 `"admin" - 管理员`、`"editor" - 编辑者`、`"viewer" - 查看者`，以及 `0 - 待处理`、`1 - 执行中`、`2 - 已完成`；浏览器已在请求 Schema 页实际观察，当前验收页 error/warn 为空。说明缺失时仅显示原值；说明始终作为 React 文本，不插入 HTML。
+
+## 独立 Schema 导出
+
+`TestStandalonePreservesValuesAndDataReferences` 和 `TestStandaloneRootNumberAndDefinitionConflict` 先暴露已有 $defs 被覆盖及根级 9007199254740993 被舍入的问题；修复后核心 `GOWORK=off make dev` 通过。导出保留根与组件数值、既有 $defs 和示例中的业务 $ref，仅重写标准 Schema 位置的组件引用，重名定义返回诊断。
+
+## 官方规范独立检查
+
+已下载固定官方 OAS 3.2 `schema/2025-11-23`。独立 jsonschema/v6 v6.0.3 对实际导出文档的首次结构校验失败：`/security` 为 null、规范要求数组。
+
+修复默认 Optional 复制后，新增“省略 / 显式 [] / 拒绝 null”回归通过；重新导出的真实文档再次通过官方结构 Schema 校验，退出 0。此项覆盖结构，不等于已经完成全部 OAS 3.2 语义、Schema 方言和高级功能矩阵。
+
+固定四份官方 schema/schema-base/dialect/meta 资源和 Apache 2.0 许可证保存在 `contracttest/testdata/oas32`，来源与 SHA-256 见 PROVENANCE.md。`TestOfficialOpenAPI32Matrix` 用 jsonschema/v6 离线加载 schema-base，完整 fixture 正例与 14 个反例通过。`TestNative32AndPresence` 类型化完整往返及 `TestFullNative32Fixture` 自有检查通过。官方 Schema 不覆盖所有跨对象语义，不能据此宣称标准验收完成。
+
+`TestNoFrameworkDependencies`、`TestRuntimeDependencyBoundary`、`TestExternalFrontend` 真实通过：外部临时 module 仅调用公开 SDK、执行编译/构建/契约/非 HTTP 资源消费。开发模式的临时 replace 明确记录，不作为远端固定版本证据；最终可通过 OPENAPI_TEST_CORE_VERSION 指定真实版本且禁止 replace。
+
+## 尚未执行完毕
+
+完整 race/vet/fuzz/benchmark、自动化浏览器跨环境回归、完整 3.2 语义矩阵、远端外部 SDK 模块、GitHub CI 和最终冷缓存远端固定版本验收尚未完成。未执行或受阻项目不记为通过。
+
+## 示例英文文档
+
+示例四个源文件的 OpenAPI 注释、枚举常量说明和文档配置改为英文，并重新生成 Bundle。适配器专用 workspace 下 `make dev` 退出 0；首次英文生成的指纹为 `13a98b4b4ffbf842052c738cbad98bd46f4d8a0ed741117fffc3f4ec2acf365b`；英文示例阶段后续 dev 回归指纹为 `6625363b0ebb4d44e61ae32a1069a683a053ea11477f1a00902f1b20375bfa4c`。导出的规范检查了 144 处标题、摘要、描述和枚举说明，没有中文说明残留；13 个业务及路由函数体经 Go AST 对比一致。浏览器实际显示五个英文分类、英文接口说明、`"admin" - Administrator`、`"editor" - Editor`、`"viewer" - Viewer`，以及 `0 - Pending`、`1 - Running`、`2 - Completed`。本节为当前英文版本的证据，前文中文截图观察仅代表此前版本。
+
+## 文档内引用语义
+
+新增 `TestLocalReferenceResources`、`TestInvalidReferenceResources`、`TestReferenceTargetRoles`、`TestReferenceDiagnosticsDeterministic` 和 `TestCallbackExtensionReferencesAreData`。先复现缺失锚点漏报、错误基准 URI、重复引用丢失位置与回调扩展误读，再验证修复。核心 `GOWORK=off make dev` 及适配器专用 workspace 下 `make dev` 均退出 0。覆盖 $self 相对基准、Schema $id、资源内锚点、递归引用、百分号与 JSON Pointer 转义、目标种类、身份冲突、每处诊断和扩展数据隔离。$dynamicRef 仅验证初始引用目标，不代表完成实例级动态作用域验证。本段之后已补齐显式预载资源 API、CLI 入口及 Build 裁剪联动；动态引用实例验证及 UI 外部资源本地呈现仍未完成。
+
+## 显式资源与模型闭包
+
+`TestCheckExplicitOfflineResources` 覆盖官方多文档用法中的检索 URI、$self 与 $id；`TestCheckNeverFetchesResources` 使用真实 HTTP 服务计数，默认拒绝与显式预载两种检查都没有发出请求。外部原始示例、重复键、尾随 JSON、资源身份冲突、预算边界、内嵌 $id 和累计 JSON 节点均有正反例。`TestBuildPrunesWithSchemaResourceSemantics` 与 `TestBuildOfflineResourceBackReference` 验证资源 URI、锚点、子节点目标、discriminator、示例数据隔离和跨资源回指的模型闭包。
+
+CLI 清单测试验证资源路径相对于清单目录、普通文件读取预算、错误清单、help 退出码和取消状态。新增反例先在旧逻辑下失败，再修复通过。核心 `GOWORK=off make dev` 与适配器专用 workspace 下 `make dev` 均退出 0；本轮最终适配器生成指纹为 `88fc0e996b705c41e6e750e31961a3094c4e61fed47a036d7ed376e551f50e1c`。当前预览仍使用此前已验证的英文文档构建，本轮没有声明重新验收 UI 外部引用。
+
+本轮最后补充并修复了两项组合回归：`externalValue` 指向的已识别 Schema 资源在裁剪后仍保留；discriminator 按组件名映射到带 `$id` 的 Schema 时，按该资源身份解析，不误报跨作用域。最终核心与 Gin 的 `make dev` 均退出 0。两仓库的 `go test -race ./...` 已通过；最后引用修改后的核心根包与 `internal/validate` 另行通过 race。
+
+`FuzzReferenceGraph` 用 `-fuzztime=30s -parallel=2` 完成 1,132,358 次执行，退出 0，验证 URI / 锚点变异输入的有界性与诊断确定性。该 fuzz 不代表所有 Schema 关键字或动态引用实例语义均已覆盖。文档中的显式清单用法另通过真实 CLI 进程执行，输出 `{"diagnostics":[]}` 并退出 0。
+
+## Schema 合法性与源码约束分离
+
+`TestSchemaKeywordMatrix` 和 `TestOfficialSchemaKeywordMatrix` 对同一份 52 项原始 JSON 样例分别执行自有检查与固定官方元 Schema 校验，全部通过。修复前已经观察到合法 Schema 被误报，以及非法类型、负长度、空组合、错误关键字值等漏报。两个原有的错误测试分类已转移为真实源码声明反例，原始规范层接受合法但不可满足的 Schema。
+
+`TestSourceAnnotationConflicts` 的 15 项源码反例、合法边界与开放类型正例通过，覆盖命名字段引用、组件与字段的上下界交集、固定数组长度、无符号数下界、非法指令值、实际输出 writeOnly、伪造类型、精确大整数与指数预算。类型化解码前补充关键字值检查，防止 null 被转换为零值后丢失错误。nullable 直接类型联合重复项已修复。
+
+组合成员的资源与锚点依然参与引用检查；`TestSchemaArrayResourceReferences` 覆盖合法资源引用和默认拒绝外部引用。`TestSchemaNumberTraits` 覆盖极端正负指数、负零、小数整数判定；`FuzzSchemaNumberTraits` 以独立有界精确有理数作对照，30 秒完成 2,070,137 次执行，退出 0。
+
+本轮核心 `GOWORK=off make dev` 与适配器专用 workspace 的 `make dev` 都退出 0。核心首次完整 dev 被沙箱禁止临时回环端口绑定，按原实现授权提升权限后完整重跑通过。`go test -race ./compiler ./internal/validate ./contracttest` 退出 0。适配器最新 Bundle 指纹为 `487f2095471be99f75d2a6c751e32c9f59a2c08ae20e3f13328fbaed4b19ce03`。
+
+源码四个示例文件再次确认无中文注释；业务及路由的 13 个函数体与翻译前的 Go AST 对比一致。本机预览 `/docs/openapi.json` 实际读取到 User Service；本次递归检查 152 处标题、摘要、描述及枚举说明，没有中文残留。本轮没有重新构建预览二进制，没有宣称预览已验收全部新 Schema 能力。
+
+这些通过结果不代表完整 Schema 标准验收。示例可编码性、任意组合可满足性、引用联合的 nullable / nonnull、类型化数值边界、完整资源作用域与动态引用实例验证仍有未完成项，见 [Schema 检查与源码声明](schema-annotations.md)。最终远端固定版本、关闭 workspace 的两个独立模块验收与 CI 仍未完成。
+
+## 独立验证器资源作用域
+
+新增真实样本回归，先观察到父级 `$id` 丢失、共享锚点不可定位和动态递归外部资源缺失，再通过资源整理修复。contracttest.Options 已接入 BaseURI、Resources、MaxResources、MaxReferences；OpenAPI / Schema 的检索 URI、相对 self/id、别名、布尔资源和明确的元 Schema 均有测试。未知必需词汇表被拒绝。真实 HTTP 服务计数证明缺少或预载资源时都没有自动网络请求。
+
+动态递归样本证明 Strict 约束会作用于子节点，基础 Tree 和普通引用保持原行为；普通锚点或空片段的 dynamicRef 初始目标保持静态行为。指针必须指向真正的 Schema。注解数据中的 `$ref` 名称不会被当成 Schema 指令：在隔离的旧实现中，直接数据保留断言真实失败；修复后通过。仅验证实例的测试不足以证明注解字节保留，因此另外保留了资源整理结果的断言。
+
+固定官方方言资源随可选 contracttest 包分发，保留 Apache 2.0 许可证和 SHA-256；核心根包与 Swagger UI 不引入这些资产。独立引擎前的数字、样本深度及内容预算回归通过，包含极端指数、循环内存对象与恰好达到字节上限的样本。
+
+两仓库完整 dev 均退出 0；完整 `go test -race ./...` 均退出 0。最后注解所属上下文修复后，核心再次通过 dev 与 contracttest / internal/validate 的 race，Gin 再次通过 dev。最新 Gin Bundle 指纹为 `c7dd2f1870492242302e4854b552e22b99ffc201918587086205a7210bc7f589`，模板 11 个。本轮未重启 UI 预览，也未宣称远端模块已更新。
+
+资源索引与位置整理复用核心规则，实例验证算法仍由独立引擎执行。规范化后 URI 与索引内存预算、样本重复键、混合内联方言、Standalone 的完整资源语义、UI 外部资源发布以及最终远端冷缓存验收仍未完成，见 [契约验证指南](contracttest.md)。
+
+## 资源文本与规范化预算阶段
+
+- 已复现并修复长前缀索引、长绝对引用扩张未受预算限制的问题。
+- 新增正反例覆盖检索 URI、显式资源键、选中指针、诊断文本、有效引用解析、负预算、CLI 透传和公开 contracttest 配置。
+- 使用标准 encoding/json 交叉检查容器、分隔符、Unicode、控制字符与非法 UTF-8 的编码体积；恰好达到规范化上限通过，少一字节失败。
+- `GOWORK=off make dev`：退出 0，包括核心全部测试、外部临时 module SDK 测试及所有包构建。
+- `GOWORK=off go test -race ./internal/validate ./contracttest ./cmd/openapi`：退出 0。
+- `GOWORK=off go test ./internal/validate -run '^$' -fuzz '^FuzzJSONStringBudget$' -fuzztime=15s -parallel=2`：退出 0，150943 次执行。
+- 本轮外部 SDK 测试尚使用开发替换模式；真实远端固定版本与冷缓存验证另行记录，不以此替代。
+
+当前默认分支为 main。全部命令使用既定 Go 1.27.1 工具链和任务隔离缓存；资源整理保持框架中立，适配器仍只访问公开 API。
+
+阶段暂存区检查：98 个变更文件的凭证模式与敏感文件名检查无命中。两份原样保留的上游 Swagger UI LICENSE.txt 含行尾空格；它们保留供应商校验值，未擅自修改。排除这两份上游许可证后，暂存区 `git diff --check` 通过。UI 的 9 项 Node 展示与初始化回归全部通过。

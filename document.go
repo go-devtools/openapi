@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/openapi-golang/openapi/internal/validate"
 	"github.com/openapi-golang/openapi/spec"
 )
 
@@ -33,6 +34,8 @@ type Config struct {
 	Security    spec.Optional[[]spec.SecurityRequirement]
 	Extensions  spec.Extensions
 	Configure   func(*spec.OpenAPI) error
+	// 将相同离线资源与预算用于引用裁剪和最终规范检查。
+	Validation CheckOptions
 }
 
 // 保存已验证的不可变 JSON 与来源报告。
@@ -86,7 +89,7 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 	for _, t := range data.Templates {
 		index[t.Key] = t
 	}
-	doc := spec.OpenAPI{OpenAPI: "3.2.0", JSONSchemaDialect: spec.DefaultDialect, Info: spec.Info{Title: cfg.Title, Version: cfg.Version, Description: cfg.Description}, Paths: map[string]*spec.PathItem{}, Components: &data.Components, Servers: copyJSON(cfg.Servers), Tags: copyJSON(cfg.Tags), Security: copyJSON(cfg.Security), Extensions: copyJSON(cfg.Extensions)}
+	doc := spec.OpenAPI{OpenAPI: "3.2.0", JSONSchemaDialect: spec.DefaultDialect, Info: spec.Info{Title: cfg.Title, Version: cfg.Version, Description: cfg.Description}, Paths: map[string]*spec.PathItem{}, Components: &data.Components, Servers: copyJSON(cfg.Servers), Tags: copyJSON(cfg.Tags), Security: spec.Optional[[]spec.SecurityRequirement]{Present: cfg.Security.Present, Value: copyJSON(cfg.Security.Value)}, Extensions: copyJSON(cfg.Extensions)}
 	ordered := append([]Route(nil), routes...)
 	sort.Slice(ordered, func(i, j int) bool {
 		if ordered[i].Path != ordered[j].Path {
@@ -154,14 +157,14 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 			return nil, err
 		}
 	}
-	if err := pruneSchemas(&doc); err != nil {
+	if err := pruneSchemas(&doc, cfg.Validation); err != nil {
 		return nil, err
 	}
 	raw, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return nil, err
 	}
-	checked := Check(raw)
+	checked := CheckWithOptions(raw, cfg.Validation)
 	report.Diagnostics = append(report.Diagnostics, checked.Diagnostics...)
 	if report.HasErrors() {
 		return nil, report
@@ -222,55 +225,24 @@ func putOperation(p *spec.PathItem, method string, op *spec.Operation) error {
 }
 
 // 裁剪不可达 Schema，保留高级对象引用到的类型闭包。
-func pruneSchemas(doc *spec.OpenAPI) error {
+func pruneSchemas(doc *spec.OpenAPI, options CheckOptions) error {
 	if doc.Components == nil {
 		return nil
 	}
-	schemas := doc.Components.Schemas
-	doc.Components.Schemas = nil
 	raw, err := json.Marshal(doc)
 	if err != nil {
 		return err
 	}
-	needed := map[string]bool{}
-	var visit func(any)
-	visit = func(v any) {
-		switch x := v.(type) {
-		case map[string]any:
-			for k, v := range x {
-				if k == "$ref" || k == "$dynamicRef" {
-					if ref, ok := v.(string); ok && strings.HasPrefix(ref, "#/components/schemas/") {
-						name := strings.Split(strings.TrimPrefix(ref, "#/components/schemas/"), "/")[0]
-						name = strings.ReplaceAll(strings.ReplaceAll(name, "~1", "/"), "~0", "~")
-						if !needed[name] {
-							needed[name] = true
-							if schema, ok := schemas[name]; ok {
-								b, _ := json.Marshal(schema)
-								var sub any
-								_ = json.Unmarshal(b, &sub)
-								visit(sub)
-							}
-						}
-					}
-				}
-				visit(v)
-			}
-		case []any:
-			for _, v := range x {
-				visit(v)
-			}
+	names, issues := validate.ReachableSchemas(raw, options.internal())
+	if len(issues) != 0 {
+		return issuesReport(issues)
+	}
+	retained := make(map[string]*spec.Schema, len(names))
+	for _, name := range names {
+		if schema, ok := doc.Components.Schemas[name]; ok {
+			retained[name] = schema
 		}
 	}
-	var root any
-	if err = json.Unmarshal(raw, &root); err != nil {
-		return err
-	}
-	visit(root)
-	doc.Components.Schemas = map[string]*spec.Schema{}
-	for name := range needed {
-		if s, ok := schemas[name]; ok {
-			doc.Components.Schemas[name] = s
-		}
-	}
+	doc.Components.Schemas = retained
 	return nil
 }

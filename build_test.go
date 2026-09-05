@@ -28,6 +28,26 @@ func TestBuildImmutableAndStable(t *testing.T) {
 		t.Fatal(err)
 	}
 	original := string(doc.JSON())
+	var fields map[string]json.RawMessage
+	if err = json.Unmarshal(doc.JSON(), &fields); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := fields["security"]; exists {
+		t.Fatal("未配置 security 时应省略字段")
+	}
+	empty, err := Build(b, routes, Config{Title: "用户服务", Version: "1", Security: spec.Set([]spec.SecurityRequirement{})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(empty.JSON(), &fields); err != nil {
+		t.Fatal(err)
+	}
+	if string(fields["security"]) != "[]" {
+		t.Fatal("显式空安全要求应保留为空数组")
+	}
+	if _, err = Build(b, routes, Config{Title: "用户服务", Version: "1", Security: spec.Set([]spec.SecurityRequirement(nil))}); err == nil {
+		t.Fatal("不允许 security 为 null")
+	}
 	data := doc.JSON()
 	data[0] = '!'
 	if string(doc.JSON()) != original {

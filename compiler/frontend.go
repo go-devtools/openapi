@@ -37,6 +37,8 @@ const (
 	ParameterRead  EffectKind = "parameter"
 	ResponseBody   EffectKind = "responseBody"
 	ResponseStatus EffectKind = "status"
+	ResponseCommit EffectKind = "commit"
+	Handled        EffectKind = "handled"
 	ResponseHeader EffectKind = "header"
 	Abort          EffectKind = "abort"
 	Unresolved     EffectKind = "unresolved"
@@ -125,6 +127,9 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 	if options.MaxCalls == 0 {
 		options.MaxCalls = 10000
 	}
+	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 {
+		return nil, fmt.Errorf("openapi.analysis.budget: 所有预算必须为正数")
+	}
 	fingerprint, err := project.fingerprint(options)
 	if err != nil {
 		return nil, err
@@ -154,16 +159,29 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			initial.values[param] = Value{Type: param.Type()}
 		}
 		if front.Entry != nil {
-			initial.effects = append(initial.effects, front.Entry(fn)...)
+			a.effects(&initial, front.Entry(fn))
 		}
-		paths := a.statements(fn, fn.Declaration.Body.List, []flow{initial}, 0, true)
+		var paths []flow
+		if fn.Declaration.Body == nil {
+			a.unknown(&initial, fn.Source, "候选没有可分析函数体")
+			paths = []flow{initial}
+		} else {
+			paths = a.statements(fn, fn.Declaration.Body.List, []flow{initial}, 0, true)
+		}
+		// 仅在 handler 所有语句结束后提交尚未写 body 的最终状态。
+		for i := range paths {
+			if paths[i].writes == 0 && paths[i].pending != nil {
+				paths[i].effects = append(paths[i].effects, *paths[i].pending)
+			}
+		}
 		template := openapi.Template{Key: openapi.OperationKey(fn.Symbol), Symbol: fn.Symbol, Source: fn.Source, Operation: spec.Operation{Responses: map[string]spec.RefOr[spec.Response]{}}}
 		if fn.Signature.Recv() == nil {
 			symbol := fn.Symbol
-			if fn.Package.Name == "main" {
-				symbol = "main." + fn.Object.Name()
-			}
 			template.RuntimeSymbols = []string{symbol}
+			if fn.Package.Name == "main" {
+				// 主程序二进制与 go test 使用两种真实符号名，分别保留完整证据。
+				template.RuntimeSymbols = append(template.RuntimeSymbols, "main."+fn.Object.Name())
+			}
 		}
 		doc := project.comments[fn.Object]
 		template.Operation.Summary = doc.Summary

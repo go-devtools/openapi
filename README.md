@@ -26,6 +26,18 @@ The core owns type projection, comments, neutral effects, Bundle and OpenAPI mod
 
 Future Fiber and Echo adapters are extension directions only. They are not products delivered or claimed as supported by this repository.
 
+## Offline reference checking
+
+`CheckWithOptions` accepts an explicit retrieval URI, preloaded OpenAPI / JSON Schema resources, and raw external examples. The same configuration is available as `Config.Validation` during document construction and through `openapi check --resources resources.json`. All inputs are bounded; the checker never fetches URIs. See the [reference API and CLI guide](docs/references.md) for resource scopes, budgets, and current rendering boundaries.
+
+## Schema and source constraints
+
+Raw document checking accepts legal JSON Schemas even when their constraints are inapplicable or unsatisfiable. Source projection separately diagnoses annotation conflicts with inferred wire types and bounds, including named component references. See [schema checks and annotation diagnostics](docs/schema-annotations.md) for the tested behavior and remaining limits.
+
+## Independent contract validation
+
+The optional `contracttest` package accepts explicitly preloaded resources and validates actual JSON samples with an independent engine, including dynamic recursive references. It never fetches missing resources. See the [contract validation guide](docs/contracttest.md) for options, budgets, and remaining boundaries.
+
 ## License
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.

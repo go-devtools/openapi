@@ -39,7 +39,7 @@ func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil
 			return []Effect{{Kind: ResponseBody, Status: "201", MediaType: "application/json", Payload: c.Values[0], Source: c.Source}}, nil
 		},
 	}
-	result, err := Compile(context.Background(), Options{Load: LoadOptions{Dir: dir}, Frontends: []Frontend{frontend}})
+	result, err := Compile(context.Background(), Options{Load: LoadOptions{Dir: dir, Env: []string{"GOWORK=off"}}, Frontends: []Frontend{frontend}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil
 	if err = os.WriteFile(filepath.Join(dir, "sample.go"), []byte(strings.Replace(source, "创建用户", "登记用户", 1)), 0600); err != nil {
 		t.Fatal(err)
 	}
-	changed, err := Compile(context.Background(), Options{Load: LoadOptions{Dir: dir}, Frontends: []Frontend{frontend}})
+	changed, err := Compile(context.Background(), Options{Load: LoadOptions{Dir: dir, Env: []string{"GOWORK=off"}}, Frontends: []Frontend{frontend}})
 	if err != nil {
 		t.Fatal(err)
 	}

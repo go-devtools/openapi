@@ -10,6 +10,10 @@
 
 `Build(Bundle, []Route, Config) (*Document, error)` 无路由注册或源码读取。`Document.JSON()`、`Report()` 返回副本，`WriteFile` 原子替换输出。一个 Bundle 可以并发用于多个文档实例。
 
+## 离线规范检查
+
+`Check` 使用默认配置，`CheckWithOptions` 支持显式 `BaseURI`、预载 `Resources` 与 `ExampleResources`。`Config.Validation` 将相同资源配置用于 Build 的模型闭包裁剪和最终检查。两者只读取调用期间的输入，不自动读取文件、访问网络或保存调用方映射。资源默认总量为 8 MiB、64 个资源和 10000 次引用，包含内嵌 `$id`；所有 JSON 共享节点预算。详细使用方式和未完成的 UI / 独立验证联动见[离线引用指南](references.md)。
+
 ## 生成时协议
 
 `compiler.Load(context.Context, LoadOptions) (*Project, error)` 使用真实构建条件加载 Go AST 与类型。公开视图只使用 go/ast、go/token、go/types、go/constant，不暴露第三方 SSA。视图由 Project 拥有，外部仅能读取；修改视图属于违反接口约定。
@@ -30,4 +34,4 @@
 
 ## 尚待实现与扩大验证
 
-公开前端已有非 Gin 返回值形态的源码测试；真正临时外部 module 消费测试仍待补齐。多路径 helper 参数化摘要缓存、集中兜底类型解析、闭包与 receiver 消歧、完整构建 profile 指纹、导入类型的注释和所有标准矩阵尚未验收。当前对未完成的关键行为返回诊断，不能描述为全部自动支持。
+公开前端已有非 Gin 返回值形态的源码测试，并已通过真正临时外部 module 的公开 API 消费测试。开发测试使用隔离临时 replace；最终固定远端版本测试由 OPENAPI_TEST_CORE_VERSION 选择，届时禁止 replace。多路径 helper 参数化摘要缓存、集中兜底类型解析、闭包与 receiver 消歧、完整构建 profile 指纹、导入类型的注释和所有标准矩阵尚未验收。当前对未完成的关键行为返回诊断，不能描述为全部自动支持。

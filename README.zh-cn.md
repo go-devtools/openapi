@@ -26,6 +26,18 @@ Go 源码与真实编解码提供结构，普通注释提供业务语义。文�
 
 Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这些适配器。
 
+## 离线引用检查
+
+`CheckWithOptions` 接收显式检索 URI、预载的 OpenAPI / JSON Schema 和外部示例原文。文档构建通过 `Config.Validation` 使用相同配置，命令行通过 `openapi check --resources resources.json` 读取显式清单。检查器限制全部输入，始终不自动加载 URI。资源作用域、预算与当前展示边界见[引用 API 与 CLI 指南](docs/references.md)。
+
+## Schema 与源码约束
+
+原始文档检查接受合法但不适用或不可满足的 JSON Schema。源码投影另外诊断注释与推导出的网络类型、边界之间的冲突，覆盖命名组件引用。已经验证的行为与未完成边界见 [Schema 检查与注释诊断](docs/schema-annotations.md)。
+
+## 独立契约验证
+
+可选 contracttest 包接收显式预载资源，使用独立引擎验证实际 JSON 样本，覆盖动态递归引用，不自动获取缺失资源。选项、预算和未完成边界见[契约验证指南](docs/contracttest.md)。
+
 ## 许可证
 
 项目新增代码采用 [MIT](LICENSE)。第三方资源保留原许可证与声明。

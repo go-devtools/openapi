@@ -1,13 +1,42 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
 
 // 验证原生三点二字段与显式零值能够无损序列化。
 func TestNative32AndPresence(t *testing.T) {
+	fixture, err := os.ReadFile("../testdata/golden/openapi32-full.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var native OpenAPI
+	if err = json.Unmarshal(fixture, &native); err != nil {
+		t.Fatal(err)
+	}
+	roundtrip, err := json.Marshal(native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var before, after any
+	for _, entry := range []struct {
+		raw   []byte
+		value *any
+	}{{fixture, &before}, {roundtrip, &after}} {
+		decoder := json.NewDecoder(bytes.NewReader(entry.raw))
+		decoder.UseNumber()
+		if err = decoder.Decode(entry.value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("完整三点二标准 fixture 往返丢失字段或存在性")
+	}
 	doc := OpenAPI{OpenAPI: "3.2.0", Self: "https://example.test/api", JSONSchemaDialect: DefaultDialect,
 		Info: Info{Title: "用户接口", Version: "1"}, Security: Set([]SecurityRequirement{}),
 		Paths:      map[string]*PathItem{"/users": {Query: &Operation{Responses: map[string]RefOr[Response]{"200": Inline(Response{Description: "成功", Content: map[string]RefOr[MediaType]{"application/x-ndjson": Inline(MediaType{ItemSchema: Boolean(false)})}})}}}},

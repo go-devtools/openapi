@@ -2,13 +2,9 @@
 package validate
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"math/big"
-	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -26,55 +22,22 @@ type checker struct {
 	root   map[string]any
 	issues []Issue
 	ids    map[string]string
-	refs   map[string]string
-	nodes  int
+	graph  *referenceGraph
 }
 
 // 限制输入体积、深度、对象数量并执行无网络检查。
 func Check(raw []byte) []Issue {
-	c := checker{ids: map[string]string{}, refs: map[string]string{}}
-	if len(raw) > 8<<20 {
-		c.add("budget", "#", "文档超过八 MiB 限制")
-		return c.issues
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	value, err := decode(dec, 0, new(int))
-	if err != nil {
-		c.add("json", "#", err.Error())
-		return c.issues
-	}
-	if _, err = dec.Token(); err != io.EOF {
-		c.add("json", "#", "文档末尾有额外内容")
-		return c.issues
-	}
-	root, ok := value.(map[string]any)
-	if !ok {
-		c.add("root", "#", "文档根必须是对象")
-		return c.issues
-	}
-	c.root = root
-	c.walk(root, "#", "root", 0)
-	c.checkTags()
-	for ref, path := range c.refs {
-		if strings.HasPrefix(ref, "#/") && !c.resolve(ref) {
-			c.add("ref.missing", path, "引用目标不存在："+ref)
-		}
-	}
-	sort.Slice(c.issues, func(i, j int) bool {
-		if c.issues[i].Path != c.issues[j].Path {
-			return c.issues[i].Path < c.issues[j].Path
-		}
-		return c.issues[i].Code < c.issues[j].Code
-	})
-	return c.issues
+	return CheckWithOptions(raw, Options{})
 }
+
+// 区分输入预算耗尽与普通 JSON 语法错误。
+var errJSONBudget = errors.New("JSON 深度或节点数超过预算")
 
 // 用 token 解码检测重复键，并保留所有数值的十进制文本。
 func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 	*count++
 	if depth > 128 || *count > 200000 {
-		return nil, fmt.Errorf("JSON 深度或节点数超过预算")
+		return nil, errJSONBudget
 	}
 	token, err := dec.Token()
 	if err != nil {
@@ -125,6 +88,9 @@ func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 
 // 聚合稳定命名空间的错误，不隐藏失败位置。
 func (c *checker) add(code, path, msg string) {
+	if c.graph != nil && !c.graph.spend(len(code), len(path), len(msg), 128) {
+		return
+	}
 	c.issues = append(c.issues, Issue{Code: "openapi.spec." + code, Path: path, Message: msg, Fix: "修正规范构造或相应源码契约；外部内容请显式离线导入"})
 }
 
@@ -139,12 +105,36 @@ func has(m map[string]any, k string) bool { _, ok := m[k]; return ok }
 
 // 按标准对象上下文遍历，示例值和扩展值作为数据而不是规范关键字。
 func (c *checker) walk(v any, path, role string, depth int) {
+	if c.stopped() {
+		return
+	}
 	if depth > 128 {
 		c.add("budget", path, "规范对象递归超过预算")
 		return
 	}
+	if role == "schemaArray" {
+		items, ok := v.([]any)
+		if !ok || len(items) == 0 {
+			c.add("schema.keyword", path, "此关键字要求至少一个 Schema 的数组")
+			return
+		}
+		for i, item := range items {
+			if c.stopped() {
+				return
+			}
+			c.walk(item, path+"/"+strconv.Itoa(i), "schema", depth+1)
+		}
+		return
+	}
+	if _, ok := v.([]any); ok && (role == "schema" || role == "schemas") {
+		c.add("schema.keyword", path, "Schema 或 Schema 字典不能是数组")
+		return
+	}
 	if a, ok := v.([]any); ok {
 		for i, item := range a {
+			if c.stopped() {
+				return
+			}
 			c.walk(item, path+"/"+strconv.Itoa(i), role, depth+1)
 		}
 		return
@@ -159,32 +149,69 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.add("object", path, "此处必须是对象")
 		return
 	}
-	switch role {
-	case "schemas", "paths", "responses", "parameters", "headers", "mediaTypes", "examples", "securitySchemes", "links", "callbacks", "pathItems", "encodings", "webhooks":
-		singular := map[string]string{"schemas": "schema", "paths": "path", "responses": "response", "parameters": "parameter", "headers": "header", "mediaTypes": "media", "examples": "example", "securitySchemes": "security", "links": "link", "callbacks": "callback", "pathItems": "path", "encodings": "encoding", "webhooks": "path"}[role]
-		for k, item := range m {
-			if strings.HasPrefix(k, "x-") {
+	if singular := dictionaryRole(role); singular != "" {
+		for _, k := range sortedKeys(m) {
+			if c.stopped() {
+				return
+			}
+			if dictionaryExtension(role, k) {
 				continue
 			}
 			if role == "paths" {
 				c.checkPath(k, path)
 			}
 			if role == "responses" && !validStatus(k) {
-				c.add("response.status", path+"/"+k, "非法响应状态码")
+				c.add("response.status", path+"/"+escape(k), "非法响应状态码")
 			}
-			c.walk(item, path+"/"+escape(k), singular, depth+1)
+			c.walk(m[k], path+"/"+escape(k), singular, depth+1)
 		}
 		return
 	}
-	if ref := str(m, "$ref"); ref != "" {
-		c.reference(ref, path)
-		if role != "schema" && role != "path" {
-			for k := range m {
-				if k != "$ref" && k != "summary" && k != "description" {
-					c.add("ref.sibling", path, "Reference Object 存在非法兄弟字段："+k)
+	if has(m, "$ref") && referenceRole(role) && role != "schema" && role != "path" {
+		for _, k := range sortedKeys(m) {
+			if c.stopped() {
+				return
+			}
+			if k != "$ref" && k != "summary" && k != "description" {
+				c.add("ref.sibling", path, "Reference Object 存在非法兄弟字段："+k)
+			}
+		}
+		return
+	}
+	if (role == "root" || role == "operation") && has(m, "security") {
+		requirements, ok := m["security"].([]any)
+		if !ok {
+			c.add("security.requirements", path+"/security", "security 必须是数组，不能是 null")
+		} else {
+			for i, requirement := range requirements {
+				if c.stopped() {
+					return
+				}
+				entry, ok := requirement.(map[string]any)
+				if !ok {
+					c.add("security.requirements", path+"/security/"+strconv.Itoa(i), "每项安全要求必须是对象")
+					continue
+				}
+				for _, name := range sortedKeys(entry) {
+					scopes := entry[name]
+					if c.stopped() {
+						return
+					}
+					values, ok := scopes.([]any)
+					if !ok {
+						c.add("security.scopes", path+"/security/"+strconv.Itoa(i), name+" 的作用域必须是数组")
+						continue
+					}
+					for _, scope := range values {
+						if c.stopped() {
+							return
+						}
+						if _, ok := scope.(string); !ok {
+							c.add("security.scopes", path+"/security/"+strconv.Itoa(i), "作用域必须是字符串")
+						}
+					}
 				}
 			}
-			return
 		}
 	}
 	switch role {
@@ -195,12 +222,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		if _, ok := m["info"].(map[string]any); !ok {
 			c.add("info", path, "缺少 info 对象")
 		}
-		if self := str(m, "$self"); self != "" {
-			u, err := url.Parse(self)
-			if err != nil || !u.IsAbs() || u.Fragment != "" {
-				c.add("self", path, "$self 必须是无片段的绝对 URI")
-			}
-		}
+
 	case "info":
 		if str(m, "title") == "" || str(m, "version") == "" {
 			c.add("info", path, "title 和 version 不能为空")
@@ -209,7 +231,10 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.schema(m, path)
 	case "path":
 		if extra, ok := m["additionalOperations"].(map[string]any); ok {
-			for method := range extra {
+			for _, method := range sortedKeys(extra) {
+				if c.stopped() {
+					return
+				}
 				if isFixed(strings.ToUpper(method)) {
 					c.add("method.duplicate", path, "固定 HTTP 方法不能出现在 additionalOperations")
 				}
@@ -231,7 +256,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		if in != "path" && in != "query" && in != "header" && in != "cookie" && in != "querystring" {
 			c.add("parameter.location", path, "参数位置不合法")
 		}
-		if in != "querystring" && str(m, "name") == "" {
+		if str(m, "name") == "" {
 			c.add("parameter.name", path, "命名参数缺少 name")
 		}
 		if in == "path" && m["required"] != true {
@@ -267,9 +292,6 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		if has(m, "serializedValue") && has(m, "externalValue") {
 			c.add("example.conflict", path, "serializedValue 与 externalValue 互斥")
 		}
-		if has(m, "externalValue") {
-			c.add("external.denied", path, "默认禁止外部示例加载")
-		}
 	case "tag":
 		if str(m, "name") == "" {
 			c.add("tag.name", path, "标签名称不能为空")
@@ -288,11 +310,15 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			c.add("xml.nodeType", path, "未知 XML 节点类型")
 		}
 	}
-	for k, item := range m {
+	for _, k := range sortedKeys(m) {
+		if c.stopped() {
+			return
+		}
+		item := m[k]
 		if strings.HasPrefix(k, "x-") {
 			continue
 		}
-		child := c.childRole(role, k)
+		child := childRole(role, k)
 		if child != "" {
 			c.walk(item, path+"/"+escape(k), child, depth+1)
 		}
@@ -300,12 +326,14 @@ func (c *checker) walk(v any, path, role string, depth int) {
 }
 
 // 返回已知结构字段的子对象上下文。
-func (c *checker) childRole(role, k string) string {
+func childRole(role, k string) string {
 	if role == "schema" {
 		switch k {
 		case "properties", "patternProperties", "$defs", "dependentSchemas":
 			return "schemas"
-		case "items", "prefixItems", "contains", "unevaluatedItems", "additionalProperties", "unevaluatedProperties", "propertyNames", "allOf", "anyOf", "oneOf", "not", "if", "then", "else", "contentSchema":
+		case "prefixItems", "allOf", "anyOf", "oneOf":
+			return "schemaArray"
+		case "items", "contains", "unevaluatedItems", "additionalProperties", "unevaluatedProperties", "propertyNames", "not", "if", "then", "else", "contentSchema":
 			return "schema"
 		case "discriminator":
 			return "discriminator"
@@ -329,45 +357,21 @@ func (c *checker) childRole(role, k string) string {
 	if role == "path" && isFixed(strings.ToUpper(k)) {
 		return "operation"
 	}
-	switch k {
-	case "info":
-		return "info"
-	case "paths":
-		return "paths"
-	case "webhooks":
-		return "webhooks"
-	case "components":
-		return "components"
-	case "additionalOperations":
-		return "additionalOperations"
-	case "responses":
-		return "responses"
-	case "parameters":
-		return "parameter"
-	case "requestBody":
-		return "requestBody"
-	case "headers":
-		return "headers"
-	case "content":
-		return "mediaTypes"
-	case "schema", "itemSchema":
-		return "schema"
-	case "encoding":
-		return "encodings"
-	case "prefixEncoding", "itemEncoding":
-		return "encoding"
-	case "examples":
-		return "examples"
-	case "links":
-		return "links"
-	case "callbacks":
-		return "callbacks"
-	case "tags":
-		if role == "root" {
-			return "tag"
-		}
+	// 相同字段名在 Link 等对象中可能是业务数据，不能按名字跨上下文解释。
+	children := map[string]map[string]string{
+		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tag", "servers": "server"},
+		"info":        {"license": "license", "contact": "contact"},
+		"path":        {"parameters": "parameter", "additionalOperations": "additionalOperations", "servers": "server"},
+		"operation":   {"parameters": "parameter", "responses": "responses", "requestBody": "requestBody", "callbacks": "callbacks", "servers": "server"},
+		"requestBody": {"content": "mediaTypes"},
+		"response":    {"headers": "headers", "content": "mediaTypes", "links": "links"},
+		"parameter":   {"schema": "schema", "content": "mediaTypes", "examples": "examples"},
+		"header":      {"schema": "schema", "content": "mediaTypes", "examples": "examples"},
+		"media":       {"schema": "schema", "itemSchema": "schema", "examples": "examples", "encoding": "encodings", "prefixEncoding": "encoding", "itemEncoding": "encoding"},
+		"encoding":    {"headers": "headers", "encoding": "encodings", "prefixEncoding": "encoding", "itemEncoding": "encoding"},
+		"link":        {"server": "server"},
 	}
-	return ""
+	return children[role][k]
 }
 
 // 检查中立路径花括号结构，不解释框架专用语法。
@@ -378,6 +382,9 @@ func (c *checker) checkPath(path, parent string) {
 	inside := false
 	start := 0
 	for i, r := range path {
+		if c.stopped() {
+			return
+		}
 		switch r {
 		case '{':
 			if inside {
@@ -431,6 +438,9 @@ func (c *checker) parameterContent(m map[string]any, path string) {
 			c.add("parameter.content", path, "参数 content 必须且只能有一个媒体类型")
 		}
 		for _, k := range []string{"style", "explode", "allowReserved"} {
+			if c.stopped() {
+				return
+			}
 			if has(m, k) {
 				c.add("parameter.serialization", path, "content 不与 "+k+" 并用")
 			}
@@ -447,6 +457,9 @@ func (c *checker) parameters(m map[string]any, path string) {
 	seen := map[string]bool{}
 	query, querystring := false, false
 	for _, v := range list {
+		if c.stopped() {
+			return
+		}
 		p, _ := v.(map[string]any)
 		if has(p, "$ref") {
 			continue
@@ -480,88 +493,14 @@ func schemaHasType(m map[string]any, want string) bool {
 	return false
 }
 
-// 检查可确定的 Schema 约束矛盾，不从自然语言推断限制。
-func (c *checker) schema(m map[string]any, path string) {
-	if has(m, "nullable") {
-		c.add("schema.nullable", path, "应使用联合 null，不能输出旧版 nullable")
-	}
-	if ref := str(m, "$dynamicRef"); ref != "" {
-		c.reference(ref, path)
-	}
-	if has(m, "type") {
-		for _, entry := range []struct {
-			keys  []string
-			types []string
-		}{{[]string{"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"}, []string{"number", "integer"}}, {[]string{"minLength", "maxLength", "pattern"}, []string{"string"}}, {[]string{"minItems", "maxItems", "uniqueItems", "contains"}, []string{"array"}}} {
-			applies := false
-			for _, t := range entry.types {
-				applies = applies || schemaHasType(m, t)
-			}
-			if !applies {
-				for _, k := range entry.keys {
-					if has(m, k) {
-						c.add("schema.type", path, k+" 不适用于显式类型")
-					}
-				}
-			}
-		}
-	}
-	for _, pair := range [][2]string{{"minimum", "maximum"}, {"minLength", "maxLength"}, {"minItems", "maxItems"}, {"minContains", "maxContains"}, {"minProperties", "maxProperties"}} {
-		a, aok := m[pair[0]].(json.Number)
-		b, bok := m[pair[1]].(json.Number)
-		if aok && bok {
-			ar, ok1 := new(big.Rat).SetString(string(a))
-			br, ok2 := new(big.Rat).SetString(string(b))
-			if ok1 && ok2 && ar.Cmp(br) > 0 {
-				c.add("schema.range", path, pair[0]+" 大于 "+pair[1])
-			}
-		}
-	}
-}
-
-// 记录引用但不下载；本地 JSON Pointer 在完整遍历后检查。
-func (c *checker) reference(ref, path string) {
-	if !strings.HasPrefix(ref, "#") {
-		c.add("external.denied", path, "默认禁止外部引用："+ref)
-		return
-	}
-	c.refs[ref] = path
-}
-
-// 解析本地 JSON Pointer，不进行文件或网络访问。
-func (c *checker) resolve(ref string) bool {
-	fragment, err := url.PathUnescape(strings.TrimPrefix(ref, "#"))
-	if err != nil {
-		return false
-	}
-	var cur any = c.root
-	for _, part := range strings.Split(strings.TrimPrefix(fragment, "/"), "/") {
-		part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
-		switch x := cur.(type) {
-		case map[string]any:
-			var ok bool
-			cur, ok = x[part]
-			if !ok {
-				return false
-			}
-		case []any:
-			i, err := strconv.Atoi(part)
-			if err != nil || i < 0 || i >= len(x) {
-				return false
-			}
-			cur = x[i]
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 // 验证标签引用存在并检查父级环。
 func (c *checker) checkTags() {
 	tags, _ := c.root["tags"].([]any)
 	parents := map[string]string{}
 	for _, v := range tags {
+		if c.stopped() {
+			return
+		}
 		m, _ := v.(map[string]any)
 		name := str(m, "name")
 		if _, ok := parents[name]; ok {
@@ -569,10 +508,19 @@ func (c *checker) checkTags() {
 		}
 		parents[name] = str(m, "parent")
 	}
-	for name := range parents {
+	for _, name := range sortedKeys(parents) {
+		if c.stopped() {
+			return
+		}
 		seen := map[string]bool{}
 		cur := name
 		for cur != "" {
+			if c.stopped() {
+				return
+			}
+			if c.graph != nil && !c.graph.spend(len(cur), 1) {
+				return
+			}
 			if seen[cur] {
 				c.add("tag.cycle", "#/tags", "标签父级成环："+name)
 				break
@@ -604,7 +552,11 @@ func (c *checker) security(m map[string]any, path string) {
 		if len(flows) == 0 && !has(m, "oauth2MetadataUrl") {
 			c.add("security.oauth2", path, "OAuth2 缺少流或元数据地址")
 		}
-		for kind, v := range flows {
+		for _, kind := range sortedKeys(flows) {
+			v := flows[kind]
+			if c.stopped() {
+				return
+			}
 			f, _ := v.(map[string]any)
 			if kind == "deviceAuthorization" && (str(f, "deviceAuthorizationUrl") == "" || str(f, "tokenUrl") == "") {
 				c.add("security.device", path, "设备授权缺少 deviceAuthorizationUrl 或 tokenUrl")

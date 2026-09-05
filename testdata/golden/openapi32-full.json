@@ -1,0 +1,644 @@
+{
+  "openapi": "3.2.0",
+  "$self": "https://example.invalid/openapi.json",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.2/dialect/2025-09-17",
+  "info": {
+    "title": "OpenAPI 3.2 standard fixture",
+    "summary": "Native model and validation fixture",
+    "version": "1.0.0",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "name": "regional",
+      "url": "https://{region}.example.invalid",
+      "variables": {
+        "region": {
+          "default": "local",
+          "enum": [
+            "local",
+            "test"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "resources",
+      "summary": "Resources",
+      "kind": "nav"
+    },
+    {
+      "name": "read",
+      "summary": "Read operations",
+      "kind": "badge",
+      "parent": "resources"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/events": {
+      "query": {
+        "operationId": "queryEvents",
+        "tags": [
+          "read"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+              "in": "querystring",
+            "content": {
+              "application/x-www-form-urlencoded": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "limit": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event stream",
+            "content": {
+              "text/event-stream": {
+                "$ref": "#/components/mediaTypes/Events"
+              }
+            }
+          }
+        }
+      },
+      "additionalOperations": {
+        "PROPFIND": {
+          "operationId": "findEvents",
+          "responses": {
+            "207": {
+              "description": "XML listing",
+              "content": {
+                "application/xml": {
+                  "schema": {
+                    "$ref": "#/components/schemas/XmlItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getItem",
+        "tags": [
+          "read"
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "session",
+            "in": "cookie",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An item",
+            "headers": {
+              "X-RateLimit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "example": 0
+              }
+            },
+            "content": {
+              "application/json": {
+                "description": "A JSON item",
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                },
+                "examples": {
+                  "logical": {
+                    "dataValue": {
+                      "id": 1,
+                      "name": "first"
+                    }
+                  },
+                  "serialized": {
+                    "serializedValue": "{\"id\":1,\"name\":\"first\"}"
+                  }
+                }
+              }
+            },
+            "links": {
+              "next": {
+                "operationId": "getItem",
+                "parameters": {
+                  "id": "$response.body#/id"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "device": [
+              "read"
+            ]
+          }
+        ]
+      }
+    },
+    "/uploads": {
+      "post": {
+        "operationId": "upload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "$ref": "#/components/schemas/Item"
+                  },
+                  "file": {
+                    "type": "string",
+                    "contentMediaType": "application/octet-stream"
+                  }
+                }
+              },
+              "encoding": {
+                "metadata": {
+                  "contentType": "application/json"
+                },
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            },
+            "multipart/mixed": {
+              "schema": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "$ref": "#/components/schemas/Item"
+                  }
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "prefixEncoding": [
+                {
+                  "contentType": "application/json"
+                }
+              ],
+              "itemEncoding": {
+                "contentType": "text/plain"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/subscriptions": {
+      "post": {
+        "operationId": "subscribe",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "callbackUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Subscribed"
+          }
+        },
+        "callbacks": {
+          "onEvent": {
+            "{$request.body#/callbackUrl}": {
+              "post": {
+                "operationId": "subscriptionCallback",
+                "requestBody": {
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Change"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "204": {
+                    "description": "Acknowledged"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "changed": {
+      "post": {
+        "operationId": "changedWebhook",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Change"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Acknowledged"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Event": {
+        "title": "Event",
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "string",
+            "contentMediaType": "application/json",
+            "contentSchema": {
+              "$ref": "#/components/schemas/Item"
+            }
+          },
+          "event": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "retry": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "examples": [
+          {
+            "data": "{\"id\":1,\"name\":\"first\"}",
+            "event": "changed",
+            "retry": 0
+          }
+        ]
+      },
+      "Item": {
+        "title": "Item",
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "examples": [
+              9007199254740993
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "examples": [
+              "first"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "created",
+              "deleted"
+            ]
+          }
+        },
+        "dependentRequired": {
+          "kind": [
+            "id"
+          ]
+        },
+        "unevaluatedProperties": false
+      },
+      "Tree": {
+        "title": "Tree",
+        "$dynamicAnchor": "node",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$dynamicRef": "#node"
+            }
+          }
+        }
+      },
+      "Created": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "const": "created"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          }
+        }
+      },
+      "Deleted": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "const": "deleted"
+          },
+          "id": {
+            "type": "integer"
+          }
+        }
+      },
+      "Unknown": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          }
+        }
+      },
+      "Change": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Created"
+          },
+          {
+            "$ref": "#/components/schemas/Deleted"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "created": "#/components/schemas/Created",
+            "deleted": "#/components/schemas/Deleted"
+          },
+          "defaultMapping": "#/components/schemas/Unknown"
+        }
+      },
+      "XmlItem": {
+        "type": "object",
+        "xml": {
+          "nodeType": "element",
+          "name": "item",
+          "namespace": "urn:example:items",
+          "prefix": "i"
+        },
+        "properties": {
+          "id": {
+            "type": "integer",
+            "xml": {
+              "nodeType": "attribute"
+            }
+          },
+          "text": {
+            "type": "string",
+            "xml": {
+              "nodeType": "cdata"
+            }
+          }
+        }
+      },
+      "Constraints": {
+        "title": "Constraints",
+        "type": "object",
+        "$defs": {
+          "Exact": {
+            "type": "number",
+            "multipleOf": 0.5,
+            "minimum": 0,
+            "maximum": 10,
+            "exclusiveMinimum": -1,
+            "exclusiveMaximum": 11
+          }
+        },
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Constraints/$defs/Exact"
+          },
+          "tuple": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "contains": {
+              "const": 0
+            },
+            "minContains": 1,
+            "maxContains": 2,
+            "uniqueItems": true
+          },
+          "labels": {
+            "type": "object",
+            "patternProperties": {
+              "^[a-z]+$": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "pattern": "^[a-z]+$"
+            },
+            "additionalProperties": false
+          },
+          "denied": false,
+          "anything": true,
+          "fixed": {
+            "const": null
+          }
+        },
+        "if": {
+          "required": [
+            "amount"
+          ]
+        },
+        "then": {
+          "required": [
+            "tuple"
+          ]
+        },
+        "else": {
+          "not": {
+            "required": [
+              "tuple"
+            ]
+          }
+        },
+        "dependentSchemas": {
+          "codes": {
+            "required": [
+              "labels"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "minProperties": 1
+          }
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "fixed"
+            ]
+          },
+          {
+            "required": [
+              "amount"
+            ]
+          }
+        ],
+        "maxProperties": 8
+      }
+    },
+    "mediaTypes": {
+      "Events": {
+        "description": "Individually validated SSE events",
+        "itemSchema": {
+          "$ref": "#/components/schemas/Event"
+        },
+        "examples": {
+          "one": {
+            "dataValue": {
+              "data": "{\"id\":1,\"name\":\"first\"}",
+              "event": "changed",
+              "retry": 0
+            },
+            "serializedValue": "event: changed\ndata: {\"id\":1,\"name\":\"first\"}\nretry: 0\n\n"
+          }
+        }
+      },
+      "Lines": {
+        "itemSchema": {
+          "$ref": "#/components/schemas/Item"
+        }
+      }
+    },
+    "securitySchemes": {
+      "device": {
+        "type": "oauth2",
+        "deprecated": true,
+        "oauth2MetadataUrl": "https://auth.example.invalid/.well-known/oauth-authorization-server",
+        "flows": {
+          "deviceAuthorization": {
+            "deviceAuthorizationUrl": "https://auth.example.invalid/device",
+            "tokenUrl": "https://auth.example.invalid/token",
+            "refreshUrl": "https://auth.example.invalid/refresh",
+            "scopes": {
+              "read": "Read items"
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-fixture-purpose": "Standard validation only; not a production schema-first input."
+}

@@ -149,6 +149,7 @@ type RequestBody struct {
 
 // 表示单个媒体类型的完整数据、流式单项与 multipart 编码。
 type MediaType struct {
+	Description    string                    `json:"description,omitempty"`
 	Schema         *Schema                   `json:"schema,omitempty"`
 	ItemSchema     *Schema                   `json:"itemSchema,omitempty"`
 	Example        Optional[any]             `json:"example,omitzero"`

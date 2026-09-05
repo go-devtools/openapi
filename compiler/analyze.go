@@ -20,6 +20,8 @@ type flow struct {
 	writes      int
 	pending     *Effect
 	returned    []Value
+	committed   string
+	branch      token.Token
 }
 
 // 保存有界分析调度器，每个 handler 使用独立状态。
@@ -79,12 +81,6 @@ func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, 
 				a.unknown(&paths[i], a.project.Source(statement.Pos()), "控制流路径超过预算")
 			}
 			break
-		}
-	}
-	for i := range paths {
-		if paths[i].writes == 0 && paths[i].pending != nil {
-			paths[i].effects = append(paths[i].effects, *paths[i].pending)
-			paths[i].pending = nil
 		}
 	}
 	return paths
@@ -179,6 +175,12 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 		if !hasDefault {
 			result = append(result, state)
 		}
+		for i := range result {
+			if result[i].branch == token.BREAK {
+				result[i].ended = false
+				result[i].branch = token.ILLEGAL
+			}
+		}
 		return result
 	case *ast.RangeStmt, *ast.ForStmt:
 		a.unknown(&state, source, "循环中的效果需要有界摘要或集中适配")
@@ -187,10 +189,11 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	case *ast.IncDecStmt:
 		a.assign(fn, s.X, Value{Type: fn.Package.Info.TypeOf(s.X), Unknown: true}, &state)
 	case *ast.BranchStmt:
-		if s.Tok != token.BREAK {
+		if s.Tok != token.BREAK || s.Label != nil {
 			a.unknown(&state, source, "未支持的控制流跳转")
 		}
 		state.ended = true
+		state.branch = s.Tok
 	case *ast.EmptyStmt:
 	default:
 		a.unknown(&state, source, fmt.Sprintf("未解决语句 %T", statement))
@@ -232,10 +235,32 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 func (a *analyzer) effects(state *flow, effects []Effect) {
 	for _, e := range effects {
 		switch e.Kind {
-		case ResponseStatus:
+		case Handled:
+			continue
+		case ResponseStatus, ResponseCommit:
+			if state.committed != "" {
+				continue
+			}
+			if e.Status == "-1" && state.pending != nil {
+				e.Status = state.pending.Status
+			}
+			if e.Kind == ResponseCommit {
+				state.committed = e.Status
+			}
+			e.Kind = ResponseStatus
 			copy := e
 			state.pending = &copy
 		case ResponseBody:
+			if state.committed != "" {
+				e.Status = state.committed
+			} else if e.Status == "-1" {
+				if state.pending != nil {
+					e.Status = state.pending.Status
+				} else {
+					e.Status = "200"
+				}
+			}
+			state.committed = e.Status
 			state.writes++
 			if state.writes > 1 {
 				a.unknown(state, e.Source, "同一路径连续写入多个 body，不能表示为响应备选")
@@ -309,6 +334,27 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state *flow, depth int) 
 		if field, ok := base.Fields[x.Sel.Name]; ok {
 			return field
 		}
+	case *ast.BinaryExpr:
+		left := a.evaluate(fn, x.X, state, depth)
+		if left.Constant != nil && left.Constant.Kind() == constant.Bool {
+			if (x.Op == token.LAND && !constant.BoolVal(left.Constant)) || (x.Op == token.LOR && constant.BoolVal(left.Constant)) {
+				return left
+			}
+		}
+		before := len(state.effects)
+		right := a.evaluate(fn, x.Y, state, depth)
+		if (x.Op == token.LAND || x.Op == token.LOR) && left.Constant == nil && len(state.effects) != before {
+			a.unknown(state, a.project.Source(x.Pos()), "短路表达式右侧效果的适用条件尚未收敛")
+		}
+		if left.Constant != nil && right.Constant != nil {
+			switch x.Op {
+			case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+				value.Constant = constant.MakeBool(constant.Compare(left.Constant, x.Op, right.Constant))
+			case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT, token.LAND, token.LOR:
+				value.Constant = constant.BinaryOp(left.Constant, x.Op, right.Constant)
+			}
+		}
+		return value
 	case *ast.CompositeLit:
 		value.Fields = map[string]Value{}
 		for i, elt := range x.Elts {
