@@ -48,7 +48,7 @@ window.OpenAPIDisplayNames = function () {
               // Replace only titles originating from this reference, without guessing suffixes or changing business field names.
               const encoded = reference.slice(position + marker.length);
               let key = encoded;
-              try { key = decodeURIComponent(encoded); } catch (_) { /* 无效 URI 保持原值。 */ }
+              try { key = decodeURIComponent(encoded); } catch (_) { /* 无效 URI 保持原值。 Preserve the original value for invalid URIs. */ }
               key = key.replace(/~1/g, "/").replace(/~0/g, "~");
               if (props.name === key) displayName = schema.title;
             }
