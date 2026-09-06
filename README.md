@@ -75,3 +75,5 @@ Known function values and synchronous callback conventions are analyzed through 
 Start with [llms.txt](llms.txt) for a compact documentation index and the [AI integration guide](docs/ai-integration.md) for actual commands, structured diagnostics, and public API boundaries. Generated JSON and provenance provide evidence for integration decisions.
 
 See the [performance guide](docs/performance.md) for reproducible 100/1000-route generation, startup Build, document-read, and allocation benchmarks.
+
+See the [independent CI guide](docs/ci.md) for pinned tools, private module access, offline browser checks, actual platform jobs, and fixed remote-version consumption.

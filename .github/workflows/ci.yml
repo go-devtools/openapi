@@ -1,0 +1,190 @@
+name: Independent module CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOWORK: 'off'
+  GOTOOLCHAIN: local
+  GOPRIVATE: github.com/openapi-golang/*
+  GIT_TERMINAL_PROMPT: '0'
+  CI_REPOSITORY: ${{ github.repository }}
+  CI_REPOSITORY_TOKEN: ${{ github.token }}
+  GIT_CONFIG_COUNT: '3'
+  GIT_CONFIG_KEY_0: credential.helper
+  GIT_CONFIG_VALUE_0: ''
+  GIT_CONFIG_KEY_1: credential.useHttpPath
+  GIT_CONFIG_VALUE_1: 'true'
+  GIT_CONFIG_KEY_2: credential.helper
+  GIT_CONFIG_VALUE_2: "!bash '${{ github.workspace }}/scripts/git-credential-ci.sh'"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - name: Initialize isolated caches and evidence paths
+        run: |
+          ci_cache="$(mktemp -d "$RUNNER_TEMP/openapi-ci.XXXXXX")"
+          mkdir -p "$RUNNER_TEMP/ci-artifacts"
+          printf '%s\n' "GOMODCACHE=$ci_cache/modules" "GOCACHE=$ci_cache/build" "CI_ARTIFACT_DIR=$RUNNER_TEMP/ci-artifacts" "PLAYWRIGHT_BROWSERS_PATH=$ci_cache/browsers" "PLAYWRIGHT_OUTPUT_DIR=$RUNNER_TEMP/ci-artifacts/browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Run test gates
+        run: bash scripts/ci.sh test
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-${{ matrix.runner }}
+          path: ${{ runner.temp }}/ci-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Initialize isolated caches and evidence paths
+        run: |
+          ci_cache="$(mktemp -d "$RUNNER_TEMP/openapi-ci.XXXXXX")"
+          mkdir -p "$RUNNER_TEMP/ci-artifacts"
+          printf '%s\n' "GOMODCACHE=$ci_cache/modules" "GOCACHE=$ci_cache/build" "CI_ARTIFACT_DIR=$RUNNER_TEMP/ci-artifacts" "PLAYWRIGHT_BROWSERS_PATH=$ci_cache/browsers" "PLAYWRIGHT_OUTPUT_DIR=$RUNNER_TEMP/ci-artifacts/browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Run fuzz gates
+        run: bash scripts/ci.sh fuzz
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz
+          path: ${{ runner.temp }}/ci-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Initialize isolated caches and evidence paths
+        run: |
+          ci_cache="$(mktemp -d "$RUNNER_TEMP/openapi-ci.XXXXXX")"
+          mkdir -p "$RUNNER_TEMP/ci-artifacts"
+          printf '%s\n' "GOMODCACHE=$ci_cache/modules" "GOCACHE=$ci_cache/build" "CI_ARTIFACT_DIR=$RUNNER_TEMP/ci-artifacts" "PLAYWRIGHT_BROWSERS_PATH=$ci_cache/browsers" "PLAYWRIGHT_OUTPUT_DIR=$RUNNER_TEMP/ci-artifacts/browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Run security gates
+        run: bash scripts/ci.sh security
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security
+          path: ${{ runner.temp }}/ci-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Initialize isolated caches and evidence paths
+        run: |
+          ci_cache="$(mktemp -d "$RUNNER_TEMP/openapi-ci.XXXXXX")"
+          mkdir -p "$RUNNER_TEMP/ci-artifacts"
+          printf '%s\n' "GOMODCACHE=$ci_cache/modules" "GOCACHE=$ci_cache/build" "CI_ARTIFACT_DIR=$RUNNER_TEMP/ci-artifacts" "PLAYWRIGHT_BROWSERS_PATH=$ci_cache/browsers" "PLAYWRIGHT_OUTPUT_DIR=$RUNNER_TEMP/ci-artifacts/browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Verify Node and npm versions
+        run: |
+          test "$(node --version)" = v24.20.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --registry=https://registry.npmjs.org
+      - name: Test shared UI components
+        run: npm run test:ui
+      - name: Install the pinned browser
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Verify offline rendering and explicit submission
+        run: npm run test:browser
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser
+          path: ${{ runner.temp }}/ci-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+  remote:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      CI_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Initialize isolated caches and evidence paths
+        run: |
+          ci_cache="$(mktemp -d "$RUNNER_TEMP/openapi-ci.XXXXXX")"
+          mkdir -p "$RUNNER_TEMP/ci-artifacts"
+          printf '%s\n' "GOMODCACHE=$ci_cache/modules" "GOCACHE=$ci_cache/build" "CI_ARTIFACT_DIR=$RUNNER_TEMP/ci-artifacts" "PLAYWRIGHT_BROWSERS_PATH=$ci_cache/browsers" "PLAYWRIGHT_OUTPUT_DIR=$RUNNER_TEMP/ci-artifacts/browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Run remote gates
+        run: bash scripts/ci.sh remote
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: remote-${{ matrix.runner }}
+          path: ${{ runner.temp }}/ci-artifacts
+          if-no-files-found: warn
+          retention-days: 14

@@ -36,3 +36,5 @@ The module is github.com/openapi-golang/openapi. Use Go 1.27.1 and pin a module 
 - [Chinese README](README.zh-cn.md): Corresponding Chinese documentation.
 
 - [Performance](docs/performance.md): Reproducible 100/1000-route benchmarks, measured stages, and allocation boundaries.
+
+- [Independent CI](docs/ci.md): Pinned tools, scoped private module credentials, platform gates, offline browser tests, and published-version consumption.
