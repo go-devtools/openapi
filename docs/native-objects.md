@@ -37,14 +37,25 @@ Summary, description, serializedValue, and externalValue must be strings when pr
 
 `propertyName` is a required string. An empty string names the empty JSON property and is preserved by typed serialization. Mapping entries and defaultMapping identify schemas through the existing resource-aware offline graph; mappings do not change `oneOf` or `anyOf` instance validation.
 
-The checker rejects invalid containers, non-string fields, invalid mapping containers, unresolved targets, and unknown standard fields. The pinned official Schema omits the normative propertyName requirement, so the public checker supplements it with a located diagnostic. Composite inheritance and proving whether a property can be omitted require additional semantic context; the current structure checks do not certify those conditions.
+The checker rejects invalid containers, non-string fields, invalid mapping containers, unresolved targets, and unknown standard fields. It also checks dispatch context after resolving offline references:
+
+- A discriminator needs an adjacent `oneOf`, `anyOf`, or `allOf`, or an inheritance relationship in which a child uses `allOf` to reference the parent. Ordinary reference aliases and transitive inheritance are supported, including cycles within the resource budget.
+- Explicit mapping and default targets must occur in the adjacent union candidates, or be descendants of the discriminator parent. List the fallback branch in the union as well. A schema's ordinary reference aliases share its resolved identity; `$id` boundaries and anchors retain the normal offline reference rules.
+- When the discriminating property is not proven required, provide `defaultMapping`. A fallback that itself requires the omitted property is rejected in this case. A required property can still use a default for unrecognized present values.
+- These checks do not alter instance validation: overlapping `oneOf` branches still fail, multiple `anyOf` matches still succeed, and validating an inheritance parent does not automatically validate a selected child.
+
+Required-property proof follows explicit `required`, ordinary references, any conjunct of `allOf`, every alternative of `oneOf`/`anyOf`, and both conditional branches when `if`, `then`, and `else` are present. It is deliberately conservative: it does not solve arbitrary satisfiability constraints, infer dynamic reference scope from a static target, or infer requiredness from unrelated keywords. An unproven case receives `openapi.spec.discriminator.default.required`; provide an explicit constraint or fallback. This diagnostic is not a claim that every instance permitted by an arbitrary schema can omit that property.
+
+Other context diagnostics are `openapi.spec.discriminator.context`, `.target`, and `.default.optional`; each identifies the offending location. The pinned official structural Schema does not enforce these rules or the normative propertyName requirement. The public checker supplements it rather than treating structural acceptance as full semantic acceptance. See [OpenAPI 3.2 Discriminator](https://spec.openapis.org/oas/v3.2.0.html#discriminator-object).
+
+Traversal shares `CheckOptions.MaxIndexBytes` with the reference graph, so dense cyclic inheritance returns a budget diagnostic instead of expanding without a limit. Component-name mappings are resolved in their owning OpenAPI document; use explicit URI references across documents when the name could be ambiguous.
 
 ## XML
 
 The five node kinds are element, attribute, text, cdata, and none. Namespace values must be non-relative IRIs; Unicode and fragments are allowed. A present nodeType forbids both legacy attribute and wrapped, even when either is false. The legacy wrapped field requires an adjacent array type. Unknown standard fields and wrong field types are rejected; `x-` extension values remain opaque.
 
-Name inference across XML use sites and complete discriminator inheritance checks are not yet certified by this checker. XML metadata does not select a serializer or prove application XML behavior. The shared Swagger UI renders the original document with its pinned upstream capabilities; document validity does not imply complete rendering of every native keyword.
+Name inference across XML use sites is not yet certified by this checker. XML metadata does not select a serializer or prove application XML behavior. The shared Swagger UI renders the original document with its pinned upstream capabilities; document validity does not imply complete rendering of every native keyword.
 
 ## Verification
 
-The native object matrix compares public diagnostics with four checksummed official resources and an independent JSON Schema engine. Separate tests record normative rules that the official resources do not enforce, exercise offline external examples, and verify absent/false/true round trips across every optional boolean field.
+The native object matrix compares public diagnostics with four checksummed official resources and an independent JSON Schema engine. Separate tests record normative rules that the official resources do not enforce, exercise offline external examples, and verify absent/false/true round trips across every optional boolean field. `contracttest/discriminator_test.go` covers union and inheritance context, offline anchors and back-references, cyclic traversal budgets, independent instance semantics, and actual known/unknown/omitted discriminator payloads from the native fixture.

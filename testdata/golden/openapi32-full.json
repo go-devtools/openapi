@@ -449,7 +449,10 @@
         "type": "object",
         "properties": {
           "kind": {
-            "type": "string"
+            "type": "string",
+            "not": {
+              "enum": ["created", "deleted"]
+            }
           }
         }
       },
@@ -460,6 +463,9 @@
           },
           {
             "$ref": "#/components/schemas/Deleted"
+          },
+          {
+            "$ref": "#/components/schemas/Unknown"
           }
         ],
         "discriminator": {

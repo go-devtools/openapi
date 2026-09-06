@@ -124,7 +124,7 @@ func nativeObjectDocument(role, value string) []byte {
 	case "examples":
 		components += `,"examples":` + value
 	case "discriminator":
-		components = `"schemas":{"Thing":{"allOf":[{"type":"object","required":["kind",""]}],"discriminator":` + value + `}}`
+		components = `"schemas":{"Variant":{"oneOf":[{"$ref":"#/components/schemas/Thing"}],"discriminator":` + value + `},"Thing":{"type":"object","required":["kind",""]}}`
 	case "xml":
 		components = `"schemas":{"Thing":{"type":"string","xml":` + value + `}}`
 	case "arrayXML":
