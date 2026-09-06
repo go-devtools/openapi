@@ -296,6 +296,10 @@ func TestTypeExpressionScope(t *testing.T) {
 	if err != nil || typ.String() != "[37]byte" {
 		t.Fatalf("type-like string literal was rewritten: %v %v", typ, err)
 	}
+	typ, err = project.TypeIn(owner, "[len(`"+strings.Repeat("\r", 100)+"example.test/declarations/dto.Problem`)]byte")
+	if err != nil || typ.String() != "[37]byte" {
+		t.Fatalf("raw literal normalization changed type resolution: %v %v", typ, err)
+	}
 	for _, invalid := range []string{"example.test/missing.Type", "example.test/declarations/dto.Envelope", "Reply | Request", strings.Repeat("*", 8193) + "Reply"} {
 		if _, err := project.TypeIn(owner, invalid); err == nil {
 			t.Fatalf("accepted invalid or oversized type expression: %.100s", invalid)

@@ -60,13 +60,19 @@ func (p *Project) TypeIn(packagePath, expression string) (types.Type, error) {
 	file := fset.AddFile("expression", -1, len(expression))
 	var scan scanner.Scanner
 	scan.Init(file, []byte(expression), func(token.Position, string) {}, scanner.ScanComments)
+	previous := -1
 	for {
-		pos, kind, literal := scan.Scan()
+		pos, kind, _ := scan.Scan()
+		// Scanner literals may normalize CR bytes; token positions retain exact source extents.
+		if previous >= 0 {
+			protected[previous] = file.Offset(pos) - previous
+			previous = -1
+		}
 		if kind == token.EOF {
 			break
 		}
 		if kind == token.STRING || kind == token.CHAR || kind == token.COMMENT {
-			protected[file.Offset(pos)] = len(literal)
+			previous = file.Offset(pos)
 		}
 	}
 	var rewritten strings.Builder
