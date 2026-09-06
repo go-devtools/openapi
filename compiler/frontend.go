@@ -27,6 +27,13 @@ type Value struct {
 	Constant constant.Value
 	Fields   map[string]Value
 	Nil      bool
+	// 非 nil 接口内部持有已知 nil 指针或集合；不改变接口自身的比较结果。
+	// A non-nil interface contains a known nil pointer or collection without changing interface comparisons.
+	DynamicNil bool
+	// 标记已装箱的具体值，并独立保留其确定非 nil 的事实。
+	// Mark a boxed concrete value and separately preserve its definite non-nil identity.
+	Boxed         bool
+	DynamicNonNil bool
 	// 明确表示 Go 层面的非 nil 返回值，用于条件传播。
 	// Mark a definitely non-nil Go result for conditional propagation.
 	NonNil  bool
@@ -356,7 +363,7 @@ func (p *Project) valueSchema(v Value, direction Direction, media string, codec 
 	if v.Unknown || v.Type == nil {
 		return nil, fmt.Errorf("关键 payload 类型未解决")
 	}
-	if v.Nil {
+	if v.Nil || v.DynamicNil {
 		return spec.Typed("null"), nil
 	}
 	if _, isMap := v.Type.Underlying().(*types.Map); v.Fields != nil && isMap {

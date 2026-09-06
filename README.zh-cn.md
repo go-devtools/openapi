@@ -65,3 +65,5 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 公开编译器支持[逐字段请求效果](docs/request-fields.md)，保留单个请求体字段、明确编码及与完整对象投影的组合；字段存在与请求体存在分别处理。
 
 公开响应 SDK 支持 `ResponseItem` 逐项响应、独立内层 codec 和编译期 Schema 包装隔离；NDJSON/SSE 独立验证与尚待完成的框架边界见[响应效果指南](docs/response-effects.md)。
+
+公开值与响应快照保留装箱载荷身份和真正提交的响应头。独立流验证覆盖协议各自的行尾、UTF-8 替换和输入预算，见[契约指南](docs/contracttest.md)。

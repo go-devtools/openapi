@@ -30,4 +30,6 @@
 
 本轮新增 HEAD 响应正文投影、共享响应隔离、公开响应状态快照，以及原生三点二 Response.summary。组件响应名称与操作状态码已分离，summary/description 按三点二可选字符串验证。完整规范验收项目见 [能力矩阵](openapi32-matrix.md)，未验证项继续保留。
 
-本轮新增中立 `ResponseItem`、独立内层载荷媒体类型和编译期 Schema 包装，支持连续条目的原生 itemSchema。普通正文混写及条件分帧导致约束丢失均明确诊断；HEAD、204/304 不携带流式正文。7 个新增公开 SDK 测试覆盖 NDJSON/SSE 独立校验、类型引用、包装隔离与失败边界。GOWORK=off dev、全量 race、vet 和模块校验均已通过，固定远端结果另行记录。Gin SSEvent/Stream 自动推导仍属于待完成范围。
+本轮新增中立 `ResponseItem`、独立内层载荷媒体类型和编译期 Schema 包装，支持连续条目的原生 itemSchema。普通正文混写及条件分帧导致约束丢失均明确诊断；HEAD、204/304 不携带流式正文。7 个新增公开 SDK 测试覆盖 NDJSON/SSE 独立校验、类型引用、包装隔离与失败边界。GOWORK=off dev、全量 race、vet 和模块校验均已通过，固定远端结果另行记录。后续 SSEvent 实现位于独立 Gin 适配器，Stream 回调自动推导仍属于待完成范围。
+
+核心公开值现在区分装箱接口及其具体载荷的 nil 身份，并提供独立提交头快照。独立流验证新增 UTF-8 非法子序列、协议分隔符与预算溢出回归；关闭 workspace 的 dev、全量 race、vet 和模块校验通过。

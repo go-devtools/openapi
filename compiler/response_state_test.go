@@ -26,6 +26,9 @@ func TestFrontendResponseSnapshot(t *testing.T) {
 			return []Effect{{Kind: ResponseStatus, Status: "202", Source: c.Source}, {Kind: ResponseHeader, Name: "X-Unknown", Payload: Value{Type: types.Typ[types.String]}, Source: c.Source}, {Kind: ResponseHeader, Name: "X-Mode", Payload: Value{Constant: constant.MakeString("real")}, Source: c.Source}}, nil
 		case "Observe":
 			seen++
+			if len(c.Response.CommittedHeaders) != 0 {
+				t.Fatal("pending headers appeared committed")
+			}
 			if c.Response.Status != "202" || c.Response.Committed || c.Response.Headers["X-Mode"].Value != "real" || !c.Response.Headers["X-Mode"].Known {
 				t.Fatalf("bad pending snapshot: %#v", c.Response)
 			}
@@ -39,6 +42,10 @@ func TestFrontendResponseSnapshot(t *testing.T) {
 			return []Effect{{Kind: ResponseHeader, Name: "X-Mode", Payload: Value{Constant: constant.MakeString("late")}, Source: c.Source}}, nil
 		case "Verify":
 			seen++
+			if c.Response.CommittedHeaders["X-Mode"].Value != "real" || !c.Response.CommittedHeaders["X-Mode"].Known {
+				t.Fatal("committed header snapshot was lost")
+			}
+			delete(c.Response.CommittedHeaders, "X-Mode")
 			if c.Response.Status != "203" || !c.Response.Committed || c.Response.Headers["X-Mode"].Value != "late" {
 				t.Fatalf("snapshot mutation escaped: %#v", c.Response)
 			}

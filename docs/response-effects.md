@@ -28,7 +28,7 @@ These effects add no new runtime imports and do not change the serialized Bundle
 
 ## Observing response state
 
-`CallContext.Response` contains a detached `ResponseState`: the pending/committed status, a `Committed` flag, and canonical names from the current header storage, including post-commit mutations. Each `ResponseHeaderState` separates presence from a known string value. An existing header with unknown content is still present. Frontends may use this snapshot to select effects; modifying its map cannot mutate the analyzer. Frontends continue to emit neutral effects rather than writing internal flow state.
+`CallContext.Response` contains a detached `ResponseState`: the pending/committed status, a `Committed` flag, and canonical names from the current header storage, including post-commit mutations. `CommittedHeaders` is a separate detached map containing only the headers present when committed; it is empty before a commit. Late mutations in `Headers` cannot alter this wire snapshot. Each `ResponseHeaderState` separates presence from a known string value. An existing header with unknown content is still present. Frontends may use this snapshot to select effects; modifying its map cannot mutate the analyzer. Frontends continue to emit neutral effects rather than writing internal flow state.
 
 The runtime links HEAD responses without content, preserving headers, links, summary, and description. Shared local response components are resolved and copied so GET and the original Bundle retain their complete representation. Reference summary/description overrides are retained. Unresolvable HEAD response references fail explicitly; this projection does not claim support for arbitrary external Response Object resolution.
 
@@ -44,4 +44,10 @@ An optional `Effect.TransformSchema` callback wraps a projected response schema 
 
 A frontend can wrap a JSON payload in a string schema with `contentMediaType: application/json` and `contentSchema`, then include that string as an event object's `data` property. [OpenAPI 3.2 SSE semantics](https://spec.openapis.org/oas/v3.2.0.html#special-considerations-for-server-sent-events) require protocol parsing before validation: `data` remains a string, even when its content is JSON. The external SDK test uses `contracttest.SSE` with `AssertContent: true` to check that embedded JSON retains the actual DTO constraints. Metadata absent from the wire is not made required.
 
-HTTP 204/304 response items are discarded before projecting unused payloads. HEAD linking removes stream content while preserving response metadata. This increment verifies a neutral external frontend and independent NDJSON/SSE validation; framework-specific SSE rendering, streaming callbacks, and full protocol/UI matrices remain separate acceptance work.
+HTTP 204/304 response items are discarded before projecting unused payloads. HEAD linking removes stream content while preserving response metadata. This core increment verifies a neutral external frontend and independent NDJSON/SSE validation. Gin SSE rendering is implemented in the separate adapter; streaming callbacks and the complete protocol/UI matrices remain required acceptance work.
+
+## Boxed payload identity
+
+`Value.Nil` and `Value.NonNil` describe the Go expression itself. Boxing a typed nil pointer, map, or slice into an interface makes that interface non-nil while preserving its payload identity through `Boxed`, `DynamicNil`, and `DynamicNonNil`. Unknown pointer identity stays unknown after boxing. Explicit interface conversions retain the known concrete payload type; zero-valued struct fields propagate their actual Go zero values. No framework-specific encoding choice is made here.
+
+The public regression projects known boxed nil JSON payloads as null and independently verifies that the non-nil interface still takes the correct comparison branch. Adapters can inspect the dynamic flags when their serializer treats nil pointers and nil collections differently.

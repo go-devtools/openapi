@@ -153,28 +153,39 @@ type ResponseHeaderState struct {
 // 提供待提交或已提交状态及独立的响应头快照，不暴露分析器内部流。
 // Expose pending/committed status and detached headers without exposing internal analyzer flows.
 type ResponseState struct {
-	Status    string
-	Committed bool
-	Headers   map[string]ResponseHeaderState
+	// 只包含真正提交时的响应头，之后的存储修改不进入此快照。
+	// Include only headers present at the actual commit; subsequent storage mutations do not enter this snapshot.
+	CommittedHeaders map[string]ResponseHeaderState
+	Status           string
+	Committed        bool
+	Headers          map[string]ResponseHeaderState
 }
 
 // 只复制不可变字符串与布尔值，前端修改映射不能影响后续分析。
 // Copy only immutable strings and booleans so frontend map mutations cannot affect later analysis.
 func responseSnapshot(state flow) ResponseState {
-	snapshot := ResponseState{Committed: state.hasCommit, Headers: map[string]ResponseHeaderState{}}
+	snapshot := ResponseState{Committed: state.hasCommit, Headers: snapshotHeaderValues(state.observedHeaders)}
 	if state.pending != nil {
 		snapshot.Status = state.pending.Status
 	}
 	if state.hasCommit {
 		snapshot.Status = state.committed
+		snapshot.CommittedHeaders = snapshotHeaderValues(state.headers)
 	}
-	for name, header := range state.observedHeaders {
+	return snapshot
+}
+
+// 复制头名称及不可变标量，前端对快照的修改不会影响分析状态。
+// Copy header names and immutable scalars so frontend snapshot mutations cannot affect analysis state.
+func snapshotHeaderValues(headers map[string]HeaderValue) map[string]ResponseHeaderState {
+	snapshot := map[string]ResponseHeaderState{}
+	for name, header := range headers {
 		value := ResponseHeaderState{}
 		if header.Value.Constant != nil && header.Value.Constant.Kind() == constant.String {
 			value.Known = true
 			value.Value = constant.StringVal(header.Value.Constant)
 		}
-		snapshot.Headers[name] = value
+		snapshot[name] = value
 	}
 	return snapshot
 }

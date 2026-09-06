@@ -49,3 +49,9 @@ OAS 的说明、XML 和 discriminator 注解不会自动变成 JSON 实例验证
 上述预算零值采用默认值，负值作为非法配置拒绝；超限返回包含 `openapi.spec.budget` 的错误，不返回部分 Validator。
 
 现阶段仍需继续完善样本重复键检查、混合内联方言和完整自定义词汇表边界。复杂组合及流式协议的完整验收仍以总体目标和验证记录为准；当前回归通过不代表全部标准矩阵完成。
+
+## 流式样本
+
+`Validator.NDJSON` 按 LF 或 CRLF 分隔记录，拒绝记录中的裸 CR；空行忽略，末尾完整 JSON 记录也可在 EOF 验证。`ParseSSE` 按 SSE 的 CR、LF、CRLF、开头 BOM 和 UTF-8 解码规则构造传输字段对象；它不补入浏览器 EventSource 的默认事件名称或跨事件状态。`Validator.SSE` 对这些对象逐项应用 itemSchema；JSON 格式的 data 仍是字符串，需要 `AssertContent: true` 才对 contentSchema 执行内层断言。
+
+流使用独立 `Limits`，约束总字节、单行字节和条目数。计数包含实际行尾字节；加上检查余量会溢出的配置直接报错。真实单字节分块样本覆盖最大非法 UTF-8 子序列的替换、LF/CR/CRLF 精确预算、超限拒绝和 NDJSON 裸 CR 拒绝；不会将相邻非法字节合并成一个替换字符。

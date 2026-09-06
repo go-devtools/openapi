@@ -130,6 +130,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 			inner := scalar(paths[i])
 			inner.Type = value.Type
 			if x.Op == token.AND {
+				inner.Boxed, inner.DynamicNil, inner.DynamicNonNil = false, false, false
 				inner.Nil = false
 				inner.NonNil = true
 				if id, ok := x.X.(*ast.Ident); ok {
@@ -309,7 +310,9 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 	values := expressionValues(call.Function.Package.Info.TypeOf(call.Call))
 	if call.Function.Package.Info.Types[call.Call.Fun].IsType() && len(call.Arguments) == 1 && len(values) == 1 {
 		v := coerceValue(call.Arguments[0], values[0].Type)
-		v.Type = values[0].Type
+		if _, boxed := values[0].Type.Underlying().(*types.Interface); !boxed {
+			v.Type = values[0].Type
+		}
 		return []evaluation{{state: state, values: []Value{v}}}
 	}
 	fallback := func() []evaluation { return []evaluation{{state: state, values: values}} }
@@ -429,6 +432,12 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 func zeroValue(t types.Type) Value {
 	value := Value{Type: t}
 	switch typ := t.Underlying().(type) {
+	case *types.Struct:
+		value.Fields = map[string]Value{}
+		for i := 0; i < typ.NumFields(); i++ {
+			field := typ.Field(i)
+			value.Fields[field.Name()] = zeroValue(field.Type())
+		}
 	case *types.Pointer, *types.Slice, *types.Map, *types.Interface, *types.Signature, *types.Chan:
 		value.Nil = true
 	case *types.Basic:
@@ -456,6 +465,10 @@ func coerceValue(value Value, target types.Type) Value {
 	}
 	if _, ok := target.Underlying().(*types.Interface); ok {
 		if _, already := value.Type.Underlying().(*types.Interface); !already {
+			if !value.Boxed {
+				value.DynamicNil, value.DynamicNonNil = value.Nil, value.NonNil
+				value.Boxed = true
+			}
 			value.Nil = false
 			value.NonNil = true
 		}

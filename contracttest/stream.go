@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding/unicode"
 )
 
 // 限制测试样本的总字节、单行字节及条目数，避免无界流占用测试进程。
@@ -33,19 +35,22 @@ func (l Limits) normalized() (Limits, error) {
 	if l.MaxBytes < 1 || l.MaxLineBytes < 1 || l.MaxItems < 1 {
 		return l, fmt.Errorf("openapi.contract.budget: 预算必须为正数")
 	}
+	if l.MaxBytes == 1<<63-1 || l.MaxLineBytes > int(^uint(0)>>1)-2 {
+		return l, fmt.Errorf("openapi.contract.budget: 预算加上边界检查空间后溢出")
+	}
 	return l, nil
 }
 
-// 执行有预算的行扫描，允许 CR、LF 和 CRLF；回调不接收行尾。
-// Scan bounded CR, LF, or CRLF lines without passing line endings to callbacks.
-func lines(reader io.Reader, limits Limits, visit func(string) error) error {
+// 执行有预算的行扫描，分隔符由协议指定；回调不接收行尾。
+// Scan bounded lines with protocol-specific delimiters without passing line endings to callbacks.
+func lines(reader io.Reader, limits Limits, splitter bufio.SplitFunc, visit func(string) error) error {
 	if reader == nil {
 		return fmt.Errorf("openapi.contract.reader: 缺少输入流")
 	}
 	limited := &io.LimitedReader{R: reader, N: limits.MaxBytes + 1}
 	scan := bufio.NewScanner(limited)
 	scan.Buffer(make([]byte, min(4096, limits.MaxLineBytes+2)), limits.MaxLineBytes+2)
-	scan.Split(splitLine)
+	scan.Split(splitter)
 	for scan.Scan() {
 		if limited.N == 0 {
 			return fmt.Errorf("openapi.contract.budget: 流超过字节预算")
@@ -91,6 +96,22 @@ func splitLine(data []byte, atEOF bool) (int, []byte, error) {
 	return 0, nil, nil
 }
 
+// NDJSON 只按 LF 或 CRLF 分隔，未结束行中的裸 CR 留给格式检查拒绝。
+// Split NDJSON only on LF or CRLF, retaining bare CR in unfinished lines for format rejection.
+func splitNDJSON(data []byte, atEOF bool) (int, []byte, error) {
+	if index := bytes.IndexByte(data, '\n'); index >= 0 {
+		line := data[:index]
+		if len(line) > 0 && line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
+		return index + 1, line, nil
+	}
+	if atEOF && len(data) > 0 {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
 // 对每行 JSON 独立应用 itemSchema；空行明确忽略。
 // Apply itemSchema to each JSON line and explicitly ignore empty lines.
 func (v *Validator) NDJSON(reader io.Reader, limits Limits) error {
@@ -99,7 +120,10 @@ func (v *Validator) NDJSON(reader io.Reader, limits Limits) error {
 		return err
 	}
 	count := 0
-	return lines(reader, l, func(line string) error {
+	return lines(reader, l, splitNDJSON, func(line string) error {
+		if strings.ContainsRune(line, '\r') {
+			return fmt.Errorf("openapi.contract.ndjson: 记录中包含裸 CR")
+		}
 		if strings.TrimSpace(line) == "" {
 			return nil
 		}
@@ -125,7 +149,7 @@ func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 	fields := map[string]any{}
 	var data []string
 	first := true
-	err = lines(reader, l, func(line string) error {
+	err = lines(reader, l, splitLine, func(line string) error {
 		if first {
 			line = strings.TrimPrefix(line, "\ufeff")
 			first = false
@@ -133,7 +157,11 @@ func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 		// 网络 SSE 采用 UTF-8；替换无效字节以符合文本解码语义。
 		// Decode SSE as UTF-8 and replace invalid byte sequences.
 		if !utf8.ValidString(line) {
-			line = string(bytes.ToValidUTF8([]byte(line), []byte("�")))
+			var err error
+			line, err = unicode.UTF8.NewDecoder().String(line)
+			if err != nil {
+				return fmt.Errorf("openapi.contract.utf8: %w", err)
+			}
 		}
 		if line == "" {
 			if len(data) > 0 {
