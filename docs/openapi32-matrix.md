@@ -14,7 +14,7 @@ Model availability, serialization, semantic checking, independent instance valid
 | Examples | `spec.Example`, Schema examples | Native fixture and existing offline UI tests | Every value/dataValue/serializedValue/externalValue combination |
 | Discriminator | `spec.Discriminator` | Native model roundtrip fixture | Complete semantic and independent polymorphism checks |
 | XML | `spec.XML` | Native model roundtrip fixture | Every nodeType constraint, wire codec and UI combination |
-| Security | `spec.SecurityScheme`, OAuth models | Native fixture and Bearer-only business example | Complete device authorization/deprecation/metadata validation and UI |
+| Security | `spec.SecurityScheme`, OAuth models; [typed construction](security-models.md) | Public/official positive-negative matrix for all five flows, field applicability/types, empty scopes, metadata, deprecation presence and extension opacity | Runtime relative URL/server TLS combinations; native device/metadata UI and actual submission |
 | Callbacks, webhooks, links, servers | Public typed models | Full native fixture, callback/link reference-context tests | Full positive/negative and external resource matrix |
 | Request/response comments | Actual types through `Project.TypeIn`; shared frontend projection | Real-source declarations, generic references, imported DTO metadata, conflicts, conditions, and independent SDK sample validation | Unknown helpers retain diagnostics; conservative Schema comparison; packages mentioned only in comments must be explicitly loaded |
 | JSON Schema | `spec.Schema` and public Schema compiler | Schema tests, independent contract engine, external SDK | Complete Go projection/tag/codec/numeric/nullability matrix |

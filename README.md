@@ -77,3 +77,5 @@ Start with [llms.txt](llms.txt) for a compact documentation index and the [AI in
 See the [performance guide](docs/performance.md) for reproducible 100/1000-route generation, startup Build, document-read, and allocation benchmarks.
 
 See the [independent CI guide](docs/ci.md) for pinned tools, private module access, offline browser checks, actual platform jobs, and fixed remote-version consumption.
+
+See the [security model guide](docs/security-models.md) for typed OAuth flows, native 3.2 fields, presence, validation, and UI boundaries.

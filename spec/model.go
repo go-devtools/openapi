@@ -258,17 +258,17 @@ type Tag struct {
 // Describe security schemes with metadata URLs and deprecation flags.
 // 表示安全方案，保留三点二的元数据地址和弃用标记。
 type SecurityScheme struct {
-	Type              string      `json:"type"`
-	Description       string      `json:"description,omitempty"`
-	Name              string      `json:"name,omitempty"`
-	In                string      `json:"in,omitempty"`
-	Scheme            string      `json:"scheme,omitempty"`
-	BearerFormat      string      `json:"bearerFormat,omitempty"`
-	Flows             *OAuthFlows `json:"flows,omitempty"`
-	OpenIDConnectURL  string      `json:"openIdConnectUrl,omitempty"`
-	OAuth2MetadataURL string      `json:"oauth2MetadataUrl,omitempty"`
-	Deprecated        bool        `json:"deprecated,omitempty"`
-	Extensions        Extensions  `json:"-"`
+	Type              string         `json:"type"`
+	Description       string         `json:"description,omitempty"`
+	Name              string         `json:"name,omitempty"`
+	In                string         `json:"in,omitempty"`
+	Scheme            string         `json:"scheme,omitempty"`
+	BearerFormat      string         `json:"bearerFormat,omitempty"`
+	Flows             *OAuthFlows    `json:"flows,omitempty"`
+	OpenIDConnectURL  string         `json:"openIdConnectUrl,omitempty"`
+	OAuth2MetadataURL string         `json:"oauth2MetadataUrl,omitempty"`
+	Deprecated        Optional[bool] `json:"deprecated,omitzero"`
+	Extensions        Extensions     `json:"-"`
 }
 
 // Describe OAuth flows, including device authorization.

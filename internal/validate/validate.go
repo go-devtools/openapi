@@ -123,6 +123,12 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.add("budget", path, "specification object recursion exceeds the budget")
 		return
 	}
+	if role == "security" {
+		if _, ok := v.(map[string]any); !ok {
+			c.add("object", path, "Security Scheme must be an object")
+			return
+		}
+	}
 	if role == "schemaArray" {
 		items, ok := v.([]any)
 		if !ok || len(items) == 0 {
@@ -564,45 +570,5 @@ func (c *checker) checkTags() {
 			}
 			cur = next
 		}
-	}
-}
-
-// Check required security fields and device authorization endpoints.
-// 校验安全方案的必需字段及设备授权端点。
-func (c *checker) security(m map[string]any, path string) {
-	switch str(m, "type") {
-	case "apiKey":
-		if str(m, "name") == "" || (str(m, "in") != "header" && str(m, "in") != "query" && str(m, "in") != "cookie") {
-			c.add("security.apiKey", path, "apiKey requires valid name/in values")
-		}
-	case "http":
-		if str(m, "scheme") == "" {
-			c.add("security.http", path, "HTTP authentication requires a scheme")
-		}
-	case "oauth2":
-		flows, _ := m["flows"].(map[string]any)
-		if len(flows) == 0 && !has(m, "oauth2MetadataUrl") {
-			c.add("security.oauth2", path, "OAuth2 requires flows or a metadata URL")
-		}
-		for _, kind := range sortedKeys(flows) {
-			v := flows[kind]
-			if c.stopped() {
-				return
-			}
-			f, _ := v.(map[string]any)
-			if kind == "deviceAuthorization" && (str(f, "deviceAuthorizationUrl") == "" || str(f, "tokenUrl") == "") {
-				c.add("security.device", path, "device authorization requires deviceAuthorizationUrl and tokenUrl")
-			}
-			if !has(f, "scopes") {
-				c.add("security.scopes", path, "OAuth flow requires scopes")
-			}
-		}
-	case "openIdConnect":
-		if str(m, "openIdConnectUrl") == "" {
-			c.add("security.openId", path, "discovery URL is required")
-		}
-	case "mutualTLS":
-	default:
-		c.add("security.type", path, "unknown security scheme type")
 	}
 }
