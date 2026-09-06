@@ -274,6 +274,7 @@ func (set *resourceSet) check() []Issue {
 	set.graph.checkReferences()
 	context := checker{graph: set.graph}
 	context.checkDiscriminators()
+	context.checkXMLContexts()
 	issues = append(issues, context.issues...)
 	issues = append(issues, set.graph.issues...)
 	return sortedIssues(issues)
