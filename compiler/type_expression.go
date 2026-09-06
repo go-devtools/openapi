@@ -12,7 +12,9 @@ import (
 )
 
 // Resolve a type relative to one loaded source package without loading additional packages or mutating scopes.
+// 相对于已加载的源码包解析类型，不额外加载包或修改作用域。
 // Fully qualified package paths can occur inside pointers, collections, and generic arguments.
+// 完整限定的包路径可出现在指针、集合及泛型实参中。
 func (p *Project) TypeIn(packagePath, expression string) (types.Type, error) {
 	if len(expression) == 0 || len(expression) > 8192 {
 		return nil, fmt.Errorf("openapi.type.expression: a type expression must contain 1 to 8192 bytes")
@@ -55,6 +57,7 @@ func (p *Project) TypeIn(packagePath, expression string) (types.Type, error) {
 		return paths[i] < paths[j]
 	})
 	// Quoted literals and comments are data, even when they contain a package-looking substring.
+	// 引号中的字面量和注释均视为数据，即使包含类似包路径的子串。
 	protected := map[int]int{}
 	fset := token.NewFileSet()
 	file := fset.AddFile("expression", -1, len(expression))
@@ -64,6 +67,7 @@ func (p *Project) TypeIn(packagePath, expression string) (types.Type, error) {
 	for {
 		pos, kind, _ := scan.Scan()
 		// Scanner literals may normalize CR bytes; token positions retain exact source extents.
+		// 扫描器可能规范化字面量中的 CR 字节；token 位置仍保留准确的源码范围。
 		if previous >= 0 {
 			protected[previous] = file.Offset(pos) - previous
 			previous = -1
@@ -136,12 +140,14 @@ func (p *Project) TypeIn(packagePath, expression string) (types.Type, error) {
 }
 
 // Prevent matching only the suffix of a longer identifier or import path.
+// 避免只匹配较长标识符或导入路径的后缀。
 func typePathCharacter(prefix string) bool {
 	r, _ := utf8.DecodeLastRuneInString(prefix)
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("_./-", r)
 }
 
 // Reject uninstantiated generic definitions and type parameters before schema projection.
+// 在 Schema 投影前拒绝未实例化的泛型定义和类型参数。
 func instantiatedType(t types.Type) bool {
 	switch t := t.(type) {
 	case nil, *types.TypeParam:

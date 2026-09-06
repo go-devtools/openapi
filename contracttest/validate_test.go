@@ -6,6 +6,7 @@ import (
 )
 
 // Test precision, recursion, boolean Schemas, and offline reference boundaries independently.
+// 用独立引擎检查精度、递归、布尔 Schema 与离线引用边界。
 func TestIndependentSchema(t *testing.T) {
 	v, err := Compile([]byte(`{"$defs":{"node":{"type":"object","properties":{"next":{"anyOf":[{"$ref":"#/$defs/node"},{"type":"null"}]}},"required":["next"]}},"allOf":[{"$ref":"#/$defs/node"}],"properties":{"id":{"const":9007199254740993}},"required":["id"]}`), "", Options{})
 	if err != nil {
@@ -33,6 +34,7 @@ func TestIndependentSchema(t *testing.T) {
 }
 
 // Compile a Schema pointer within a complete document while preserving component references.
+// 在完整规范中按指针编译 Schema，并保留组件引用。
 func TestDocumentPointer(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","components":{"schemas":{"Name":{"type":"string","minLength":3}}},"paths":{"/users":{"post":{"responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Name"}}}}}}}}}`)
 	v, err := Compile(raw, "/paths/~1users/post/responses/200/content/application~1json/schema", Options{})
@@ -48,6 +50,7 @@ func TestDocumentPointer(t *testing.T) {
 }
 
 // Validate NDJSON items separately instead of treating the stream as one JSON array.
+// 逐条校验 NDJSON，不将流误当成单个 JSON 数组。
 func TestNDJSON(t *testing.T) {
 	v, err := Compile([]byte(`{"type":"integer"}`), "", Options{})
 	if err != nil {
@@ -65,6 +68,7 @@ func TestNDJSON(t *testing.T) {
 }
 
 // Test SSE data joining, integer retry values, comments, and ignored fields.
+// SSE 按协议合并 data，保留整数 retry，忽略注释与无效字段。
 func TestSSE(t *testing.T) {
 	input := "\ufeff: comment\r\nevent: update\rdata: first\ndata: second\r\nid: 42\nretry: 1200\nunknown: ignored\n\ndata: {}\nretry: -1\nid: bad\x00id\n\ndata: unfinished"
 	events, err := ParseSSE(strings.NewReader(input), Limits{})

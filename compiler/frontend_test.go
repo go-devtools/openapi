@@ -11,6 +11,7 @@ import (
 )
 
 // Verify return-value frontends reuse the pipeline without a framework context.
+// 从标准库函数返回值复用同一编译管线，证明 SDK 不预设框架 context。
 func TestReturnValueFrontend(t *testing.T) {
 	dir := t.TempDir()
 	source := `// Real business input for the test frontend.

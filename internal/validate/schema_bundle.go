@@ -8,6 +8,7 @@ import (
 )
 
 // Carries resources and the selected location for an independent instance validator; it does not validate instances.
+// 保存供独立实例验证器消费的资源集合与选中位置，不承担实例验证。
 type SchemaBundle struct {
 	Value     any
 	URI       string
@@ -16,6 +17,7 @@ type SchemaBundle struct {
 }
 
 // Moves OpenAPI schemas into standard $defs while preserving resource identifiers and dynamic anchors.
+// 将 OpenAPI 中的 Schema 移入标准 $defs，保留资源标识及动态锚点。
 func BundleSchemas(raw []byte, pointer string, options Options) (*SchemaBundle, []Issue) {
 	set, issues := prepareSchemaResources(raw, options, false)
 	if len(issues) > 0 {
@@ -116,6 +118,7 @@ func BundleSchemas(raw []byte, pointer string, options Options) (*SchemaBundle, 
 			}
 		}
 		// Each input document already has its own base; allOf preserves a boolean root's validation result.
+		// 每个输入文档本来就拥有独立基准；布尔根用 allOf 保留其验证结果。
 		if object, ok := definitions[key].(map[string]any); ok {
 			object["$id"] = root.base
 		} else {
@@ -130,6 +133,7 @@ func BundleSchemas(raw []byte, pointer string, options Options) (*SchemaBundle, 
 		return nil, sortedIssues(issues)
 	}
 	// Resolve existing identifiers without visiting business data in const, default, examples, or extensions.
+	// 绝对化已有标识符，但不访问 const、default、examples 或扩展中的业务数据。
 	for _, path := range paths {
 		if g.budget.exceeded {
 			return nil, sortedIssues(append(issues, g.issues...))
@@ -185,6 +189,7 @@ func BundleSchemas(raw []byte, pointer string, options Options) (*SchemaBundle, 
 			canonical.Fragment = strings.TrimPrefix(locations[target.path], locations[resource.path])
 		}
 		// Keep anchor fragments instead of replacing them with JSON Pointers, which would make dynamicRef static.
+		// 锚点片段不改成 JSON Pointer，否则 dynamicRef 会退化为静态引用。
 		if !normalized.replaceString(owner.value.(map[string]any), key, canonical.String(), g.maxNormalizedBytes) {
 			g.add("budget", "#", "normalized Schema exceeds MaxNormalizedBytes")
 			return nil, g.issues

@@ -11,6 +11,7 @@ import (
 )
 
 // Bundle retrieval aliases, relative identities, dynamic recursion, and boolean resources into one offline document.
+// 将检索别名、相对身份、动态递归和布尔资源合并成无需外部加载的单个文档。
 func TestStandaloneEmbedsOfflineResources(t *testing.T) {
 	root := &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "strict.json"}}
 	resources := map[string][]byte{
@@ -54,6 +55,7 @@ func TestStandaloneEmbedsOfflineResources(t *testing.T) {
 }
 
 // Count every embedded resource toward the normalized budget, not just the root schema.
+// 规范化预算必须计入嵌入资源的全部内容，而不只计入根 Schema。
 func TestStandaloneEmbeddedResourceBudget(t *testing.T) {
 	projection := &compiler.Projection{Root: &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "https://example.test/large"}}}
 	resource, _ := json.Marshal(map[string]any{"type": "string", "description": strings.Repeat("description", 1024)})
@@ -74,6 +76,7 @@ func TestStandaloneEmbeddedResourceBudget(t *testing.T) {
 }
 
 // Preserve OpenAPI-specific fields as standalone-schema annotations, not resource-loading instructions.
+// OpenAPI 特有字段在独立 JSON Schema 中作为注解保留，不成为资源加载指令。
 func TestStandalonePreservesOpenAPIAnnotations(t *testing.T) {
 	root := spec.Typed("object")
 	root.Discriminator = &spec.Discriminator{PropertyName: "kind", Mapping: map[string]string{"cat": "Cat", "remote": "https://example.test/annotation"}}

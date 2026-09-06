@@ -3,6 +3,7 @@ package contracttest
 import "testing"
 
 // At the exact raw JSON byte limit, decoded sample accounting must not double-count separators.
+// 原始 JSON 恰好达到字节预算时，内存样本计费不能重复计算分隔符。
 func TestContractDecodedByteBoundary(t *testing.T) {
 	for _, sample := range []string{`[true]`, `{"a":1}`, `[1,2]`, `"a"`} {
 		limit := int64(len(sample))

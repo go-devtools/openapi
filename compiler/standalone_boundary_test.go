@@ -9,6 +9,7 @@ import (
 )
 
 // Reject invalid projections during export instead of emitting null schemas or dangling references.
+// 非法投影必须在导出时失败，不能生成含 null Schema 或悬空引用的文件。
 func TestStandaloneRejectsInvalidProjection(t *testing.T) {
 	cases := map[string]*compiler.Projection{
 		"nil projection":    nil,
@@ -33,6 +34,7 @@ func TestStandaloneRejectsInvalidProjection(t *testing.T) {
 }
 
 // Never overwrite an explicit dialect with a default; consumers must see the actual schema dialect.
+// 显式方言不能被默认值覆盖，调用方应能识别实际导出的 Schema 方言。
 func TestStandalonePreservesDeclaredDialect(t *testing.T) {
 	root := spec.Typed("string")
 	root.Schema = "https://example.test/meta"

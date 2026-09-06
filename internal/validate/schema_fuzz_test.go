@@ -9,6 +9,7 @@ import (
 )
 
 // Cross-check decimal and exponent integer classification using bounded exact rationals.
+// 用有界精确有理数作独立对照，检查十进制小数和指数的整数分类。
 func FuzzSchemaNumberTraits(f *testing.F) {
 	f.Add(int64(100), int16(-2), uint8(0))
 	f.Add(int64(-1234), int16(3), uint8(2))

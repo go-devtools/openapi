@@ -9,6 +9,7 @@ import (
 )
 
 // Condition intersections must not widen or erase reachable domains or mutate caller input.
+// 条件交集不能扩大或抹去可达域，也不能修改调用方输入。
 func TestRequestConditionIntersection(t *testing.T) {
 	a := RequestCondition{Methods: []string{"POST", "GET", "GET"}, ExceptMethods: []string{"GET"}, ExceptMediaTypes: []string{"multipart/form-data"}}
 	original := copyJSON(a)
@@ -34,6 +35,7 @@ func TestRequestConditionIntersection(t *testing.T) {
 }
 
 // Conditional merging must preserve composition siblings without narrowing another valid branch.
+// 条件合并不能丢弃复合 Schema 的同级约束，或收窄另一个有效分支。
 func TestConditionalSchemaAlternatives(t *testing.T) {
 	constrained := &spec.Schema{SchemaObject: &spec.SchemaObject{AnyOf: []*spec.Schema{spec.Typed("string")}, MinLength: spec.Set(uint64(3))}}
 	variants := []OperationVariant{}

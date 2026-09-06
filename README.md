@@ -50,7 +50,7 @@ The public compiler SDK supports commit-time response headers and explicit non-J
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.
 
-Project-owned code comments, diagnostics, CLI help, and example text use English. Multilingual encoding tests retain their input values through escaped literals. Upstream assets retain their original form. Commit messages use English; [README.zh-cn.md](README.zh-cn.md) provides corresponding Chinese documentation.
+Project-owned source comments include English and Simplified Chinese. OpenAPI descriptions, diagnostics, CLI help, and example text use English; companion translations are kept separate from semantic comments in examples and fixtures. Multilingual encoding tests retain their input values through escaped literals. Upstream assets retain their original form. Commit messages use English; [README.zh-cn.md](README.zh-cn.md) provides corresponding Chinese documentation.
 
 The public compiler supports [parameter object and wire-type codec extensions](docs/parameter-codec.md) without framework dependencies.
 

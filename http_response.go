@@ -9,6 +9,7 @@ import (
 )
 
 // HEAD wire responses have no body; resolve and copy shared responses while preserving GET and components.
+// HEAD 的网络响应没有正文；解析共享响应后复制，保留 GET 与组件原值。
 func projectHEADResponses(operation *spec.Operation, components spec.Components) error {
 	statuses := make([]string, 0, len(operation.Responses))
 	for status := range operation.Responses {

@@ -14,6 +14,7 @@ import (
 )
 
 // Defer annotation checks until the component graph is complete to include named types and recursion.
+// 将声明检查推迟到完整组件图建立后，避免漏掉命名类型和递归引用。
 type annotationCheck struct {
 	object types.Object
 	schema *spec.Schema
@@ -23,6 +24,7 @@ type annotationCheck struct {
 }
 
 // Sort directive keys so diagnostics do not depend on Go map iteration order.
+// 固定指令键顺序，诊断不依赖 Go map 的迭代次序。
 func directiveKeys(values map[string]json.RawMessage) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -33,6 +35,7 @@ func directiveKeys(values map[string]json.RawMessage) []string {
 }
 
 // Inspect only the projection's own type and constraints, excluding properties, items, and example data.
+// 只检查投影自身的类型及约束，不进入属性、数组元素或示例数据。
 func (p *projector) annotationFacts(schema *spec.Schema) ([]*spec.SchemaObject, map[string]bool) {
 	var facts []*spec.SchemaObject
 	types := map[string]bool{}
@@ -68,6 +71,7 @@ func (p *projector) annotationFacts(schema *spec.Schema) ([]*spec.SchemaObject, 
 		}
 		for _, parts := range [][]*spec.Schema{s.AnyOf, s.OneOf} {
 			// Represent null with unions; delegate complex branch constraints to centralized extensions and contract validation.
+			// 标准投影用联合表达 null；复杂分支的业务约束交由集中扩展和契约验证。
 			var nonnull []*spec.Schema
 			for _, part := range parts {
 				if part != nil && part.SchemaObject != nil && len(part.Type) == 1 && part.Type[0] == "null" {
@@ -88,6 +92,7 @@ func (p *projector) annotationFacts(schema *spec.Schema) ([]*spec.SchemaObject, 
 }
 
 // Check source declarations against actual types and derived bounds after building the component graph.
+// 在组件图完整后检查源码声明与真实类型、派生边界的冲突。
 func (p *projector) checkAnnotations() error {
 	for _, check := range p.annotations {
 		if err := p.checkAnnotation(check); err != nil {
@@ -98,6 +103,7 @@ func (p *projector) checkAnnotations() error {
 }
 
 // Apply constraints only to matching wire types without overriding fixed-array lengths or numeric encoding facts.
+// 约束只能施加于相应的网络类型，不能覆盖固定数组和数值编码事实。
 func (p *projector) checkAnnotation(check annotationCheck) error {
 	facts, kinds := p.annotationFacts(check.schema)
 	for _, directive := range check.doc.Directives {
@@ -182,6 +188,7 @@ func (p *projector) checkAnnotation(check annotationCheck) error {
 }
 
 // Read bounds from typed projections without converting integers through floating point.
+// 从已类型化的投影中读取边界，整数不经过浮点转换。
 func annotationBound(s *spec.SchemaObject, key string) *json.Number {
 	var integer spec.Optional[uint64]
 	var number spec.Optional[json.Number]
@@ -222,6 +229,7 @@ func annotationBound(s *spec.SchemaObject, key string) *json.Number {
 }
 
 // Use bounded exact arithmetic for annotation comparisons; report extreme exponents without expanding huge integers.
+// 编译期声明比较使用有界精确算术；极端指数返回预算诊断，不展开无限大整数。
 func annotationNumberCompare(a, b json.Number) (int, error) {
 	values := []*big.Rat{}
 	for _, number := range []json.Number{a, b} {

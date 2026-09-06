@@ -13,6 +13,7 @@ import (
 )
 
 // Copy header state so branches and committed responses do not share mutable maps.
+// 复制响应头状态，分支和已提交的响应不能共享可变映射。
 func copyHeaders(headers map[string]HeaderValue) map[string]HeaderValue {
 	copy := make(map[string]HeaderValue, len(headers))
 	for name, value := range headers {
@@ -22,12 +23,14 @@ func copyHeaders(headers map[string]HeaderValue) map[string]HeaderValue {
 }
 
 // Identify bodyless statuses using protocol-level HTTP message semantics.
+// 按 HTTP 状态的通用消息语义识别没有响应体的状态。
 func bodylessStatus(status string) bool {
 	code, err := strconv.Atoi(status)
 	return err == nil && (code >= 100 && code < 200 || code == 204 || code == 304)
 }
 
 // Preserve current header storage for frontend observation; only pre-commit changes enter wire snapshots.
+// 保留当前头存储供前端观察，只有提交前的修改进入网络头快照。
 func (a *analyzer) responseHeader(state *flow, effect Effect) {
 	name := textproto.CanonicalMIMEHeaderKey(effect.Name)
 	if !validHeaderName(name) {
@@ -53,6 +56,7 @@ func (a *analyzer) responseHeader(state *flow, effect Effect) {
 }
 
 // Save a bodyless final response with its commit-time header snapshot once the final status is known.
+// 在最终状态确定后保存未写 body 的响应及其提交时头快照。
 func (a *analyzer) finishResponse(state *flow) {
 	if state.writes != 0 || state.pending == nil {
 		return
@@ -65,6 +69,7 @@ func (a *analyzer) finishResponse(state *flow) {
 }
 
 // Diagnose media-type overrides that conflict with a known rendering representation.
+// 检测与已知渲染格式不一致的媒体类型覆盖，不能假装编码事实不变。
 func (a *analyzer) checkResponseMedia(state *flow, effect Effect) {
 	header, exists := state.headers["Content-Type"]
 	if !exists {
@@ -82,6 +87,7 @@ func (a *analyzer) checkResponseMedia(state *flow, effect Effect) {
 }
 
 // Detach an explicit frontend wire schema so alternative merging cannot modify caller-owned values.
+// 脱离前端拥有的明确网络 Schema，避免备选合并修改调用方对象。
 func copyWireSchema(schema *spec.Schema) (*spec.Schema, error) {
 	raw, err := json.Marshal(schema)
 	if err != nil {
@@ -95,6 +101,7 @@ func copyWireSchema(schema *spec.Schema) (*spec.Schema, error) {
 }
 
 // Merge header alternatives for one response status using values supplied by actual calls.
+// 将同一响应状态的头备选合并，常量值仍由实际调用提供。
 func mergeResponseHeaders(response *spec.Response, headers map[string]HeaderValue) error {
 	for _, name := range sortedKeys(headers) {
 		if strings.EqualFold(name, "Content-Type") {
@@ -122,6 +129,7 @@ func mergeResponseHeaders(response *spec.Response, headers map[string]HeaderValu
 }
 
 // Accept only ASCII HTTP token characters in field names, excluding separators and controls.
+// HTTP 字段名称仅接受 ASCII token 字符，拒绝分隔符和控制字符。
 func validHeaderName(name string) bool {
 	if name == "" {
 		return false
@@ -136,14 +144,17 @@ func validHeaderName(name string) bool {
 }
 
 // Represent an observed response header; Known=false still preserves header presence.
+// 表示已观察到的响应头；Known 为 false 时仍保留字段存在事实。
 type ResponseHeaderState struct {
 	Value string
 	Known bool
 }
 
 // Expose pending/committed status and detached headers without exposing internal analyzer flows.
+// 提供待提交或已提交状态及独立的响应头快照，不暴露分析器内部流。
 type ResponseState struct {
 	// Include only headers present at the actual commit; subsequent storage mutations do not enter this snapshot.
+	// 只包含真正提交时的响应头，之后的存储修改不进入此快照。
 	CommittedHeaders map[string]ResponseHeaderState
 	Status           string
 	Committed        bool
@@ -151,6 +162,7 @@ type ResponseState struct {
 }
 
 // Copy only immutable strings and booleans so frontend map mutations cannot affect later analysis.
+// 只复制不可变字符串与布尔值，前端修改映射不能影响后续分析。
 func responseSnapshot(state flow) ResponseState {
 	snapshot := ResponseState{Committed: state.hasCommit, Headers: snapshotHeaderValues(state.observedHeaders)}
 	if state.pending != nil {
@@ -164,6 +176,7 @@ func responseSnapshot(state flow) ResponseState {
 }
 
 // Copy header names and immutable scalars so frontend snapshot mutations cannot affect analysis state.
+// 复制头名称及不可变标量，前端对快照的修改不会影响分析状态。
 func snapshotHeaderValues(headers map[string]HeaderValue) map[string]ResponseHeaderState {
 	snapshot := map[string]ResponseHeaderState{}
 	for name, header := range headers {
@@ -178,6 +191,7 @@ func snapshotHeaderValues(headers map[string]HeaderValue) map[string]ResponseHea
 }
 
 // Project the actual payload before detaching frontend wrapping results; component references retain the shared document scope.
+// 先投影实际载荷，再隔离前端包装结果，组件引用继续使用共同文档作用域。
 func (p *Project) responseSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
 	var schema *spec.Schema
 	var err error

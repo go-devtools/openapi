@@ -3,6 +3,7 @@ package compiler
 import "testing"
 
 // Preserve known empty selectors so runtime checks distinguish default builds from missing metadata.
+// 生成器必须保存已知空选择，运行时才可区分默认构建与缺少元数据。
 func TestRuntimeProfileRecordsDefaultSelectors(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/runtimeinputs\n\ngo 1.27.1\n")

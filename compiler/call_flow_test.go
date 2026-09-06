@@ -14,6 +14,7 @@ import (
 )
 
 // Verify call branches, tuples, and short-circuit evaluation preserve their response commits.
+// 验证调用分支、元组和短路求值保留各自的响应提交状态。
 func TestCallFlowEvaluation(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

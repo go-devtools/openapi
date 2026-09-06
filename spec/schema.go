@@ -7,18 +7,22 @@ import (
 )
 
 // Represent exactly one boolean or object Schema branch.
+// 表示布尔 Schema 或结构化 Schema，两者不能同时设置。
 type Schema struct {
 	Bool *bool
 	*SchemaObject
 }
 
 // Build a boolean Schema: false rejects every instance and true imposes no constraints.
+// 构造布尔 Schema；false 拒绝任何实例，true 不施加约束。
 func Boolean(v bool) *Schema { return &Schema{Bool: &v} }
 
 // Build a Schema with the specified types.
+// 构造具有给定类型的 Schema。
 func Typed(types ...string) *Schema { return &Schema{SchemaObject: &SchemaObject{Type: Types(types)}} }
 
 // Preserve boolean branches and keyword presence during serialization.
+// 保留布尔分支及所有 JSON Schema 关键字的存在性。
 func (s Schema) MarshalJSON() ([]byte, error) {
 	if s.Bool != nil {
 		if s.SchemaObject != nil {
@@ -34,6 +38,7 @@ func (s Schema) MarshalJSON() ([]byte, error) {
 }
 
 // Reject null, arrays, and numbers as Schema roots.
+// 拒绝 null、数组和数字等非法 Schema 根值。
 func (s *Schema) UnmarshalJSON(b []byte) error {
 	b = bytes.TrimSpace(b)
 	*s = Schema{}
@@ -56,6 +61,7 @@ func (s *Schema) UnmarshalJSON(b []byte) error {
 }
 
 // Expose JSON Schema 2020-12 and OpenAPI Schema fields.
+// 覆盖 JSON Schema 二零二零十二及 OpenAPI 的结构化 Schema 字段。
 type SchemaObject struct {
 	Schema                string                 `json:"$schema,omitempty"`
 	ID                    string                 `json:"$id,omitempty"`
@@ -121,6 +127,7 @@ type SchemaObject struct {
 }
 
 // Describe polymorphic dispatch without upgrading anyOf to oneOf.
+// 表示多态分派，不将 anyOf 自动升级为 oneOf。
 type Discriminator struct {
 	PropertyName   string            `json:"propertyName,omitempty"`
 	Mapping        map[string]string `json:"mapping,omitempty"`
@@ -129,6 +136,7 @@ type Discriminator struct {
 }
 
 // Describe OAS 3.2 XML node kinds and namespaces.
+// 表示三点二 XML 节点类型及名称空间。
 type XML struct {
 	Name       string     `json:"name,omitempty"`
 	Namespace  string     `json:"namespace,omitempty"`

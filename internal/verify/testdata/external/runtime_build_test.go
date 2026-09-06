@@ -14,6 +14,8 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
+// 真实加载源码并构建独立程序，证明校验依据二进制元数据而非运行环境变量。
+
 // Load real source and build an independent executable to verify binary metadata rather than runtime environment variables.
 func TestRuntimeBuildFromExecutable(t *testing.T) {
 	dir := t.TempDir()

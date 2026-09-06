@@ -9,6 +9,7 @@ import (
 )
 
 // Compare known selectors, report unknown settings, and permit patch-only toolchain differences.
+// 比较已知条件，保留未知设置诊断并允许仅补丁版本不同。
 func TestRuntimeBuildComparison(t *testing.T) {
 	actual := BuildProfile{GoVersion: "go1.27.1", GOOS: "linux", GOARCH: "amd64", CGOEnabled: "0", Settings: map[string]string{"-tags": "beta,alpha", "GOEXPERIMENT": "", "GOAMD64": "v1"}}
 	for _, tc := range []struct {
@@ -54,6 +55,7 @@ func TestRuntimeBuildComparison(t *testing.T) {
 }
 
 // Let core callers select runtime validation while retaining cross-target offline exports.
+// 运行时校验由核心调用方选择，跨目标离线导出无需伪造宿主信息。
 func TestBuildRuntimeValidationBeforeConfiguration(t *testing.T) {
 	data := testBundle(t).Snapshot()
 	data.Profile.GOOS = "linux"
@@ -80,6 +82,7 @@ func TestBuildRuntimeValidationBeforeConfiguration(t *testing.T) {
 }
 
 // Keep legacy Bundles usable while reporting that their runtime build inputs are unrecorded.
+// 历史 Bundle 缺少构建信息仍可使用，但诊断不能声称已验证代码同源。
 func TestBuildRetainsRuntimeWarnings(t *testing.T) {
 	doc, err := Build(testBundle(t), nil, Config{Title: "Legacy", Version: "1", VerifyRuntimeBuild: true})
 	if err != nil {

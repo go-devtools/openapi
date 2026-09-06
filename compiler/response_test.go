@@ -16,6 +16,7 @@ import (
 )
 
 // Verify unknown commits, header alternatives, and explicit wire schemas without a framework dependency.
+// 使用中立载体验证未知提交、头备选与明确网络 Schema，不依赖任何框架。
 func TestResponseStateWithoutFramework(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

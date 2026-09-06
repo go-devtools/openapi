@@ -11,6 +11,7 @@ import (
 )
 
 // Describe finite method and media decisions; an empty inclusion set leaves that dimension unrestricted.
+// 描述有限的请求方法与媒体类型决策；包含集合为空表示该维度不受限。
 type RequestCondition struct {
 	Methods          []string `json:"methods,omitempty"`
 	ExceptMethods    []string `json:"exceptMethods,omitempty"`
@@ -19,6 +20,7 @@ type RequestCondition struct {
 }
 
 // Store a projected conditional contract without business functions or analysis-time type objects.
+// 保存已经投影的条件契约，不包含业务函数或分析期类型对象。
 type OperationVariant struct {
 	When        RequestCondition `json:"when"`
 	Operation   spec.Operation   `json:"operation"`
@@ -27,14 +29,17 @@ type OperationVariant struct {
 }
 
 // Identify the runtime capability required for conditional Bundle selection.
+// 标识当前 Bundle 是否需要运行时条件选择能力。
 const RequestConditionsCapability = "request-conditions-v1"
 
 // Report whether a condition applies to every request without changing caller-owned sets.
+// 判断条件是否适用于全部请求，不修改调用方集合。
 func (c RequestCondition) Unconditional() bool {
 	return len(c.Methods)+len(c.ExceptMethods)+len(c.MediaTypes)+len(c.ExceptMediaTypes) == 0
 }
 
 // Normalize finite sets, reject invalid conditions, and report empty intersections.
+// 规范化有限集合，拒绝无法执行的条件并报告空交集。
 func (c RequestCondition) Intersect(other RequestCondition) (RequestCondition, bool, error) {
 	a, ok, err := normalizeCondition(c)
 	if err != nil || !ok {
@@ -56,6 +61,7 @@ func (c RequestCondition) Intersect(other RequestCondition) (RequestCondition, b
 }
 
 // Match exact HTTP tokens; an empty media string denotes an absent Content-Type.
+// 用精确字符串匹配 HTTP 标记；媒体类型中的空字符串表示没有 Content-Type。
 func validConditionToken(value string) bool {
 	if value == "" {
 		return false
@@ -69,6 +75,7 @@ func validConditionToken(value string) bool {
 }
 
 // Copy and sort sets, validating method and media names without implicit case rewriting.
+// 将集合复制并排序，验证方法和媒体名称，不进行隐式大小写改写。
 func conditionSet(values []string, media bool) ([]string, error) {
 	if len(values) > 256 {
 		return nil, fmt.Errorf("openapi.condition.budget: condition set exceeds the limit")
@@ -94,6 +101,7 @@ func conditionSet(values []string, media bool) ([]string, error) {
 }
 
 // Remove duplicates and exclusions without mistaking an empty reachable set for an unconditional condition.
+// 对单个条件消除重复和相互排除的成员，空可达集不能表示为无条件。
 func normalizeCondition(c RequestCondition) (RequestCondition, bool, error) {
 	lists := []*[]string{&c.Methods, &c.ExceptMethods, &c.MediaTypes, &c.ExceptMediaTypes}
 	for i, list := range lists {
@@ -113,6 +121,7 @@ func normalizeCondition(c RequestCondition) (RequestCondition, bool, error) {
 }
 
 // Intersect inclusion/exclusion domains and return independently owned slices.
+// 求两个包含/排除集合的交集，所有返回切片均为独立副本。
 func intersectDomain(a, ax, b, bx []string) ([]string, []string, bool) {
 	excluded := map[string]bool{}
 	for _, v := range ax {
@@ -150,6 +159,7 @@ func intersectDomain(a, ax, b, bx []string) ([]string, []string, bool) {
 }
 
 // Check membership in a small finite set without relying on external sorting.
+// 检查小型有限集合成员，不依赖集合的外部排序状态。
 func stringMember(values []string, value string) bool {
 	for _, v := range values {
 		if v == value {
@@ -160,11 +170,13 @@ func stringMember(values []string, value string) bool {
 }
 
 // Decide whether a request dimension satisfies inclusion and exclusion sets.
+// 判定一个请求维度是否满足包含和排除集合。
 func conditionAllows(included, excluded []string, value string) bool {
 	return (len(included) == 0 || stringMember(included, value)) && !stringMember(excluded, value)
 }
 
 // Select static contracts using the method and explicit media configuration, retaining condition provenance.
+// 从方法与显式媒体配置选择静态契约，并保留所选条件的来源。
 func linkConditionalTemplate(template Template, route Route) (spec.Operation, []Diagnostic, []Source, error) {
 	op := copyJSON(template.Operation)
 	diagnostics := append([]Diagnostic(nil), template.Diagnostics...)
@@ -213,6 +225,7 @@ func linkConditionalTemplate(template Template, route Route) (spec.Operation, []
 	for i, variant := range template.Variants {
 		if selected[i] {
 			// Media-dependent presence cannot be projected losslessly into one body-required boolean.
+			// 跨媒体必填差异无法无损投射为统一的请求体布尔标志。
 			required := variant.Operation.RequestBody != nil && variant.Operation.RequestBody.Value != nil && variant.Operation.RequestBody.Value.Required
 			if bodyRequired != nil && *bodyRequired != required {
 				return op, diagnostics, facts, fmt.Errorf("openapi.condition.ambiguous: request body required differs across conditions")
@@ -244,6 +257,7 @@ func linkConditionalTemplate(template Template, route Route) (spec.Operation, []
 }
 
 // Merge compatible metadata fields and diagnose conflicts instead of overwriting by order.
+// 合并可共存的元数据字段，冲突必须诊断，不能按顺序覆盖。
 func mergeConditionMetadata(target, source any, ignored ...string) error {
 	leftRaw, err := json.Marshal(target)
 	if err != nil {
@@ -277,6 +291,7 @@ func mergeConditionMetadata(target, source any, ignored ...string) error {
 }
 
 // Merge conditional request and response representations while requiring compatible metadata elsewhere.
+// 合并条件操作的请求与响应表示，其余信息只接受兼容元数据。
 func mergeConditionalOperation(target *spec.Operation, source spec.Operation) error {
 	if err := mergeConditionMetadata(target, source, "requestBody", "responses"); err != nil {
 		return err
@@ -347,6 +362,7 @@ func mergeConditionalOperation(target *spec.Operation, source spec.Operation) er
 }
 
 // Compare deterministic JSON encodings without relying on pointer identity.
+// 比较 JSON 语义的确定性编码，避免指针身份影响相等判断。
 func jsonSame(a, b any) bool {
 	left, err := json.Marshal(a)
 	if err != nil {
@@ -357,6 +373,7 @@ func jsonSame(a, b any) bool {
 }
 
 // Merge distinct media types and use anyOf for overlapping schema alternatives.
+// 合并不同媒体类型，重叠的 Schema 使用允许重叠的 anyOf。
 func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source map[string]spec.RefOr[spec.MediaType]) error {
 	if *target == nil && len(source) > 0 {
 		*target = map[string]spec.RefOr[spec.MediaType]{}
@@ -374,6 +391,7 @@ func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source
 			continue
 		}
 		// Conditions constraining complete bodies versus stream items must not degrade into unconstrained media objects.
+		// 分别约束完整正文和流条目的条件不能退化为无约束媒体对象。
 		a, b := old.Value, media.Value
 		if (a.ItemSchema != nil && a.Schema == nil && b.Schema != nil && b.ItemSchema == nil) ||
 			(b.ItemSchema != nil && b.Schema == nil && a.Schema != nil && a.ItemSchema == nil) {
@@ -383,6 +401,7 @@ func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source
 			return err
 		}
 		// Merge encodings by field; distinct fields can coexist, while shared fields must keep the same representation.
+		// 编码按字段合并；不同字段可共存，同字段必须保持相同表示。
 		keys := make([]string, 0, len(media.Value.Encoding))
 		for key := range media.Value.Encoding {
 			keys = append(keys, key)
@@ -407,6 +426,7 @@ func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source
 }
 
 // Merge conditional schemas into detached copies without narrowing an unconstrained alternative.
+// 将条件 Schema 合并为独立副本；没有约束的分支不能被更严格分支收窄。
 func conditionalSchemaUnion(a, b *spec.Schema) *spec.Schema {
 	if a == nil || b == nil {
 		return nil

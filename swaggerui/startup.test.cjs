@@ -4,6 +4,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 // Capture Swagger UI configuration from the actual startup script without loading a browser or external specifications.
+// 用真实启动脚本捕获传给 Swagger UI 的配置，不加载浏览器或外部规范。
 function start(query, definitions = true) {
   let captured;
   const bundle = (options) => { captured = options; return {}; };
@@ -21,6 +22,7 @@ function start(query, definitions = true) {
 }
 
 // Restore the same document on deep links and refreshes instead of returning to the default overview.
+// 分类深链接和刷新恢复同一文档，不会回到默认总览。
 test('Restore registered definitions while preserving fixed specification URLs', () => {
   const options = start('?urls.primaryName=' + encodeURIComponent('Legacy · Deprecated') + '#/Legacy/example');
   assert.equal(options['urls.primaryName'], 'Legacy · Deprecated');
@@ -28,6 +30,7 @@ test('Restore registered definitions while preserving fixed specification URLs',
 });
 
 // Restore groups without arbitrary query configuration that could replace specifications, validators, or submission methods.
+// 恢复分类不启用任意查询配置，攻击者不能替换规范、验证器或提交方法。
 test('Reject unknown definitions and other query overrides', () => {
   const options = start('?urls.primaryName=https://evil.test/spec&url=https://evil.test/spec&configUrl=https://evil.test/config&validatorUrl=https://evil.test&supportedSubmitMethods=get');
   assert.equal(options['urls.primaryName'], 'All endpoints');
@@ -39,6 +42,7 @@ test('Reject unknown definitions and other query overrides', () => {
 });
 
 // Keep a single document's entry point unchanged by group query parameters.
+// 单份文档不会因为分类查询参数改变加载入口。
 test('Single documents retain their explicit local URL', () => {
   const options = start('?urls.primaryName=Any&url=https://evil.test/spec', false);
   assert.equal(options.url, './openapi.json');

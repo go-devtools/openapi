@@ -15,6 +15,7 @@ import (
 )
 
 // Verify function values, captured cells, and receivers from real source without executing analyzed business functions.
+// 以真正源码验证函数值、捕获单元和接收者，不执行待分析业务函数。
 func TestFunctionValues(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

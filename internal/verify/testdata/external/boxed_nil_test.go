@@ -13,6 +13,8 @@ import (
 	"github.com/openapi-golang/openapi/contracttest"
 )
 
+// 接口装箱同时保留非 nil 接口身份与内部 nil 载荷，分支和序列化各自使用正确事实。
+
 // Interface boxing preserves both non-nil interface identity and its nil payload for correct branching and serialization.
 func TestBoxedNilPayload(t *testing.T) {
 	dir := t.TempDir()

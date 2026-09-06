@@ -7,6 +7,7 @@ import (
 )
 
 // The public API forwards both budgets and validates real instances when given sufficient limits.
+// 公开入口必须透传索引与规范化预算，放宽预算后仍执行真实实例验证。
 func TestResourceTextBudgets(t *testing.T) {
 	refs := make([]any, 100)
 	for i := range refs {

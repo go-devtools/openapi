@@ -12,6 +12,7 @@ import (
 )
 
 // Pin official resources and compile full OAS 3.2 structure and dialect validators offline.
+// 固定官方资源并离线编译完整三点二结构与 Schema 方言验证器。
 func official32(t *testing.T) *jsonschema.Schema {
 	t.Helper()
 	c := jsonschema.NewCompiler()
@@ -48,6 +49,7 @@ func official32(t *testing.T) *jsonschema.Schema {
 }
 
 // Mutate standard fields in the complete valid example to prove independent validation rejects errors.
+// 同一完整正例分别破坏关键标准字段，证明独立校验实际拒绝错误。
 func TestOfficialOpenAPI32Matrix(t *testing.T) {
 	v := official32(t)
 	raw, err := os.ReadFile("../testdata/golden/openapi32-full.json")

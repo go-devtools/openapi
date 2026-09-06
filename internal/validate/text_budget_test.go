@@ -8,6 +8,7 @@ import (
 )
 
 // Retrieval addresses and caller-selected pointers cannot bypass the text budget.
+// 检索地址和调用方选择指针不能绕过索引文本预算。
 func TestIndexMetadataBudget(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"}}`)
 	long := "https://example.test/" + strings.Repeat("x", 4096)
@@ -32,6 +33,7 @@ func TestIndexMetadataBudget(t *testing.T) {
 }
 
 // Diagnostics share the index budget for repeated long paths and remain deterministic failures.
+// 诊断重复长路径时共用索引预算，错误集合仍稳定且不会伪报成功。
 func TestDiagnosticTextBudget(t *testing.T) {
 	dependencies := map[string]any{}
 	for i := 0; i < 100; i++ {
@@ -65,6 +67,7 @@ func TestDiagnosticTextBudget(t *testing.T) {
 }
 
 // URI resolution of valid references is charged as well as failed diagnostics.
+// 有效引用的 URI 解析也计费，不能只限制失败诊断。
 func TestResolvedReferenceTextBudget(t *testing.T) {
 	schemas := map[string]any{"value": map[string]any{"type": "string"}}
 	for i := 0; i < 30; i++ {
@@ -84,6 +87,7 @@ func TestResolvedReferenceTextBudget(t *testing.T) {
 }
 
 // Normalized budgets account for JSON escaping and accept the exact encoded boundary.
+// 规范化预算按实际 JSON 转义计量，边界相等通过而少一字节失败。
 func TestNormalizedJSONBoundary(t *testing.T) {
 	for _, raw := range []string{`true`, `false`, `{}`, `{"description":"<>&\u2028\u2029\t\"\\"}`, `{"$defs":{"v":{"type":"string"}},"allOf":[{"$ref":"#/$defs/v"},{"$ref":"#/$defs/v"}]}`} {
 		bundle, issues := BundleSchemas([]byte(raw), "", Options{})
@@ -104,6 +108,7 @@ func TestNormalizedJSONBoundary(t *testing.T) {
 }
 
 // Cross-checks budget boundaries for JSON values against the standard encoder.
+// 用标准编码器交叉验证各类 JSON 值的预算边界。
 func TestJSONSizeAgainstEncoder(t *testing.T) {
 	for _, value := range []any{nil, true, false, json.Number("1e100"), "\x00\x01\b\f\r\n\t\"\\<>&\u2028\u2029\u4e2d\u6587\xff", []any{}, map[string]any{}, []any{false, nil, json.Number("0")}, map[string]any{"\x00<&": []any{"a", json.Number("1.25")}}} {
 		raw, err := json.Marshal(value)
@@ -122,6 +127,7 @@ func TestJSONSizeAgainstEncoder(t *testing.T) {
 }
 
 // Covers default JSON escaping for Unicode, invalid UTF-8 and control characters.
+// 覆盖 Unicode、非法 UTF-8 和控制字符的默认 JSON 转义。
 func FuzzJSONStringBudget(f *testing.F) {
 	for _, seed := range []string{"", "a", "Example", "<>&\u2028\u2029", "\x00\xff\n\t\"\\"} {
 		f.Add(seed)

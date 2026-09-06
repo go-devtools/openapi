@@ -15,31 +15,40 @@ import (
 )
 
 // Represent a propagated static value without inventing unknown payloads.
+// 表示有限传播的静态值；未知值从不伪装成具体 payload。
 type Value struct {
 	// Track a local address during analysis for alias writes and external-call invalidation.
+	// 保存局部变量地址的分析期身份，用于别名写入和外部调用失效处理。
 	address uint64
 	// Function implementations and captured identities exist only during compilation, never in Bundle.
+	// 函数实现与捕获身份仅在编译期传播，不写入 Bundle。
 	callable *functionValue
 	// Preserve resolved standard-library symbol identity for explicit binders and aliases.
+	// 保留已解析的标准库符号身份，供前端识别显式绑定器和别名。
 	Object   types.Object
 	Type     types.Type
 	Constant constant.Value
 	Fields   map[string]Value
 	Nil      bool
 	// A non-nil interface contains a known nil pointer or collection without changing interface comparisons.
+	// 非 nil 接口内部持有已知 nil 指针或集合；不改变接口自身的比较结果。
 	DynamicNil bool
 	// Mark a boxed concrete value and separately preserve its definite non-nil identity.
+	// 标记已装箱的具体值，并独立保留其确定非 nil 的事实。
 	Boxed         bool
 	DynamicNonNil bool
 	// Mark a definitely non-nil Go result for conditional propagation.
+	// 明确表示 Go 层面的非 nil 返回值，用于条件传播。
 	NonNil  bool
 	Unknown bool
 }
 
 // Represent a framework-neutral frontend effect.
+// 表示框架前端输出的中立效果。
 type EffectKind string
 
 // Describe wire facts without framework method names.
+// 共同效果描述网络事实，不包含任何框架方法名。
 const (
 	RequestBody     EffectKind = "requestBody"
 	RequestField    EffectKind = "requestField"
@@ -47,6 +56,7 @@ const (
 	ParameterRead   EffectKind = "parameter"
 	ResponseBody    EffectKind = "responseBody"
 	// Consecutive items of one media type constrain itemSchema without claiming stream length or item order.
+	// 同媒体类型的连续条目共同约束 itemSchema，不限制流长度或条目顺序。
 	ResponseItem   EffectKind = "responseItem"
 	ResponseStatus EffectKind = "status"
 	ResponseCommit EffectKind = "commit"
@@ -57,32 +67,42 @@ const (
 )
 
 // Store a response header value and provenance for commit snapshots and reports.
+// 保存响应头值和推导来源，供提交快照与报告共同使用。
 type HeaderValue struct {
 	Value  Value
 	Source openapi.Source
 }
 
 // Record request, response, status, and control effects with their sources.
+// 记录请求、响应、状态和控制效果及其来源。
 type Effect struct {
 	// Select the response payload codec media type independently of its outer protocol representation.
+	// 指定响应载荷自身的编解码媒体类型，允许外层协议使用不同表示。
 	PayloadMediaType string
 	// Wrap a projected response schema at compile time; both sides are detached and nil/errors prevent trusted publication.
+	// 编译期包装已投影的响应 Schema；输入输出均隔离，nil 或错误阻止可信发布。
 	TransformSchema func(*spec.Schema) (*spec.Schema, error)
 
 	// Describe one body field's wire encoding; Required constrains field presence only.
+	// 描述单个请求体字段的网络编码；此效果的 Required 只约束字段存在。
 	Encoding *spec.Encoding
 
 	// One logical input may come from multiple locations, so cross-location presence requirements cannot be dropped.
+	// 同一逻辑输入可能来自多个位置，不能丢弃跨位置必填关系。
 	AlternativeLocations bool
 	// Frontends explicitly provide parameter serialization; the core does not infer framework rules.
+	// 参数序列化由前端明确提供，核心不猜测框架规则。
 	Style   string
 	Explode spec.Optional[bool]
 	// Supply an explicit request or response wire representation; omission uses actual type projection.
+	// 明确的请求或响应网络表示由前端提供；省略时复用真实类型投影。
 	WireSchema *spec.Schema
 	// Describe header replacement, removal, and insertion only when the current value is empty.
+	// 响应头的替换、删除及仅在当前值为空时设置语义。
 	DeleteHeader  bool
 	HeaderIfEmpty bool
 	// Record response headers and provenance at commit time.
+	// 分析器记录提交时的响应头快照及其来源。
 	Headers   map[string]HeaderValue
 	Kind      EffectKind
 	Name      string
@@ -98,10 +118,13 @@ type Effect struct {
 }
 
 // Expose standard-library call views and propagated arguments without third-party SSA.
+// 提供标准库调用视图和核心已传播的实参，不暴露第三方 SSA。
 type CallContext struct {
 	// Retain the resolved function value without exposing internal capture cells to frontends.
+	// 保存本次已解析的函数值，不向前端泄露内部捕获单元。
 	callee *functionValue
 	// A path-local response snapshot lets frontends select actual rendering behavior.
+	// 当前执行路径的响应状态副本，供前端选择实际渲染行为。
 	Response  ResponseState
 	Function  Function
 	Call      *ast.CallExpr
@@ -112,14 +135,17 @@ type CallContext struct {
 }
 
 // Associate one call result tuple with its co-occurring effects as a finite alternative.
+// 将一次调用的返回值与其共同发生的效果绑定为有限备选。
 type CallOutcome struct {
 	// Apply this result alternative only under the finite request condition.
+	// 仅在该有限请求条件下发生此返回备选。
 	When    openapi.RequestCondition
 	Results []Value
 	Effects []Effect
 }
 
 // Support frontends whose handlers return responses or errors.
+// 支持返回响应值或 error 的前端形态。
 type ReturnContext struct {
 	Function Function
 	Values   []Value
@@ -127,10 +153,13 @@ type ReturnContext struct {
 }
 
 // Register frontend rules explicitly; absent callbacks define no rules.
+// 显式注册前端规则；未提供的回调表示此类入口没有框架规则。
 type Frontend struct {
 	// Declare synchronous callback invocation and repetition while the core executes neutral control flow.
+	// 显式声明同步回调的调用与重复规则，通用控制流仍由核心执行。
 	Callback func(CallContext) (*CallbackPlan, error)
 	// Try finite call alternatives first; an empty set falls back to Call and errors prevent trusted publication.
+	// 优先尝试有限调用备选；空集合回退到 Call，错误阻止可信发布。
 	CallOutcomes   func(CallContext) ([]CallOutcome, error)
 	Name           string
 	Match          func(Function) bool
@@ -141,8 +170,10 @@ type Frontend struct {
 }
 
 // Configure analysis budgets, frontend dispatch, and centralized type mappings.
+// 配置通用编译调度、资源预算及集中类型映射。
 type Options struct {
 	// Declare stable JSON inputs for custom mapping or captured callback configuration without serializing function addresses.
+	// 为自定义映射或回调捕获配置声明稳定的 JSON 输入，不序列化函数地址。
 	Configuration map[string]json.RawMessage
 	Load          LoadOptions
 	Frontends     []Frontend
@@ -150,17 +181,20 @@ type Options struct {
 	MaxPaths      int
 	MaxCalls      int
 	// Maximum analyzed iterations for each synchronous repeated invocation.
+	// 每个同步重复调用最多分析的迭代次数。
 	MaxIterations int
 	Mappers       []TypeMapper
 }
 
 // Store a writable Bundle and its compilation report.
+// 保存可写入的 Bundle 和编译报告。
 type Result struct {
 	Bundle openapi.Bundle
 	Report openapi.Report
 }
 
 // Compile real projects with registered frontends and shared annotations and projections.
+// 将显式注册的前端应用于真实项目，复用注释、控制流与类型投影。
 func Compile(ctx context.Context, options Options) (*Result, error) {
 	if len(options.Frontends) == 0 {
 		return nil, fmt.Errorf("openapi.frontend.missing: register at least one frontend explicitly")
@@ -234,6 +268,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			paths = a.statements(fn, fn.Declaration.Body.List, []flow{initial}, 0, true)
 		}
 		// Finalize a pending bodyless status only after all handler statements finish.
+		// 仅在 handler 所有语句结束后提交尚未写 body 的最终状态。
 		for i := range paths {
 			a.finishResponse(&paths[i])
 		}
@@ -243,6 +278,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 			template.RuntimeSymbols = []string{symbol}
 			if fn.Package.Name == "main" {
 				// Preserve the complete symbols observed in main binaries and go test.
+				// 主程序二进制与 go test 使用两种真实符号名，分别保留完整证据。
 				template.RuntimeSymbols = append(template.RuntimeSymbols, "main."+fn.Object.Name())
 			}
 		}
@@ -303,6 +339,7 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 }
 
 // Return string keys in stable order.
+// 返回字符串键的稳定排序。
 func sortedKeys[T any](m map[string]T) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -313,6 +350,7 @@ func sortedKeys[T any](m map[string]T) []string {
 }
 
 // Deduplicate alternatives and use anyOf when their shapes may overlap.
+// 合并有限备选 Schema；相同结果去重，重叠备选使用 anyOf。
 func union(a, b *spec.Schema) *spec.Schema {
 	if a == nil {
 		return b
@@ -336,6 +374,7 @@ func union(a, b *spec.Schema) *spec.Schema {
 }
 
 // Project propagated literals or real types into shared Schemas.
+// 将已传播的字面对象或真实类型转换为共同 Schema。
 func (p *Project) valueSchema(v Value, direction Direction, media string, codec WireCodec, mappers []TypeMapper, components map[string]*spec.Schema) (*spec.Schema, error) {
 	if v.Unknown || v.Type == nil {
 		return nil, fmt.Errorf("critical payload type is unresolved")
@@ -367,6 +406,7 @@ func (p *Project) valueSchema(v Value, direction Direction, media string, codec 
 }
 
 // Link neutral effects without disguising unknown responses as default.
+// 将前端效果链接到共同模型；不将未知响应伪装成 default。
 func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[string]*spec.Schema, mappers []TypeMapper) error {
 	switch e.Kind {
 	case Unresolved:
@@ -414,6 +454,7 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		op.Responses[e.Status] = response
 	case ResponseHeader, Abort:
 		// The analyzer handles commits and termination without inventing responses.
+		// 状态提交和终止副作用由分析器处理，单独效果不虚构响应。
 	default:
 		return fmt.Errorf("unknown frontend effect %s", e.Kind)
 	}

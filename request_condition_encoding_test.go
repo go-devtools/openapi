@@ -6,6 +6,7 @@ import (
 )
 
 // Merge encodings for fields read under different conditions while rejecting conflicts on the same field.
+// 不同条件读取不同字段时合并各自编码，同字段冲突仍需拒绝。
 func TestConditionalRequestFieldEncoding(t *testing.T) {
 	makeBundle := func(conflict bool) Bundle {
 		t.Helper()

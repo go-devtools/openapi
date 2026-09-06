@@ -6,6 +6,7 @@ import (
 )
 
 // Describe a synchronous callback or repetition controlled by its boolean result without framework types.
+// 描述一次同步回调或由其布尔返回值控制的重复调用，不包含框架类型。
 type CallbackPlan struct {
 	Function  Value
 	Arguments []Value
@@ -13,17 +14,20 @@ type CallbackPlan struct {
 	Results   []Value
 	Repeat    *CallbackRepeat
 	// Preserve possible interruption before invocation and the corresponding outer results.
+	// 调用前可能中断，保留此路径和对应外层返回值。
 	MayInterrupt     bool
 	InterruptResults []Value
 }
 
 // Select the boolean result index and continuation value; public compile options set the iteration budget.
+// 指定控制重复的布尔返回位置及继续值；次数预算在公共编译选项中设置。
 type CallbackRepeat struct {
 	ResultIndex   int
 	ContinueValue bool
 }
 
 // Validate the outer result tuple and preserve actual Go types, rejecting incorrect frontend result conventions.
+// 校验外层返回元组并保留其实际 Go 类型，不接受错误的前端返回约定。
 func callbackResults(values, expected []Value) ([]Value, bool) {
 	if len(values) != len(expected) {
 		return nil, false
@@ -42,6 +46,7 @@ func callbackResults(values, expected []Value) ([]Value, bool) {
 }
 
 // Invoke callbacks through shared lexical state, bounding repetition and interruption with the same call and path budgets.
+// 使用共享词法状态逐次调用回调；重复和中断均受同一调用及路径预算约束。
 func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flow, depth int, fallback []Value) []evaluation {
 	fail := func(message string) []evaluation {
 		a.unknown(&state, call.Source, message)
@@ -117,6 +122,7 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 						finished = append(finished, evaluation{state: after.state, values: normal})
 					} else if (plan.MayInterrupt || !known) && sameCallbackState(before, after.state, plan) {
 						// Reinvoking the same abstract state adds no contract; retain only exits that already exist.
+						// 同一抽象状态的下一次调用不会产生新的契约；只能保留已经存在的出口。
 						if plan.MayInterrupt {
 							finished = append(finished, evaluation{state: after.state, values: interrupted})
 						}
@@ -139,6 +145,7 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 }
 
 // Compare reachable captured cells and response state; temporaries from exited frames do not prevent fixed-point convergence.
+// 只比较可达捕获单元和响应状态，已退出帧的临时变量不阻止固定点收敛。
 func sameCallbackState(before, after flow, plan CallbackPlan) bool {
 	if before.bodyKind != after.bodyKind || before.bodyMedia != after.bodyMedia || min(before.writes, 2) != min(after.writes, 2) || !reflect.DeepEqual(before.when, after.when) || !reflect.DeepEqual(responseSnapshot(before), responseSnapshot(after)) {
 		return false

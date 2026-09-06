@@ -7,6 +7,7 @@ import (
 )
 
 // Pins official resource bytes in the optional package to prevent unrecorded upstream replacements.
+// 固定可选包内的官方资源字节，防止无记录的上游替换。
 func TestBuiltinDialectChecksums(t *testing.T) {
 	expected := map[string]string{
 		"oas31-dialect.json": "8a0e89e365dadbebce2921ce6244340c1090e9d544c60d977e9ad6b97a61227b",

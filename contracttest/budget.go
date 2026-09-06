@@ -10,6 +10,7 @@ import (
 )
 
 // Checks JSON data, depth, node count, and exact-number computation budgets before the independent engine.
+// 在独立引擎前检查 JSON 数据、递归深度、节点数和精确数值的计算预算。
 func guardJSON(value any, maxDepth, maxNodes int, maxBytes int64) error {
 	nodes := 0
 	remaining := maxBytes

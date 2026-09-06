@@ -25,15 +25,18 @@ import (
 )
 
 // Version compiler input accounting and projection semantics without process addresses or machine paths.
+// 标识编译器输入清单与投影算法的版本，不使用进程地址或机器路径。
 const compilerInputVersion = "openapi/compiler-inputs-v3"
 
 // Preserve digests of parsed files so overlays and later disk changes cannot alter the loaded view.
+// 保存实际解析的文件摘要，避免 overlay 或并发磁盘修改改变已加载视图。
 type sourceSnapshot struct {
 	digest string
 	owned  bool
 }
 
 // Account for concurrent parsing and supplemental inputs using logical package paths instead of absolute directories.
+// 对并发解析和补充输入统一计费，记录逻辑包路径而不是绝对目录。
 type buildInputs struct {
 	commentPositions map[token.Pos][]token.Pos
 	mu               sync.Mutex
@@ -46,12 +49,14 @@ type buildInputs struct {
 }
 
 // Hash bytes through an unambiguous JSON manifest instead of delimiter-based concatenation.
+// 哈希字节采用明确长度的 JSON 清单，不依赖拼接分隔符。
 func inputDigest(raw []byte) string {
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }
 
 // Copy overlays and read the effective environment using the same Go command as packages.Load.
+// 复制覆盖输入，并使用与 packages.Load 相同的 Go 命令读取有效环境。
 func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.Config) (*buildInputs, error) {
 	limit := options.MaxSourceBytes
 	if limit == 0 {
@@ -98,6 +103,7 @@ func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.
 	}
 	inputs.profile = openapi.BuildProfile{GoVersion: e["GOVERSION"], GOOS: e["GOOS"], GOARCH: e["GOARCH"], CGOEnabled: e["CGO_ENABLED"], GoExperiment: e["GOEXPERIMENT"], Generator: compilerInputVersion, Codec: "explicit-profile", Settings: map[string]string{"GOEXPERIMENT": e["GOEXPERIMENT"]}}
 	// Record only feature selectors used by the target architecture to avoid warnings from unrelated inherited settings.
+	// 只记录目标架构实际使用的特性设置，避免继承其他架构环境造成误报。
 	architectureKey := map[string]string{"amd64": "GOAMD64", "386": "GO386", "arm": "GOARM", "arm64": "GOARM64", "mips": "GOMIPS", "mipsle": "GOMIPS", "mips64": "GOMIPS64", "mips64le": "GOMIPS64", "ppc64": "GOPPC64", "ppc64le": "GOPPC64", "riscv64": "GORISCV64", "wasm": "GOWASM"}[e["GOARCH"]]
 	for _, key := range []string{architectureKey, "GOFIPS140"} {
 		if e[key] != "" {
@@ -116,6 +122,7 @@ func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.
 }
 
 // Charge the first read against the budget and reuse already parsed file digests.
+// 首次读入时扣减预算；已解析文件直接使用其确定的摘要。
 func (b *buildInputs) snapshot(path string, supplied []byte) (sourceSnapshot, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -149,6 +156,7 @@ func (b *buildInputs) snapshot(path string, supplied []byte) (sourceSnapshot, er
 }
 
 // Register source by package identity and package-relative path, including resources and inactive source.
+// 用包身份和包内路径登记源码，资源或非当前构建源码同样不能遗漏。
 func (b *buildInputs) collect(loaded []*packages.Package, options LoadOptions, flags []string) error {
 	var failure error
 	modules := map[string]*packages.Module{}
@@ -246,6 +254,7 @@ func (b *buildInputs) collect(loaded []*packages.Package, options LoadOptions, f
 }
 
 // Preserve complete module declarations while replacing machine-local paths with replaced module identities.
+// 对模块声明保留全部语义，唯一替换的机器路径使用被替换的模块身份。
 func (b *buildInputs) moduleInput(path string) ([]byte, error) {
 	raw, err := b.controlInput(path)
 	if err != nil {
@@ -266,6 +275,7 @@ func (b *buildInputs) moduleInput(path string) ([]byte, error) {
 }
 
 // Record workspace module identities and version rules without machine-local use or replace paths.
+// 工作区只记录模块身份与版本规则，不输出 use 或 replace 的本机目录。
 func (b *buildInputs) workspaceInput(path string) ([]byte, error) {
 	raw, err := b.controlInput(path)
 	if err != nil {
@@ -307,6 +317,7 @@ func (b *buildInputs) workspaceInput(path string) ([]byte, error) {
 }
 
 // Bound module control files by the same input budget and read only explicitly loaded or declared files.
+// 模块控制文件受同一输入预算约束，只读取明确加载或声明的文件。
 func (b *buildInputs) controlInput(path string) ([]byte, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -327,6 +338,7 @@ func (b *buildInputs) controlInput(path string) ([]byte, error) {
 }
 
 // Replace known absolute directories in settings with project, module, and toolchain identities.
+// 使用项目、模块和工具链身份替换配置中的已知绝对目录。
 func (b *buildInputs) logicalSetting(value, dir string, modules map[string]*packages.Module) string {
 	roots := map[string]string{}
 	for _, module := range modules {
@@ -355,6 +367,7 @@ func (b *buildInputs) logicalSetting(value, dir string, modules map[string]*pack
 }
 
 // Split whole-argument GOFLAGS quotes without interpreting escapes or executing commands.
+// GOFLAGS 仅在词首支持整体引号，不解释转义或执行命令。
 func splitBuildFlags(text string) ([]string, error) {
 	var result []string
 	for {
@@ -382,6 +395,7 @@ func splitBuildFlags(text string) ([]string, error) {
 }
 
 // Combine actual inputs, declared configuration, budgets, and projected output without reflecting callback addresses.
+// 结合实际输入、配置声明、预算和已投影结果，避免遗漏不可反射的回调结果。
 func (p *Project) fingerprint(options Options, data openapi.BundleData) (string, error) {
 	configuration := map[string]json.RawMessage{}
 	for name, raw := range options.Configuration {
@@ -408,6 +422,7 @@ func (p *Project) fingerprint(options Options, data openapi.BundleData) (string,
 }
 
 // Store only a digest of custom configuration in the profile, not potentially sensitive raw JSON.
+// 对写入 profile 的自定义配置只保留摘要，不嵌入可含敏感值的原始 JSON。
 func configurationDigest(configuration map[string]json.RawMessage) (string, error) {
 	if len(configuration) == 0 {
 		return "", nil
@@ -425,6 +440,7 @@ func configurationDigest(configuration map[string]json.RawMessage) (string, erro
 }
 
 // Disallow module writes, executable tool wrappers, and overlays outside the SDK snapshot mechanism.
+// 构建参数不能启用模块写入、执行包装器或绕过 SDK 的 overlay 快照。
 func validateLoadFlags(flags []string) error {
 	for i := 0; i < len(flags); i++ {
 		key, value, assigned := strings.Cut(flags[i], "=")

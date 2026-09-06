@@ -10,6 +10,7 @@ import (
 )
 
 // Verify source-based Schema export and validation of actual CLI input.
+// 验证 CLI 从真实源码生成独立 Schema，且检查命令使用真实输入。
 func TestSchemaAndCheckCommands(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "schema.json")
 	var stdout, stderr bytes.Buffer

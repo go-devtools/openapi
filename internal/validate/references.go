@@ -9,17 +9,20 @@ import (
 )
 
 // Record a specification node's physical location, context, and owning document.
+// 保存真实规范节点的位置、上下文和所属文档。
 type referenceNode struct {
 	value                      any
 	path, role, base, document string
 }
 
 // Record every reference occurrence instead of deduplicating by reference text.
+// 保存每次引用使用，而非仅按引用文本去重。
 type referenceUse struct {
 	value, path, base, role, owner string
 }
 
 // Index supplied content as an offline resource graph without file or network loaders.
+// 对已提供内容建立离线资源图，不包含文件或网络加载器。
 type referenceGraph struct {
 	schemaOnly            bool
 	nodes                 map[string]*referenceNode
@@ -38,11 +41,13 @@ type referenceGraph struct {
 }
 
 // Build a bounded reference graph whose resource identities exist only for the current check.
+// 建立默认有界引用图，资源身份只在本次检查内生效。
 func newReferenceGraph() *referenceGraph {
 	return &referenceGraph{budget: byteBudget{remaining: 16 << 20}, maxNormalizedBytes: 16 << 20, nodes: map[string]*referenceNode{}, resources: map[string]*referenceNode{}, anchors: map[string]*referenceNode{}, maxReferences: 10000, maxResources: 64, resourceNodes: map[string]bool{}, exampleResources: map[string]bool{}}
 }
 
 // Record the same error codes used by ordinary checks.
+// 记录与普通检查一致的错误编码。
 func (g *referenceGraph) add(code, path, message string) {
 	if !g.spend(len(code), len(path), len(message), 128) {
 		return
@@ -51,6 +56,7 @@ func (g *referenceGraph) add(code, path, message string) {
 }
 
 // Reject unescaped invalid URI characters while preserving valid relative references.
+// 拒绝 URI 中未编码的非法字符，同时保留合法的相对引用。
 func parseURIReference(value string) (*url.URL, error) {
 	for _, c := range value {
 		if c <= 0x20 || c >= 0x7f || strings.ContainsRune("<>\"{}|\\^`", c) {
@@ -61,6 +67,7 @@ func parseURIReference(value string) (*url.URL, error) {
 }
 
 // Resolve relative references into absolute URIs without performing I/O.
+// 解析相对引用并返回绝对 URI；不触发任何 I/O。
 func absoluteReference(base, value string) (*url.URL, error) {
 	u, err := parseURIReference(value)
 	if err != nil {
@@ -74,6 +81,7 @@ func absoluteReference(base, value string) (*url.URL, error) {
 }
 
 // Exclude fragments from resource identities; empty and absent fragments share one key.
+// 资源身份不包含片段，空片段与无片段使用同一键。
 func resourceURI(u *url.URL) string {
 	copy := *u
 	copy.Fragment, copy.RawFragment = "", ""
@@ -82,6 +90,7 @@ func resourceURI(u *url.URL) string {
 }
 
 // Keeps traversal deterministic so duplicate-identity diagnostics are reproducible.
+// 固定遍历顺序，使重复身份的诊断位置可复现。
 func sortedKeys[T any](m map[string]T) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -92,6 +101,7 @@ func sortedKeys[T any](m map[string]T) []string {
 }
 
 // Assign contexts to specification map entries; map keys are not themselves keywords.
+// 映射规范字典的元素上下文；字典键本身不是关键字。
 func dictionaryRole(role string) string {
 	switch role {
 	case "schemas":
@@ -125,11 +135,13 @@ func dictionaryRole(role string) string {
 }
 
 // Interpret x- keys as extensions only in extensible maps; always preserve schema property names.
+// 只有支持扩展的字典将 x- 键解释为扩展，Schema 属性名始终保留。
 func dictionaryExtension(role, key string) bool {
 	return (role == "paths" || role == "responses") && strings.HasPrefix(key, "x-")
 }
 
 // Identify standard locations allowing Reference Objects or schema references.
+// 标识允许 Reference Object 或 Schema 引用的标准位置。
 func referenceRole(role string) bool {
 	switch role {
 	case "schema", "path", "response", "parameter", "header", "requestBody", "media", "example", "security", "link", "callback":
@@ -139,6 +151,7 @@ func referenceRole(role string) bool {
 }
 
 // Index URIs, anchors, and specification objects without treating examples or extensions as reference instructions.
+// 建立 URI、锚点和规范对象索引，示例及扩展内容不作为引用指令。
 func (g *referenceGraph) collect(v any, path, role, base, document string, root bool) {
 	if g.budget.exceeded {
 		return
@@ -276,6 +289,7 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 }
 
 // Require each URI to identify one resource; retrieval and declared identities may match for the same node.
+// 同一 URI 只能识别一个资源；同一节点的检索地址与自声明地址可以相同。
 func (g *referenceGraph) addResource(uri string, node *referenceNode) {
 	if old := g.resources[uri]; old != nil && old.path != node.path {
 		g.add("resource.duplicate", node.path, "resource URI conflicts with "+old.path+" is duplicated: "+uri)
@@ -295,6 +309,7 @@ func (g *referenceGraph) addResource(uri string, node *referenceNode) {
 }
 
 // Validate the character set permitted for standard anchors.
+// 校验标准锚点的字符范围。
 func validAnchor(name string) bool {
 	if name == "" {
 		return false
@@ -309,6 +324,7 @@ func validAnchor(name string) bool {
 }
 
 // Enforce a hard reference-count limit and report exhaustion instead of claiming a complete check.
+// 对引用次数设定硬上限，超限明确失败而不伪装为完整检查。
 func (g *referenceGraph) addUse(value any, path string, node *referenceNode, role string) {
 	if g.budget.exceeded {
 		return
@@ -329,6 +345,7 @@ func (g *referenceGraph) addUse(value any, path string, node *referenceNode, rol
 }
 
 // Resolve known discriminator component names directly while preserving URI semantics for other strings.
+// discriminator 的已知组件名按名称解析，其他字符串保留 URI 语义。
 func (g *referenceGraph) addMapping(value any, path string, node *referenceNode) {
 	if g.budget.exceeded {
 		return
@@ -339,6 +356,7 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 		return
 	}
 	// Look up component names in the complete document independently of traversal order.
+	// 组件名称是否存在由完整文档查询，不依赖遍历时机。
 	doc := g.nodes[node.document]
 	if doc != nil {
 		root, _ := doc.value.(map[string]any)
@@ -349,6 +367,7 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 			copy.base = doc.base
 			target := "#/components/schemas/" + escape(ref)
 			// Resolve name mappings directly to components, using their $id resource identity when present.
+			// 名称映射直接识别组件；组件有 $id 时使用该资源身份。
 			schema, _ := schemas[ref].(map[string]any)
 			if id, ok := schema["$id"].(string); ok {
 				if resolved, err := absoluteReference(doc.base, id); err == nil && resolved.Fragment == "" {
@@ -366,6 +385,7 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 }
 
 // Check initial reference targets without recursively expanding cycles or validating instances.
+// 检查所有引用的初始目标，不递归展开循环，也不执行实例验证。
 func (g *referenceGraph) checkReferences() {
 	for _, use := range g.uses {
 		if g.budget.exceeded {
@@ -379,6 +399,7 @@ func (g *referenceGraph) checkReferences() {
 }
 
 // Resolve target resources, then strictly validate JSON Pointers, anchors, and object kinds.
+// 解析目标资源后严格检查 JSON Pointer 或锚点以及对象种类。
 func (g *referenceGraph) target(use referenceUse) (*referenceNode, string, string) {
 	if !g.spend(len(use.base), len(use.value)) {
 		return nil, "budget", "reference resolution exceeds the index budget"
@@ -434,6 +455,7 @@ func (g *referenceGraph) target(use referenceUse) (*referenceNode, string, strin
 }
 
 // Convert URI-decoded JSON Pointers to physical paths using strict escape and array-index syntax.
+// 将 URI 解码后的 JSON Pointer 转换为物理路径，严格遵守转义与数组索引语法。
 func pointerPath(resource *referenceNode, fragment string) (string, string) {
 	cur := resource.value
 	parts := []string{resource.path}

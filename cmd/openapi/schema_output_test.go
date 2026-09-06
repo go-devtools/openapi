@@ -10,6 +10,7 @@ import (
 )
 
 // Include the CLI's trailing newline in the output budget instead of writing an uncharged byte.
+// 输出预算包含 CLI 的末尾换行，不能多写一个未计费字节。
 func TestSchemaCLIOutputBudgetIncludesNewline(t *testing.T) {
 	args := []string{"schema", "--dir", "../../testdata/types", "--type", "Role"}
 	var out, errs bytes.Buffer
@@ -31,6 +32,7 @@ func TestSchemaCLIOutputBudgetIncludesNewline(t *testing.T) {
 }
 
 // Remove a completed temporary file after failed replacement and preserve the target directory's contents.
+// 原子替换失败时删除已写完的临时文件，并保留目标目录的原内容。
 func TestSchemaAtomicWriteFailure(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "existing")

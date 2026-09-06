@@ -13,6 +13,8 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
+// 内外媒体类型分离后保留真实 DTO 的组件引用，SSE data 仍是协议字符串。
+
 // Preserve actual DTO component references across inner/outer media types while SSE data remains a protocol string.
 func TestResponseItemPayloadProjection(t *testing.T) {
 	for _, media := range []string{"application/x-ndjson", "text/event-stream"} {
@@ -74,6 +76,8 @@ func TestResponseItemPayloadProjection(t *testing.T) {
 	}
 }
 
+// 回调复用输入或输出对象不能改写已合并条目，也不能改变前端拥有的 Schema。
+
 // Reusing callback input or output objects must not mutate merged items or frontend-owned schemas.
 func TestResponseSchemaTransformIsolation(t *testing.T) {
 	owned, shared := spec.Typed("string"), spec.Typed("string")
@@ -112,6 +116,8 @@ func TestResponseSchemaTransformIsolation(t *testing.T) {
 		t.Fatal("returned callback object escaped into the contract")
 	}
 }
+
+// 包装回调的错误或 nil 结果必须阻止文档发布，不能转为空 Schema。
 
 // Errors or nil results from schema transforms must prevent publication instead of becoming empty schemas.
 func TestResponseSchemaTransformErrors(t *testing.T) {

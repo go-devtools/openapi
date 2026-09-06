@@ -1,4 +1,5 @@
 // Provide framework-neutral Schema, specification, and version commands.
+// 提供框架无关的 Schema、规范检查与版本命令。
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 )
 
 // Cancel on interruption without running project scripts.
+// 响应中断取消，不运行用户项目脚本。
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -24,6 +26,7 @@ func main() {
 }
 
 // Dispatch core commands without embedding framework frontends.
+// 分派核心命令；命令编排不包含任何框架前端。
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fail := func(err error) int {
 		_ = json.NewEncoder(stderr).Encode(map[string]any{"code": "openapi.cli.failed", "severity": "error", "message": err.Error()})

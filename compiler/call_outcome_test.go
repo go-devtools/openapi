@@ -15,6 +15,7 @@ import (
 )
 
 // Verify public call outcomes correlate values with writes even when callers ignore results.
+// 验证公开调用备选将返回值和写入效果关联，忽略返回值也不能丢失提交。
 func TestFrontendCallOutcomes(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

@@ -13,6 +13,8 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
+// 独立改变每项构建选择，防止一个变化掩盖其他遗漏。
+
 // Change each build selector independently so one change cannot hide another missing input.
 func TestFingerprintIndependentSelectors(t *testing.T) {
 	dir := t.TempDir()
@@ -29,6 +31,8 @@ func TestFingerprintIndependentSelectors(t *testing.T) {
 		})
 	}
 }
+
+// 嵌入资源变化使生成物过期，未引用的输出文件不参与指纹。
 
 // Embedded-resource changes invalidate output while unrelated output files do not enter the fingerprint.
 func TestFingerprintEmbeddedResources(t *testing.T) {
@@ -47,6 +51,8 @@ func TestFingerprintEmbeddedResources(t *testing.T) {
 		t.Fatal("embedded resource did not change freshness")
 	}
 }
+
+// workspace 的本地依赖源码必须参与指纹，绝对 use 路径不进入产物。
 
 // Include workspace dependency source without putting absolute use paths into generated output.
 func TestFingerprintWorkspaceSource(t *testing.T) {
@@ -77,6 +83,8 @@ func TestFingerprintWorkspaceSource(t *testing.T) {
 	}
 }
 
+// 自定义映射必须声明配置身份，配置值仅以摘要进入公开 profile。
+
 // Require declared configuration for custom mappings and expose only its digest in the public profile.
 func TestFingerprintCustomConfiguration(t *testing.T) {
 	dir := t.TempDir()
@@ -98,6 +106,8 @@ func TestFingerprintCustomConfiguration(t *testing.T) {
 		t.Fatal("raw configuration leaked into the bundle")
 	}
 }
+
+// 禁止加载器通过可执行 driver 或改写模式突破只读静态分析边界。
 
 // Prevent executable drivers and writable module modes from escaping read-only static analysis.
 func TestLoadRejectsExecutableDriversAndWritableModes(t *testing.T) {
@@ -127,6 +137,8 @@ func TestLoadRejectsExecutableDriversAndWritableModes(t *testing.T) {
 	}
 }
 
+// 输入预算溢出必须失败，不能在未指纹化的输入上继续发布完整契约。
+
 // Fail on input budget exhaustion instead of publishing a complete contract with unaccounted inputs.
 func TestFingerprintInputBudget(t *testing.T) {
 	dir := t.TempDir()
@@ -139,6 +151,8 @@ func TestFingerprintInputBudget(t *testing.T) {
 	}
 }
 
+// 显式环境覆盖沿用 Go 的最后一项优先规则，禁用 driver 后可以正常加载。
+
 // Apply Go's last-entry-wins environment rule so an explicitly disabled driver permits loading.
 func TestLoadDriverEnvironmentOverride(t *testing.T) {
 	dir := t.TempDir()
@@ -148,6 +162,8 @@ func TestLoadDriverEnvironmentOverride(t *testing.T) {
 	options.Load.Env = append(options.Load.Env, "GOPACKAGESDRIVER=unused-driver", "GOPACKAGESDRIVER=off")
 	fingerprintCompile(t, options)
 }
+
+// 链接参数可能含部署配置；新鲜度应受其影响，但生成产物不能泄漏值。
 
 // Linker flags may contain deployment settings; they must affect freshness without exposing values in output.
 func TestFingerprintFlagsDoNotExposeValues(t *testing.T) {
@@ -165,6 +181,8 @@ func TestFingerprintFlagsDoNotExposeValues(t *testing.T) {
 		t.Fatal("linker input was absent from freshness")
 	}
 }
+
+// vendor 模式使用实际选中的本地依赖文件，不能退回模块缓存源码。
 
 // Vendor mode must fingerprint selected vendor source instead of silently using module-cache source.
 func TestFingerprintVendorSource(t *testing.T) {

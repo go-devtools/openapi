@@ -11,6 +11,7 @@ import (
 )
 
 // Frontends observe path-local pending status and headers without mutating analyzer state through snapshots.
+// 前端按当前路径观察待提交状态和响应头，修改观察值不会写回分析器。
 func TestFrontendResponseSnapshot(t *testing.T) {
 	dir := t.TempDir()
 	for name, raw := range map[string]string{"go.mod": "module example.test/response-state\n\ngo 1.27.1\n", "app.go": "package response\nfunc Set(){}\nfunc Observe(){}\nfunc Commit(){}\nfunc Late(){}\nfunc Verify(){}\nfunc Handle(){Set();Observe();Commit();Late();Verify()}\n"} {

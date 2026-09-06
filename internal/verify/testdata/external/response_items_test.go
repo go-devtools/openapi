@@ -14,6 +14,8 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
+// 用无框架源码编译有序响应效果，测试只访问公开 SDK。
+
 // Compile ordered response effects from framework-free source through the public SDK only.
 func compileItemFixture(t *testing.T, body string, call func(core.CallContext) ([]core.Effect, error)) *core.Result {
 	t.Helper()
@@ -36,6 +38,8 @@ func compileItemFixture(t *testing.T, body string, call func(core.CallContext) (
 	}
 	return result
 }
+
+// 使用明确的逐项网络表示，保留普通完整正文与流式正文的区别。
 
 // Supply explicit item wire schemas while distinguishing streams from complete response bodies.
 func itemWireEffects(c core.CallContext) ([]core.Effect, error) {
@@ -61,6 +65,8 @@ func itemWireEffects(c core.CallContext) ([]core.Effect, error) {
 	}
 	return []core.Effect{effect}, nil
 }
+
+// 连续条目共享 itemSchema；独立验证器接受重叠备选并拒绝错误字段。
 
 // Consecutive items share itemSchema; an independent validator accepts overlapping alternatives and rejects invalid fields.
 func TestResponseItems(t *testing.T) {
@@ -101,6 +107,8 @@ func TestResponseItems(t *testing.T) {
 	}
 }
 
+// 不兼容的分帧方式必须诊断，不能将实际连续输出伪装成互斥备选。
+
 // Diagnose incompatible framing instead of disguising sequential output as response alternatives.
 func TestResponseItemFramingConflicts(t *testing.T) {
 	for _, body := range []string{
@@ -120,6 +128,8 @@ func TestResponseItemFramingConflicts(t *testing.T) {
 	}
 }
 
+// 无正文状态在投影前消除条目，不会因未发送的未知 payload 误报。
+
 // Bodyless statuses discard items before projection, avoiding errors for payloads never sent.
 func TestBodylessResponseItems(t *testing.T) {
 	for _, status := range []string{"204", "304"} {
@@ -138,6 +148,8 @@ func TestBodylessResponseItems(t *testing.T) {
 		}
 	}
 }
+
+// 条件合并必须保留逐项约束；完整正文与逐项分帧不能同时消失。
 
 // Conditional merging must retain item constraints rather than erasing both complete and item framing.
 func TestConditionalItemFraming(t *testing.T) {

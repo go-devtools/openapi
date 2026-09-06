@@ -9,6 +9,7 @@ import (
 )
 
 // Collect request constraints that hold together on one execution path, with fields and codecs supplied by frontends.
+// 收集同一执行路径中共同成立的请求约束，框架负责说明字段和编码来源。
 type requestMedia struct {
 	schemas  []*spec.Schema
 	fields   *spec.Schema
@@ -16,6 +17,7 @@ type requestMedia struct {
 }
 
 // Prefer explicit wire representations over type projection and detach frontend-owned schemas.
+// 明确网络表示优先于类型投影，所有返回结果与前端对象隔离。
 func (p *Project) requestSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
 	if effect.WireSchema != nil {
 		return copyWireSchema(effect.WireSchema)
@@ -24,6 +26,7 @@ func (p *Project) requestSchema(effect Effect, components map[string]*spec.Schem
 }
 
 // Merge individual field reads and whole-object reads by intersection within a path rather than alternatives.
+// 合并逐字段读取和完整对象读取；同一路径使用交集而不是备选。
 func (p *Project) requestPath(path flow, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.RequestBody, openapi.Source, error) {
 	groups := map[string]*requestMedia{}
 	required := false
@@ -111,6 +114,7 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 }
 
 // Deduplicate repeated constraints within a path without introducing extra composition layers.
+// 同一路径重复观察相同约束不增加组合层级。
 func appendUniqueSchema(schemas []*spec.Schema, schema *spec.Schema) []*spec.Schema {
 	for _, existing := range schemas {
 		if sameRequestJSON(existing, schema) {
@@ -121,6 +125,7 @@ func appendUniqueSchema(schemas []*spec.Schema, schema *spec.Schema) []*spec.Sch
 }
 
 // Compare serialized specification values independently of pointers and map traversal order.
+// 比较已序列化的规范值，不依赖指针或 map 遍历顺序。
 func sameRequestJSON(left, right any) bool {
 	a, ea := json.Marshal(left)
 	b, eb := json.Marshal(right)
@@ -128,6 +133,7 @@ func sameRequestJSON(left, right any) bool {
 }
 
 // Combine different paths as alternatives, requiring a body only when every path requires one.
+// 不同执行路径使用备选；只有所有路径都要求请求体时才标为必填。
 func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]openapi.Diagnostic, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	required := len(paths) > 0
 	var merged *spec.RequestBody

@@ -11,6 +11,8 @@ import (
 	"testing"
 )
 
+// 写入独立源码输入，测试不会执行这些业务函数。
+
 // Write independent source inputs without executing their business functions.
 func fingerprintFile(t *testing.T, root, name, body string) {
 	t.Helper()
@@ -23,6 +25,8 @@ func fingerprintFile(t *testing.T, root, name, body string) {
 	}
 }
 
+// 让最小返回值前端暴露真实加载输入的契约与新鲜度。
+
 // Expose contracts and freshness of real load inputs through a minimal return-value frontend.
 func fingerprintOptions(root string) Options {
 	return Options{Load: LoadOptions{Dir: root, Env: []string{"GOWORK=off", "GOFLAGS=", "GOOS=linux", "GOARCH=amd64", "GOAMD64=v1", "CGO_ENABLED=0", "GOEXPERIMENT="}}, Frontends: []Frontend{{
@@ -33,6 +37,8 @@ func fingerprintOptions(root string) Options {
 	}}}
 }
 
+// 每次重新执行真实静态加载，错误不是可接受的过期信号。
+
 // Reload actual source each time; a load error is not an acceptable stale result.
 func fingerprintCompile(t *testing.T, options Options) *Result {
 	t.Helper()
@@ -42,6 +48,8 @@ func fingerprintCompile(t *testing.T, options Options) *Result {
 	}
 	return result
 }
+
+// 目标平台必须来自加载环境，不能复制执行生成器的平台。
 
 // Record the load target instead of copying the platform executing the generator.
 func TestFingerprintTargetProfile(t *testing.T) {
@@ -69,6 +77,8 @@ func TestFingerprintTargetProfile(t *testing.T) {
 	}
 }
 
+// overlay 的注释和未落盘文件必须参与实际输入，不能回读旧磁盘内容。
+
 // Include overlay comments and files absent on disk instead of rereading stale disk bytes.
 func TestFingerprintOverlayInputs(t *testing.T) {
 	dir := t.TempDir()
@@ -95,6 +105,8 @@ func TestFingerprintOverlayInputs(t *testing.T) {
 	}
 }
 
+// 同名文件属于不同包；交换其实现不能产生相同输入身份。
+
 // Same-named files belong to different packages, so swapping implementations must change input identity.
 func TestFingerprintPackageFileIdentity(t *testing.T) {
 	dir := t.TempDir()
@@ -112,6 +124,8 @@ func TestFingerprintPackageFileIdentity(t *testing.T) {
 		t.Fatal("package identities were erased before hashing")
 	}
 }
+
+// 当前未启用的源码和模块选择都属于可影响分析的输入。
 
 // Include inactive source and module selections as analysis inputs.
 func TestFingerprintInactiveAndModuleInputs(t *testing.T) {
@@ -137,6 +151,8 @@ func TestFingerprintInactiveAndModuleInputs(t *testing.T) {
 		t.Error("effective module version was absent from fingerprint")
 	}
 }
+
+// 相同项目迁移到其他绝对目录时仍生成相同字节，模块文件保持只读。
 
 // Relocated identical projects must generate identical bytes while module files remain read-only.
 func TestFingerprintRelocationAndReadOnly(t *testing.T) {

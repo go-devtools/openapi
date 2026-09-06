@@ -15,12 +15,15 @@ import (
 )
 
 // Model non-JSON pointers and byte arrays with a neutral text protocol while retaining core annotations.
+// 用中立文本协议模拟非 JSON 指针和字节数组，保留核心注释投影。
 type textParameterCodec struct{}
 
 // Provide an explicit stable codec identity for components.
+// 为组件提供固定、明确的编解码身份。
 func (textParameterCodec) Name() string { return "test-text-parameters-v1" }
 
 // Return actual field objects so the core can independently reuse their comments and constraints.
+// 使用真实字段对象，让核心独立复用其注释和约束。
 func (textParameterCodec) Fields(s *types.Struct) ([]WireField, error) {
 	var fields []WireField
 	for i := 0; i < s.NumFields(); i++ {
@@ -32,6 +35,7 @@ func (textParameterCodec) Fields(s *types.Struct) ([]WireField, error) {
 }
 
 // Ordinary text parameters have neither JSON null nor Base64 byte-sequence semantics.
+// 普通文本参数没有 JSON null 或 Base64 字节序列语义。
 func (textParameterCodec) ProjectType(request ProjectionRequest, project func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error) {
 	switch value := types.Unalias(request.Type).(type) {
 	case *types.Pointer:
@@ -47,6 +51,7 @@ func (textParameterCodec) ProjectType(request ProjectionRequest, project func(ty
 }
 
 // A non-JSON codec must control wire types and expand annotated parameters through neutral effects.
+// 非 JSON 编解码器必须控制网络类型，并通过中立效果展开带注释的参数。
 func TestParameterCodecAndObjectEffects(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample
@@ -153,6 +158,7 @@ func Handle(input Input) string {return input.Name}
 }
 
 // Model extension callbacks returning recursion, invalid types, and shared schemas.
+// 模拟扩展提供的递归、错误类型和共享 Schema 返回值。
 type boundaryTypeCodec struct {
 	textParameterCodec
 	mode   string
@@ -160,6 +166,7 @@ type boundaryTypeCodec struct {
 }
 
 // Exercise resource and ownership checks through the actual public callback boundary.
+// 通过实际公开回调边界触发资源和所有权检查。
 func (c boundaryTypeCodec) ProjectType(request ProjectionRequest, project func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error) {
 	switch c.mode {
 	case "nil-type":
@@ -176,6 +183,7 @@ func (c boundaryTypeCodec) ProjectType(request ProjectionRequest, project func(t
 }
 
 // Invalid extensions must return diagnostics, recursion must be bounded, and returned schemas must not share mutable state.
+// 错误扩展必须返回诊断，递归有预算，返回的 Schema 不共享可变状态。
 func TestWireTypeCodecBoundaries(t *testing.T) {
 	project := &Project{}
 	for _, mode := range []string{"nil-type", "recursive", "nil-schema"} {
