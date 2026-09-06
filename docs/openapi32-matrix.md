@@ -17,7 +17,7 @@ This matrix tracks the complete Goal scope. Model availability, serialization, s
 | Security | `spec.SecurityScheme`, OAuth models | Native fixture and Bearer-only business example | Complete device authorization/deprecation/metadata validation and UI |
 | Callbacks, webhooks, links, servers | Public typed models | Full native fixture, callback/link reference-context tests | Full positive/negative and external resource matrix |
 | JSON Schema | `spec.Schema` and public Schema compiler | Schema tests, independent contract engine, external SDK | Complete Go projection/tag/codec/numeric/nullability matrix |
-| Streams | `spec.MediaType.ItemSchema` and Schema content fields | Native model fixture; neutral ResponseItem frontend, boxed payload/commit snapshots, independent NDJSON/SSE UTF-8 and budget tests; separate Gin SSE HTTP matrix | Stream callback and NDJSON framework derivation, remaining protocol/budget combinations and UI |
+| Streams | `spec.MediaType.ItemSchema` and Schema content fields | Native model fixture; neutral ResponseItem frontend, boxed payload/commit snapshots, independent NDJSON/SSE UTF-8 and budget tests; separate Gin SSE/Stream and JSON Encoder HTTP matrices | Remaining writer/framing/async combinations, complete protocol/budget matrix and UI |
 
 The current HTTP response increment corrected a 3.1-era assumption during review: Response.description is optional in 3.2. The validator checks the types of present summary/description fields. Component response names are not HTTP status codes, and an `x-` component name must still be validated as a response.
 

@@ -20,7 +20,7 @@
 
 `Project.Type` 解析已加载类型及泛型实例。`Project.Schema` 返回独立投影缓存；`Projection.Standalone()` 将完整组件闭包转为独立 Schema 的 $defs，默认方言为 JSON Schema 二零二零十二。`StandaloneWithOptions` 提供显式基准 URI、离线依赖、后备方言与预算，按资源身份处理引用，保留已有方言；详见[独立 Schema 指南](standalone-schema.md)。不同方向、媒体类型、codec 和泛型身份独立缓存。每次调用的缓存不共享，Project 加载后支持并发只读投影。
 
-`Frontend` 通过显式 Go 值注册，包含 Name、Match、Entry、Call、CallOutcomes、Return 与 CarriesEffects 回调。回调输出中立 Effect；核心调度值传播、语句顺序、分支、返回及有界 helper。ReturnContext 接收函数返回值，接口不要求特定 context 形态。
+`Frontend` 通过显式 Go 值注册，包含 Name、Match、Entry、Callback、Call、CallOutcomes、Return 与 CarriesEffects 回调。回调输出中立 Effect；核心调度值传播、语句顺序、分支、返回及有界 helper。ReturnContext 接收函数返回值，接口不要求特定 context 形态。
 
 `compiler.Compile(context.Context, Options) (*Result, error)` 复用加载、注释、投影与生成。生成器只原子更新带所有权标记的 `zz_openapi.gen.go`，生成文件只导入轻量核心，不执行或导入业务 handler。`Result.Check` 重新生成并比较完整字节。
 
@@ -51,3 +51,5 @@
 ## 逐项响应与内层载荷
 
 `ResponseItem` 将同路径、同媒体类型的连续条目合并为原生 `itemSchema`。`PayloadMediaType` 选择真实内层 codec；`TransformSchema` 在编译期包装独立的投影结果，输入输出均复制隔离，nil 或错误阻止文档发布。普通正文混写和条件分帧冲突保留诊断，HEAD/无正文状态不投影未发送内容。公开 SDK 的 NDJSON/SSE 独立校验、回调约束与剩余框架边界见[响应效果指南](response-effects.md)。
+
+同步回调通过公开 `CallbackPlan`、捕获单元、重复条件与明确中断出口分析；`MaxIterations` 缺省 32，并进入新鲜度指纹。实际目标类型尺寸通过只读 `Package.Sizes` 提供。详见[同步回调指南](callbacks.md)。

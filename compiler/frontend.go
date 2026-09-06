@@ -19,7 +19,10 @@ import (
 type Value struct {
 	// 保存局部变量地址的分析期身份，用于别名写入和外部调用失效处理。
 	// Track a local address during analysis for alias writes and external-call invalidation.
-	address types.Object
+	address uint64
+	// 函数实现与捕获身份仅在编译期传播，不写入 Bundle。
+	// Function implementations and captured identities exist only during compilation, never in Bundle.
+	callable *functionValue
 	// 保留已解析的标准库符号身份，供前端识别显式绑定器和别名。
 	// Preserve resolved standard-library symbol identity for explicit binders and aliases.
 	Object   types.Object
@@ -117,6 +120,9 @@ type Effect struct {
 // 提供标准库调用视图和核心已传播的实参，不暴露第三方 SSA。
 // Expose standard-library call views and propagated arguments without third-party SSA.
 type CallContext struct {
+	// 保存本次已解析的函数值，不向前端泄露内部捕获单元。
+	// Retain the resolved function value without exposing internal capture cells to frontends.
+	callee *functionValue
 	// 当前执行路径的响应状态副本，供前端选择实际渲染行为。
 	// A path-local response snapshot lets frontends select actual rendering behavior.
 	Response  ResponseState
@@ -149,6 +155,9 @@ type ReturnContext struct {
 // 显式注册前端规则；未提供的回调表示此类入口没有框架规则。
 // Register frontend rules explicitly; absent callbacks define no rules.
 type Frontend struct {
+	// 显式声明同步回调的调用与重复规则，通用控制流仍由核心执行。
+	// Declare synchronous callback invocation and repetition while the core executes neutral control flow.
+	Callback func(CallContext) (*CallbackPlan, error)
 	// 优先尝试有限调用备选；空集合回退到 Call，错误阻止可信发布。
 	// Try finite call alternatives first; an empty set falls back to Call and errors prevent trusted publication.
 	CallOutcomes   func(CallContext) ([]CallOutcome, error)
@@ -171,6 +180,9 @@ type Options struct {
 	MaxDepth      int
 	MaxPaths      int
 	MaxCalls      int
+	// 每个同步重复调用最多分析的迭代次数。
+	// Maximum analyzed iterations for each synchronous repeated invocation.
+	MaxIterations int
 	Mappers       []TypeMapper
 }
 
@@ -214,7 +226,10 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 	if options.MaxCalls == 0 {
 		options.MaxCalls = 10000
 	}
-	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 {
+	if options.MaxIterations == 0 {
+		options.MaxIterations = 32
+	}
+	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 || options.MaxIterations < 1 {
 		return nil, fmt.Errorf("openapi.analysis.budget: 所有预算必须为正数")
 	}
 	data := openapi.BundleData{FormatVersion: openapi.BundleFormatVersion, SpecVersion: "3.2.0", Capabilities: []string{"oas32", "schema2020-12"}, Components: spec.Components{Schemas: map[string]*spec.Schema{}}, Profile: project.inputs.profile}
@@ -237,10 +252,10 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 		}
 		front := matched[0]
 		a := analyzer{ctx: ctx, project: project, options: options, frontend: front}
-		initial := flow{values: map[types.Object]Value{}}
+		initial := flow{values: map[uint64]Value{}, bindings: map[types.Object]uint64{}}
 		for i := 0; i < fn.Signature.Params().Len(); i++ {
 			param := fn.Signature.Params().At(i)
-			initial.values[param] = Value{Type: param.Type()}
+			a.bind(&initial, param, Value{Type: param.Type()})
 		}
 		if front.Entry != nil {
 			a.effects(&initial, front.Entry(fn))

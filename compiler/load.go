@@ -33,6 +33,9 @@ type LoadOptions struct {
 // 暴露标准库类型和 AST；调用方须将这些视图视为只读。
 // Expose standard-library types and AST as read-only views.
 type Package struct {
+	// 实际加载目标的 Go 类型尺寸，视图只读。
+	// Go type sizes for the actual loaded target; this view is read-only.
+	Sizes       types.Sizes
 	Path        string
 	Name        string
 	Types       *types.Package
@@ -109,7 +112,7 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 		return nil, err
 	}
 	for _, pkg := range loaded {
-		p.Packages = append(p.Packages, Package{Path: pkg.PkgPath, Name: pkg.Name, Types: pkg.Types, Info: pkg.TypesInfo, Files: pkg.Syntax, SourceFiles: pkg.CompiledGoFiles})
+		p.Packages = append(p.Packages, Package{Path: pkg.PkgPath, Name: pkg.Name, Types: pkg.Types, Info: pkg.TypesInfo, Sizes: pkg.TypesSizes, Files: pkg.Syntax, SourceFiles: pkg.CompiledGoFiles})
 	}
 	sort.Slice(p.Packages, func(i, j int) bool { return p.Packages[i].Path < p.Packages[j].Path })
 	for i := range p.Packages {

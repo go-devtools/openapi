@@ -235,3 +235,9 @@ On Go 1.27.1, `GOWORK=off make dev`, full `go test -race -count=1 ./...`, `go ve
 The core preserves boxed nil payload identity, concrete types across interface conversions, and nested struct zero values. A separate detached `CommittedHeaders` snapshot lets adapters distinguish actual wire headers from post-commit mutations. Four new public regression tests cover these value cases and independent stream UTF-8, delimiter, and limit boundaries. Actual failures were recorded before each fix, including merged invalid UTF-8 bytes, arithmetic overflow, bare-CR NDJSON splitting, and boxed nil identity loss.
 
 Go 1.27.1 with GOWORK=off passed `make dev`, full `go test -race -count=1 ./...`, `go vet ./...`, and `go mod verify`. The external SDK development fixture includes all four new tests. Remote fixed-version results are recorded after synchronization; the task cache is reused. No Gin dependency or rule was added to the core, and these checks do not complete the full Goal.
+
+## Function values and synchronous callbacks
+
+Real failing regressions exposed dropped closure/method calls, overwritten factory captures, trusted unknown callbacks, lost commit ordering and stable long-lived callbacks exhausting budgets. The compiler now uses path-local lexical cells and a public CallbackPlan with finite repetition, interruption and explicit budgets. Additional regressions verified direct field mutation and signed integer increment wraparound using the actual loaded target sizes.
+
+GOWORK=off make dev passed with exact Go 1.27.1. The independent SDK development fixture contains the same function-value and callback tests and uses only public APIs. Full `go test -race -count=1 ./...`, `go vet ./...` and `go mod verify` also passed with GOWORK=off. Fixed-remote results are recorded after synchronization; these fixtures do not prove all heap aliasing, runtime route closure identity, asynchronous behavior or the full Goal.

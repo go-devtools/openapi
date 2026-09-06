@@ -119,8 +119,12 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 			return single(value)
 		}
 		value.Object = info.ObjectOf(x)
-		if v, ok := state.values[value.Object]; ok {
-			return single(v)
+		if id := state.bindings[value.Object]; id != 0 {
+			return single(state.values[id])
+		}
+		if object, ok := value.Object.(*types.Func); ok {
+			value.callable = &functionValue{object: object}
+			value.NonNil = true
 		}
 	case *ast.ParenExpr:
 		return a.evaluate(fn, x.X, state, depth)
@@ -134,7 +138,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 				inner.Nil = false
 				inner.NonNil = true
 				if id, ok := x.X.(*ast.Ident); ok {
-					inner.address = info.ObjectOf(id)
+					inner.address = paths[i].state.bindings[info.ObjectOf(id)]
 				}
 			} else if inner.Constant != nil {
 				inner.Constant = constant.UnaryOp(x.Op, inner.Constant, 0)
@@ -146,7 +150,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 		paths := a.evaluate(fn, x.X, state, depth)
 		for i := range paths {
 			inner := scalar(paths[i])
-			if inner.address != nil {
+			if inner.address != 0 {
 				paths[i].values = []Value{paths[i].state.values[inner.address]}
 				continue
 			}
@@ -161,12 +165,33 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 		paths := a.evaluate(fn, x.X, state, depth)
 		for i := range paths {
 			v := value
-			if field, ok := scalar(paths[i]).Fields[x.Sel.Name]; ok {
-				v = field
+			base := scalar(paths[i])
+			if object, ok := value.Object.(*types.Func); ok {
+				v.callable = &functionValue{object: object}
+				v.NonNil = true
+				if selection := info.Selections[x]; selection != nil {
+					v.callable.methodExpression = selection.Kind() == types.MethodExpr
+					if !v.callable.methodExpression {
+						v.callable.receiver = a.methodReceiver(fn, x.X, object, base, &paths[i].state)
+					}
+				}
+			} else {
+				if base.address != 0 {
+					base = paths[i].state.values[base.address]
+				}
+				if field, ok := base.Fields[x.Sel.Name]; ok {
+					v = field
+				}
 			}
 			paths[i].values = []Value{v}
 		}
 		return paths
+	case *ast.FuncLit:
+		signature, _ := value.Type.Underlying().(*types.Signature)
+		implementation := Function{Signature: signature, Declaration: &ast.FuncDecl{Type: x.Type, Body: x.Body}, Package: fn.Package, Source: a.project.Source(x.Pos())}
+		value.callable = &functionValue{implementation: &implementation, captures: copyBindings(state.bindings)}
+		value.NonNil = true
+		return single(value)
 	case *ast.BinaryExpr:
 		var out []evaluation
 		for _, left := range a.evaluate(fn, x.X, state, depth) {
@@ -287,17 +312,18 @@ func (a *analyzer) composite(fn Function, x *ast.CompositeLit, state flow, depth
 // 在实参之前求值方法接收者，并将调用结果与副作用保持在同一路径。
 // Evaluate method receivers before arguments and keep call results correlated with effects.
 func (a *analyzer) call(fn Function, x *ast.CallExpr, state flow, depth int) []evaluation {
-	starts := []evaluation{{state: state, values: []Value{{}}}}
-	if selector, ok := x.Fun.(*ast.SelectorExpr); ok && fn.Package.Info.Selections[selector] != nil {
-		if fn.Package.Info.Selections[selector].Kind() == types.MethodVal {
-			starts = a.evaluate(fn, selector.X, state, depth)
-		}
-	}
 	var results []evaluation
-	for _, start := range starts {
-		receiver := scalar(start)
+	for _, start := range a.evaluate(fn, x.Fun, state, depth) {
+		callee := scalar(start)
 		for _, args := range a.expressions(fn, x.Args, start.state, depth) {
-			call := CallContext{Response: responseSnapshot(args.state), Function: fn, Call: x, Object: callObject(fn.Package.Info, x.Fun), Arguments: args.values, Receiver: receiver, Source: a.project.Source(x.Pos())}
+			call := CallContext{Response: responseSnapshot(args.state), Function: fn, Call: x, Object: callObject(fn.Package.Info, x.Fun), Arguments: args.values, Source: a.project.Source(x.Pos()), callee: callee.callable}
+			if call.callee != nil {
+				call.Object = call.callee.object
+				call.Receiver = call.callee.receiver
+				if call.callee.methodExpression && len(call.Arguments) > 0 {
+					call.Receiver, call.Arguments = call.Arguments[0], call.Arguments[1:]
+				}
+			}
 			results = append(results, a.invoke(call, args.state, depth)...)
 		}
 	}
@@ -320,6 +346,16 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 	if a.calls > a.options.MaxCalls {
 		a.unknown(&state, call.Source, "调用分析超过预算")
 		return fallback()
+	}
+	if a.frontend.Callback != nil {
+		plan, err := a.frontend.Callback(call)
+		if err != nil {
+			a.unknown(&state, call.Source, err.Error())
+			return fallback()
+		}
+		if plan != nil {
+			return a.invokeCallback(call, *plan, state, depth, values)
+		}
 	}
 	if a.frontend.CallOutcomes != nil {
 		outcomes, err := a.frontend.CallOutcomes(call)
@@ -377,39 +413,11 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 			return fallback()
 		}
 	}
-	if helper, ok := a.project.functions[call.Object]; ok && helper.Declaration.Body != nil {
-		if depth >= a.options.MaxDepth {
-			a.unknown(&state, call.Source, "helper 或递归超过深度预算")
-			return fallback()
-		}
-		child := state.clone()
-		child.ended = false
-		child.returned = nil
-		for i := 0; i < helper.Signature.Params().Len() && i < len(call.Arguments); i++ {
-			child.values[helper.Signature.Params().At(i)] = call.Arguments[i]
-		}
-		if helper.Signature.Recv() != nil {
-			child.values[helper.Signature.Recv()] = call.Receiver
-		}
-		for i := 0; i < helper.Signature.Results().Len(); i++ {
-			obj := helper.Signature.Results().At(i)
-			if obj.Name() != "" {
-				child.values[obj] = zeroValue(obj.Type())
-			}
-		}
-		var results []evaluation
-		for _, path := range a.statements(helper, helper.Declaration.Body.List, []flow{child}, depth+1, false) {
-			returned := path.returned
-			if len(returned) != len(values) {
-				a.unknown(&path, call.Source, "helper 返回值尚未解决")
-				returned = values
-			}
-			path.returned = state.returned
-			path.ended = state.ended
-			path.branch = state.branch
-			results = append(results, evaluation{state: path, values: returned})
-		}
-		return a.limitEvaluations(call.Function, call.Call, results)
+	if helper, ok := a.resolveFunction(call.callee, call.Object); ok {
+		return a.invokeFunction(call, helper, state, depth, values)
+	}
+	if call.Object == nil && isFunctionExpression(call.Function.Package.Info, call.Call.Fun) {
+		a.unknown(&state, call.Source, "函数值为 nil 或实际实现未解决，不能忽略其调用效果")
 	}
 	invalidateAddresses(&state, call.Arguments)
 	if a.frontend.CarriesEffects != nil {
@@ -480,7 +488,7 @@ func coerceValue(value Value, target types.Type) Value {
 // External calls may mutate passed addresses, invalidating old constants and nil facts used for pruning.
 func invalidateAddresses(state *flow, arguments []Value) {
 	for _, arg := range arguments {
-		if arg.address != nil {
+		if arg.address != 0 {
 			old := state.values[arg.address]
 			state.values[arg.address] = Value{Type: old.Type}
 		}

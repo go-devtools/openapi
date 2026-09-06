@@ -406,11 +406,11 @@ func (p *Project) fingerprint(options Options, data openapi.BundleData) (string,
 		configuration[name] = compact.Bytes()
 	}
 	manifest := struct {
-		Inputs                       map[string]string
-		Configuration                map[string]json.RawMessage
-		MaxDepth, MaxPaths, MaxCalls int
-		Contract                     openapi.BundleData
-	}{p.inputs.entries, configuration, options.MaxDepth, options.MaxPaths, options.MaxCalls, data}
+		Inputs                                      map[string]string
+		Configuration                               map[string]json.RawMessage
+		MaxDepth, MaxPaths, MaxCalls, MaxIterations int
+		Contract                                    openapi.BundleData
+	}{p.inputs.entries, configuration, options.MaxDepth, options.MaxPaths, options.MaxCalls, options.MaxIterations, data}
 	raw, err := json.Marshal(manifest)
 	if err != nil {
 		return "", err

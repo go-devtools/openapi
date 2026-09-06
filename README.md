@@ -67,3 +67,5 @@ The public compiler supports [request-field effects](docs/request-fields.md) for
 The public response SDK also supports sequential `ResponseItem` effects, independent payload codecs, and detached compile-time schema wrapping. See the [response effects guide](docs/response-effects.md) for NDJSON/SSE validation and the remaining framework boundaries.
 
 The public value and response snapshots preserve boxed payload identity and committed headers. Independent stream validation covers protocol-specific line endings, UTF-8 replacement, and bounded input; see the [contract guide](docs/contracttest.md).
+
+Known function values and synchronous callback conventions are analyzed through the public [callback SDK](docs/callbacks.md), with isolated captured cells and bounded repetition. Framework-specific callback behavior remains in adapters.

@@ -18,7 +18,8 @@ type flow struct {
 	hasCommit       bool
 	headers         map[string]HeaderValue
 	observedHeaders map[string]HeaderValue
-	values          map[types.Object]Value
+	values          map[uint64]Value
+	bindings        map[types.Object]uint64
 	effects         []Effect
 	diagnostics     []openapi.Diagnostic
 	ended           bool
@@ -39,6 +40,7 @@ type analyzer struct {
 	options     Options
 	frontend    Frontend
 	calls       int
+	nextCell    uint64
 	diagnostics []openapi.Diagnostic
 }
 
@@ -48,7 +50,8 @@ func (s flow) clone() flow {
 	out := s
 	out.headers = copyHeaders(s.headers)
 	out.observedHeaders = copyHeaders(s.observedHeaders)
-	out.values = map[types.Object]Value{}
+	out.values = map[uint64]Value{}
+	out.bindings = copyBindings(s.bindings)
 	for k, v := range s.values {
 		out.values[k] = v
 	}
@@ -141,7 +144,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 								if i < len(e.values) {
 									value = e.values[i]
 								}
-								e.state.values[obj] = coerceValue(value, obj.Type())
+								a.bind(&e.state, obj, coerceValue(value, obj.Type()))
 							}
 							next = append(next, e.state)
 						}
@@ -157,7 +160,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 			if len(s.Results) == 0 {
 				for i := 0; i < fn.Signature.Results().Len(); i++ {
 					obj := fn.Signature.Results().At(i)
-					e.values = append(e.values, e.state.values[obj])
+					e.values = append(e.values, e.state.read(obj))
 				}
 			}
 			for i := range e.values {
@@ -208,7 +211,13 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	case *ast.GoStmt, *ast.DeferStmt:
 		a.unknown(&state, source, "异步或延迟调用的响应效果需要集中适配")
 	case *ast.IncDecStmt:
-		a.assign(fn, s.X, Value{Type: fn.Package.Info.TypeOf(s.X), Unknown: true}, &state)
+		var result []flow
+		for _, path := range a.evaluate(fn, s.X, state, depth) {
+			value := incrementValue(scalar(path), fn.Package.Info.TypeOf(s.X), fn.Package.Sizes, s.Tok)
+			a.assign(fn, s.X, value, &path.state)
+			result = append(result, path.state)
+		}
+		return result
 	case *ast.BranchStmt:
 		if s.Tok != token.BREAK || s.Label != nil {
 			a.unknown(&state, source, "未支持的控制流跳转")
@@ -282,15 +291,19 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 	if id, ok := lhs.(*ast.Ident); ok {
 		obj := fn.Package.Info.ObjectOf(id)
 		if obj != nil {
-			state.values[obj] = coerceValue(value, obj.Type())
+			if obj.Pos() == lhs.Pos() || state.bindings[obj] == 0 {
+				a.bind(state, obj, coerceValue(value, obj.Type()))
+			} else {
+				state.values[state.bindings[obj]] = coerceValue(value, obj.Type())
+			}
 		}
 		return
 	}
 	if star, ok := lhs.(*ast.StarExpr); ok {
 		if id, ok := star.X.(*ast.Ident); ok {
-			pointer := state.values[fn.Package.Info.ObjectOf(id)]
-			if pointer.address != nil {
-				state.values[pointer.address] = coerceValue(value, pointer.address.Type())
+			pointer := state.read(fn.Package.Info.ObjectOf(id))
+			if pointer.address != 0 {
+				state.values[pointer.address] = coerceValue(value, state.values[pointer.address].Type)
 				return
 			}
 		}
@@ -298,10 +311,37 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 		return
 	}
 
+	if field, ok := lhs.(*ast.SelectorExpr); ok {
+		if id, ok := field.X.(*ast.Ident); ok {
+			object := fn.Package.Info.ObjectOf(id)
+			cell := state.bindings[object]
+			owner := state.read(object)
+			selection := fn.Package.Info.Selections[field]
+			if owner.Type != nil {
+				if _, pointer := owner.Type.Underlying().(*types.Pointer); pointer {
+					cell = owner.address
+					owner = state.values[cell]
+				}
+			}
+			if cell != 0 && selection != nil && len(selection.Index()) == 1 {
+				fields := map[string]Value{}
+				for name, old := range owner.Fields {
+					fields[name] = old
+				}
+				fields[field.Sel.Name] = coerceValue(value, fn.Package.Info.TypeOf(lhs))
+				owner.Fields = fields
+				state.values[cell] = owner
+				return
+			}
+		}
+		a.unknown(state, a.project.Source(lhs.Pos()), "字段写入的目标身份或嵌套路径未解决")
+		return
+	}
+
 	if index, ok := lhs.(*ast.IndexExpr); ok {
 		if id, ok := index.X.(*ast.Ident); ok {
 			obj := fn.Package.Info.ObjectOf(id)
-			old := state.values[obj]
+			old := state.read(obj)
 			key := fn.Package.Info.Types[index.Index].Value
 			if key != nil && key.Kind() == constant.String {
 				fields := map[string]Value{}
@@ -310,10 +350,10 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 				}
 				fields[constant.StringVal(key)] = value
 				old.Fields = fields
-				state.values[obj] = old
+				state.values[state.bindings[obj]] = old
 			} else {
 				old.Unknown = true
-				state.values[obj] = old
+				state.values[state.bindings[obj]] = old
 			}
 		}
 	}
