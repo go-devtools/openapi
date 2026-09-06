@@ -172,6 +172,10 @@ type Frontend struct {
 // Configure analysis budgets, frontend dispatch, and centralized type mappings.
 // 配置通用编译调度、资源预算及集中类型映射。
 type Options struct {
+	// Capture optional explanations; zero uses a sixteen-MiB evidence budget.
+	// 收集可选解释；字节预算为零时采用十六 MiB 上限。
+	Explain         bool
+	MaxExplainBytes int
 	// Declare stable JSON inputs for custom mapping or captured callback configuration without serializing function addresses.
 	// 为自定义映射或回调捕获配置声明稳定的 JSON 输入，不序列化函数地址。
 	Configuration map[string]json.RawMessage
@@ -189,8 +193,9 @@ type Options struct {
 // Store a writable Bundle and its compilation report.
 // 保存可写入的 Bundle 和编译报告。
 type Result struct {
-	Bundle openapi.Bundle
-	Report openapi.Report
+	explanations *explanationCapture
+	Bundle       openapi.Bundle
+	Report       openapi.Report
 }
 
 // Compile real projects with registered frontends and shared annotations and projections.
@@ -231,6 +236,16 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 	}
 	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 || options.MaxIterations < 1 {
 		return nil, fmt.Errorf("openapi.analysis.budget: all budgets must be positive")
+	}
+	if options.MaxExplainBytes < 0 {
+		return nil, fmt.Errorf("openapi.explain.budget: MaxExplainBytes must not be negative")
+	}
+	if options.Explain {
+		limit := options.MaxExplainBytes
+		if limit == 0 {
+			limit = 16 << 20
+		}
+		project.explanations = &explanationCapture{maxBytes: limit, known: map[string]openapi.Source{}, declarations: map[string][]DeclarationEvidence{}}
 	}
 	data := openapi.BundleData{FormatVersion: openapi.BundleFormatVersion, SpecVersion: "3.2.0", Capabilities: []string{"oas32", "schema2020-12"}, Components: spec.Components{Schemas: map[string]*spec.Schema{}}, Profile: project.inputs.profile}
 	codecs := map[string]bool{}
@@ -313,10 +328,18 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 				}
 			}
 		}
+		if project.explanations != nil {
+			project.explanations.handler = fn.Symbol
+			project.captureDeclarations(fn)
+		}
 		declarations := project.declarations(fn, &template.Diagnostics)
 		project.mergeConditionalPaths(&template, paths, data.Components.Schemas, options.Mappers)
 		project.mergeDeclarations(&template, declarations, paths, data.Components.Schemas, options.Mappers)
 		data.Templates = append(data.Templates, template)
+	}
+	project.captureKnownFields()
+	if project.explanations != nil && project.explanations.err != nil {
+		return nil, project.explanations.err
 	}
 	data.Profile.Frontend = strings.Join(sortedKeys(names), ",")
 	for _, template := range data.Templates {
@@ -335,7 +358,10 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Result{Bundle: bundle, Report: openapi.Report{Diagnostics: []openapi.Diagnostic{}}}, nil
+	if project.explanations != nil {
+		project.explanations.bundle = bundle
+	}
+	return &Result{Bundle: bundle, Report: openapi.Report{Diagnostics: []openapi.Diagnostic{}}, explanations: project.explanations}, nil
 }
 
 // Return string keys in stable order.
@@ -375,34 +401,47 @@ func union(a, b *spec.Schema) *spec.Schema {
 
 // Project propagated literals or real types into shared Schemas.
 // 将已传播的字面对象或真实类型转换为共同 Schema。
-func (p *Project) valueSchema(v Value, direction Direction, media string, codec WireCodec, mappers []TypeMapper, components map[string]*spec.Schema) (*spec.Schema, error) {
+func (p *Project) valueSchema(v Value, direction Direction, media string, codec WireCodec, mappers []TypeMapper, components map[string]*spec.Schema, site SchemaUse) (*spec.Schema, error) {
+	projection, err := p.projectValue(v, direction, media, codec, mappers)
+	p.captureProjection(site, projection, err)
+	if err != nil {
+		return nil, err
+	}
+	for name, schema := range projection.Components {
+		components[name] = schema
+	}
+	return projection.Root, nil
+}
+
+// Project a known value once, retaining literal-map facts and optional nested origins.
+// 仅投影一次已知值，保留字面量映射事实及可选嵌套来源。
+func (p *Project) projectValue(v Value, direction Direction, media string, codec WireCodec, mappers []TypeMapper) (*Projection, error) {
 	if v.Unknown || v.Type == nil {
 		return nil, fmt.Errorf("critical payload type is unresolved")
 	}
 	if v.Nil || v.DynamicNil {
-		return spec.Typed("null"), nil
+		return &Projection{Root: spec.Typed("null")}, nil
 	}
 	if _, isMap := v.Type.Underlying().(*types.Map); v.Fields != nil && isMap {
-		s := spec.Typed("object")
-		s.Properties = map[string]*spec.Schema{}
+		projection := &Projection{Root: spec.Typed("object"), Components: map[string]*spec.Schema{}}
+		projection.Root.Properties = map[string]*spec.Schema{}
 		for _, name := range sortedKeys(v.Fields) {
-			field, err := p.valueSchema(v.Fields[name], direction, media, codec, mappers, components)
+			child, err := p.projectValue(v.Fields[name], direction, media, codec, mappers)
 			if err != nil {
 				return nil, err
 			}
-			s.Properties[name] = field
+			projection.Root.Properties[name] = child.Root
+			for name, schema := range child.Components {
+				projection.Components[name] = schema
+			}
+			projection.Origins = append(projection.Origins, child.Origins...)
+			projection.Rules = append(projection.Rules, child.Rules...)
+			projection.Audit = append(projection.Audit, child.Audit...)
 		}
-		s.Required = spec.Set(sortedKeys(v.Fields))
-		return s, nil
+		projection.Root.Required = spec.Set(sortedKeys(v.Fields))
+		return projection, nil
 	}
-	projection, err := p.Schema(ProjectionRequest{Type: v.Type, Direction: direction, MediaType: media, Codec: codec, Mappers: mappers})
-	if err != nil {
-		return nil, err
-	}
-	for name, s := range projection.Components {
-		components[name] = s
-	}
-	return projection.Root, nil
+	return p.Schema(ProjectionRequest{Type: v.Type, Direction: direction, MediaType: media, Codec: codec, Mappers: mappers, Explain: p.explanations != nil})
 }
 
 // Link neutral effects without disguising unknown responses as default.

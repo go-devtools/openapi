@@ -47,6 +47,9 @@ type Package struct {
 // Store a composable project view that supports concurrent reads after loading.
 // 保存可组合的静态项目视图，加载后可并发读取。
 type Project struct {
+	// Capture is private to Compile; public Schema calls never mutate it.
+	// 捕获状态仅供 Compile 私有实例使用，公开 Schema 调用不修改它。
+	explanations    *explanationCapture
 	dependencies    []Package
 	constants       []*types.Const
 	commentErrors   map[types.Object]openapi.Diagnostic

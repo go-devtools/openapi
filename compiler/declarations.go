@@ -176,7 +176,7 @@ func (p *Project) mergeOperationDeclarations(op *spec.Operation, diagnostics *[]
 			if d.kind == "request" {
 				direction = Input
 			}
-			schema, err = p.valueSchema(Value{Type: d.typ}, direction, d.media, codec, mappers, components)
+			schema, err = p.valueSchema(Value{Type: d.typ}, direction, d.media, codec, mappers, components, p.effectUse(Effect{Kind: EffectKind(d.kind + "Body"), Status: d.status, MediaType: d.media, Codec: codec, Payload: Value{Type: d.typ}, Source: d.source}, direction))
 		}
 		code := "openapi.declaration.schema"
 		if err == nil {

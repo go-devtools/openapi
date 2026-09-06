@@ -60,3 +60,5 @@ For explicit request/response contracts, read [request and response declarations
 See the [support matrix](openapi32-matrix.md) for limits. Automatic derivation, explicit declaration, centralized adaptation, and unresolved behavior are distinct outcomes. Budget errors require a bounded rule or an explicitly justified budget change; they do not authorize partial contracts.
 
 Imported DTOs retain the metadata of their source declarations without becoming operation candidates. For an imported annotation error, inspect its logical package/file location and the selected Route field; Facts retain the application call or explicit declaration that used it. See [imported metadata](imported-metadata.md). Generated reports use physical source positions from the loaded snapshot, including overlays, rather than a later filesystem read.
+
+For a specific field or response, use the public [source explanation API](explain.md). Preserve `implementation: "not-proven"` when reporting declarations, inspect original diagnostic codes and fixes, and do not treat successful explanation output as successful runtime route validation.

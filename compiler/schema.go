@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/openapi-golang/openapi"
 	"github.com/openapi-golang/openapi/internal/comment"
 	"github.com/openapi-golang/openapi/internal/validate"
 	"github.com/openapi-golang/openapi/spec"
@@ -56,6 +57,9 @@ type WireTypeCodec interface {
 // Include type, direction, media type, and codec in projection identity.
 // 缓存身份包含类型、方向、媒体类型与 codec，非标准 codec 显式传入。
 type ProjectionRequest struct {
+	// Collect source origins during this projection without rerunning rules.
+	// 在本次投影中收集源码来源，不重复执行规则。
+	Explain   bool
 	Type      types.Type
 	Direction Direction
 	MediaType string
@@ -67,6 +71,10 @@ type ProjectionRequest struct {
 // Return a root Schema and its complete component closure.
 // 返回结构化根 Schema 与完整依赖组件。
 type Projection struct {
+	// Optional evidence describes the selected wire projection, not runtime enforcement.
+	// 可选证据描述已选择的网络投影，不代表运行时实施证明。
+	Origins    []SchemaOrigin
+	Rules      []openapi.Source
 	Root       *spec.Schema
 	Components map[string]*spec.Schema
 	Audit      []string
@@ -75,6 +83,8 @@ type Projection struct {
 // Keep a private recursion cache for one projection.
 // 保存一次投影的私有递归缓存。
 type projector struct {
+	origins     []SchemaOrigin
+	rules       []openapi.Source
 	project     *Project
 	request     ProjectionRequest
 	components  map[string]*spec.Schema
@@ -115,7 +125,14 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	} else {
 		audit = append(audit, fmt.Sprintf("Use explicit codec %s; the core does not execute actual decoding methods.", request.Codec.Name()))
 	}
-	return &Projection{Root: root, Components: pr.components, Audit: audit}, nil
+	if request.Explain {
+		codec := "std-json"
+		if request.Codec != nil {
+			codec = request.Codec.Name()
+		}
+		pr.recordRule(request.Type, codec, "derived")
+	}
+	return &Projection{Root: root, Components: pr.components, Audit: audit, Origins: pr.origins, Rules: pr.rules}, nil
 }
 
 // Configure portable schema bases, offline dependencies, and bounded export with read-only inputs.
@@ -234,27 +251,36 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 	if p.count > p.request.MaxTypes {
 		return nil, fmt.Errorf("openapi.schema.budget: type graph exceeds the budget")
 	}
-	for _, mapper := range p.request.Mappers {
+	for index, mapper := range p.request.Mappers {
 		request := p.request
 		request.Type = t
+		// Reporting must not alter the inputs of user-supplied projection rules.
+		// 报告选项不得改变用户提供的投影规则输入。
+		request.Explain = false
 		if s, ok, err := mapper(request); ok || err != nil {
+			p.recordRule(t, fmt.Sprintf("openapi.TypeMapper[%d]", index), "declared")
 			return s, err
 		}
 	}
 	if codec, ok := p.request.Codec.(WireTypeCodec); ok {
 		request := p.request
 		request.Type = t
+		// Reporting must not alter the inputs of user-supplied projection rules.
+		// 报告选项不得改变用户提供的投影规则输入。
+		request.Explain = false
 		schema, handled, err := codec.ProjectType(request, p.projectType)
 		if err != nil {
 			return nil, err
 		}
 		if handled {
+			p.recordRule(t, p.request.Codec.Name()+".ProjectType", "declared")
 			if schema == nil {
 				return nil, fmt.Errorf("openapi.codec.invalid: type rule reported the type as handled without a Schema")
 			}
 			return copyWireSchema(schema)
 		}
 	}
+	p.recordRule(t, "go.types", "derived")
 	t = types.Unalias(t)
 	if ptr, ok := t.(*types.Pointer); ok {
 		s, err := p.projectType(ptr.Elem())
@@ -330,6 +356,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			s.Title = types.TypeString(named, func(*types.Package) string { return "" })
 		}
 		p.components[name] = s
+		p.recordOrigin(named.Obj(), named, s, "type", "", false)
 		return &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "#/components/schemas/" + name}}, nil
 	}
 	switch x := t.(type) {
@@ -442,7 +469,9 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 				return nil, fmt.Errorf("%s: %w", f.Name, err)
 			}
 			s.Properties[f.Name] = field
-			if (p.request.Direction == Output && !f.OmitEmpty && !f.Optional) || flag(doc, "required") {
+			presence := (p.request.Direction == Output && !f.OmitEmpty && !f.Optional) || flag(doc, "required")
+			p.recordOrigin(f.Field, f.Field.Type(), field, "field", f.Name, presence)
+			if presence {
 				required = append(required, f.Name)
 			}
 		}

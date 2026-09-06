@@ -20,14 +20,17 @@ type requestMedia struct {
 // 明确网络表示优先于类型投影，所有返回结果与前端对象隔离。
 func (p *Project) requestSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
 	if effect.WireSchema != nil {
-		return copyWireSchema(effect.WireSchema)
+		schema, err := copyWireSchema(effect.WireSchema)
+		p.captureProjection(p.effectUse(effect, Input), &Projection{Root: schema, Audit: []string{"The frontend supplied a wire Schema; no Go field projection was performed."}}, err)
+		return schema, err
 	}
-	return p.valueSchema(effect.Payload, Input, effect.MediaType, effect.Codec, mappers, components)
+	return p.valueSchema(effect.Payload, Input, effect.MediaType, effect.Codec, mappers, components, p.effectUse(effect, Input))
 }
 
 // Merge individual field reads and whole-object reads by intersection within a path rather than alternatives.
 // 合并逐字段读取和完整对象读取；同一路径使用交集而不是备选。
 func (p *Project) requestPath(path flow, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.RequestBody, openapi.Source, error) {
+	defer p.explanationPath(path.when)()
 	groups := map[string]*requestMedia{}
 	required := false
 	var source openapi.Source

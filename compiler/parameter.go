@@ -14,7 +14,7 @@ func (p *Project) mergeParameterObject(op *spec.Operation, effect Effect, compon
 	if effect.In != "query" && effect.In != "path" && effect.In != "header" && effect.In != "cookie" {
 		return fmt.Errorf("invalid parameter object location: %s", effect.In)
 	}
-	schema, err := p.valueSchema(effect.Payload, Input, effect.MediaType, effect.Codec, mappers, components)
+	schema, err := p.valueSchema(effect.Payload, Input, effect.MediaType, effect.Codec, mappers, components, p.effectUse(effect, Input))
 	if err != nil {
 		return err
 	}

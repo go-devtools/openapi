@@ -42,11 +42,15 @@ func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow
 // Reuse shared projection and provenance rules without putting callbacks or Go types into runtime paths.
 // 复用共同投影与来源规则，条件路径不携带运行时回调或 Go 类型对象。
 func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Diagnostic, facts *[]openapi.Source, path flow, components map[string]*spec.Schema, mappers []TypeMapper) {
+	defer p.explanationPath(path.when)()
 	*diagnostics = append(*diagnostics, path.diagnostics...)
 	for _, effect := range path.effects {
 		*facts = append(*facts, effect.Source)
 		for _, name := range sortedKeys(effect.Headers) {
 			*facts = append(*facts, effect.Headers[name].Source)
+		}
+		if effect.Kind == ResponseStatus {
+			p.captureProjection(p.effectUse(effect, Output), nil, nil)
 		}
 		if effect.Kind == RequestBody || effect.Kind == RequestField {
 			continue

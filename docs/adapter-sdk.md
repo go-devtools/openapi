@@ -47,3 +47,5 @@ Format-1 readers accept the declared capabilities `oas32`, `schema2020-12`, and 
 A handled custom codec owns its wire representation; it does not inherit JSON assumptions. Recursive projection callbacks are synchronous and must not be retained or called concurrently. Schema callbacks receive detached data and return values that are copied before storage. Unknown calls carrying effect objects require an explicit rule. Arbitrary heap aliasing, asynchronous effects, and unsupported control flow remain diagnostic boundaries.
 
 Imported type comments, constraints, enum labels, generic field origins, immutable loaded views, and physical source coordinates are described in [imported metadata](imported-metadata.md). Projection reports preserve original declaration locations and calling evidence; runtime linking attaches the selected method/path to template diagnostics.
+
+`Options.Explain` enables compile-time evidence capture. `Result.Explain(ExplainQuery)` returns detached field/type/handler/response provenance without changing the runtime Bundle or rerunning extension rules. See [source explanations](explain.md) for query semantics, ownership, and budgets.

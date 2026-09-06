@@ -197,12 +197,13 @@ func (p *Project) responseSchema(effect Effect, components map[string]*spec.Sche
 	var err error
 	if effect.WireSchema != nil {
 		schema, err = copyWireSchema(effect.WireSchema)
+		p.captureProjection(p.effectUse(effect, Output), &Projection{Root: schema, Audit: []string{"The frontend supplied a wire Schema; no Go field projection was performed."}}, err)
 	} else {
 		media := effect.PayloadMediaType
 		if media == "" {
 			media = effect.MediaType
 		}
-		schema, err = p.valueSchema(effect.Payload, Output, media, effect.Codec, mappers, components)
+		schema, err = p.valueSchema(effect.Payload, Output, media, effect.Codec, mappers, components, p.effectUse(effect, Output))
 	}
 	if err != nil {
 		return nil, err

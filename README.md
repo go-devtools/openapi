@@ -79,3 +79,5 @@ See the [performance guide](docs/performance.md) for reproducible 100/1000-route
 See the [independent CI guide](docs/ci.md) for pinned tools, private module access, offline browser checks, actual platform jobs, and fixed remote-version consumption.
 
 See the [security model guide](docs/security-models.md) for typed OAuth flows, native 3.2 fields, presence, validation, and UI boundaries.
+
+See [source explanations](docs/explain.md) for opt-in field, type, handler, and response provenance with explicit enforcement limits.
