@@ -36,7 +36,7 @@ Checks run after the component graph is available, so a field referencing a name
 | `openapi.comment.value` | Invalid keyword value, such as required=5, minLength=null, or multipleOf=0. |
 | `openapi.comment.budget` | Exact bound comparison exceeds the compilation budget. |
 
-The required, nullable, nonnull, and ignore flags must be booleans. required applies only to fields. nullable is idempotent for a direct type union already containing null. Declarations cannot hide transmitted fields, fabricate types, or mark actually emitted fields as write-only.
+The required, nullable, nonnull, and ignore flags must be booleans. In Schema comments, required applies only to fields. Function-level request declarations separately accept body-level required; see [request and response declarations](request-response-declarations.md). nullable is idempotent for a direct type union already containing null. Declarations cannot hide transmitted fields, fabricate types, or mark actually emitted fields as write-only.
 
 Compile-time bound comparison allows at most 4,096 text digits and decimal exponents with absolute value at most 4,096. Exceeding these limits returns a budget error without large integer expansion. This is an implementation limit for source comparisons, not a JSON Schema limit on raw numbers.
 

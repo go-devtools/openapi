@@ -55,4 +55,6 @@ Diagnostic codes are the integration key; English messages explain the specific 
 
 For example, openapi.comment.type on minimum for a string is a declaration/type mismatch. Determine the intended constraint from the application before replacing it with minLength. openapi.generate.stale means source or generation inputs changed; regenerate rather than editing zz_openapi.gen.go.
 
+For explicit request/response contracts, read [request and response declarations](request-response-declarations.md). Use TypeIn for an explicit package context; a declaration cannot erase an unknown-effect diagnostic.
+
 See the [support matrix](openapi32-matrix.md) for limits. Automatic derivation, explicit declaration, centralized adaptation, and unresolved behavior are distinct outcomes. Budget errors require a bounded rule or an explicitly justified budget change; they do not authorize partial contracts.

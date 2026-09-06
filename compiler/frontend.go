@@ -251,7 +251,6 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 		template.Operation.Description = doc.Description
 		for _, d := range doc.Directives {
 			if d.Kind != "" {
-				template.Diagnostics = append(template.Diagnostics, openapi.Diagnostic{Code: "openapi.declaration.unresolved", Severity: openapi.Error, Message: "request/response fallback declaration has not been resolved", Fix: "Use facts from a registered frontend or a centralized rule", Source: fn.Source})
 				continue
 			}
 			for k, v := range d.Values {
@@ -278,7 +277,9 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 				}
 			}
 		}
+		declarations := project.declarations(fn, &template.Diagnostics)
 		project.mergeConditionalPaths(&template, paths, data.Components.Schemas, options.Mappers)
+		project.mergeDeclarations(&template, declarations, paths, data.Components.Schemas, options.Mappers)
 		data.Templates = append(data.Templates, template)
 	}
 	data.Profile.Frontend = strings.Join(sortedKeys(names), ",")

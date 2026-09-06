@@ -197,17 +197,19 @@ func (p *Project) Source(pos token.Pos) openapi.Source {
 
 // Resolve real types and generic instances from already loaded packages.
 func (p *Project) Type(name string) (types.Type, error) {
+	var result types.Type
 	for _, pkg := range p.Packages {
-		expr := name
-		if strings.HasPrefix(name, pkg.Path+".") {
-			expr = strings.TrimPrefix(name, pkg.Path+".")
-		} else if strings.Contains(name, "/") {
+		resolved, err := p.TypeIn(pkg.Path, name)
+		if err != nil {
 			continue
 		}
-		value, err := types.Eval(p.Fset, pkg.Types, token.NoPos, expr)
-		if err == nil && value.IsType() {
-			return value.Type, nil
+		if result != nil && !types.Identical(result, resolved) {
+			return nil, fmt.Errorf("openapi.type.ambiguous: %s resolves to different types; use a qualified expression or TypeIn", name)
 		}
+		result = resolved
+	}
+	if result != nil {
+		return result, nil
 	}
 	return nil, fmt.Errorf("openapi.type.unresolved: cannot resolve %s in the loaded project", name)
 }
