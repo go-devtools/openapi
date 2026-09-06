@@ -63,3 +63,5 @@ See the [build inputs guide](docs/build-inputs.md) for target profiles, overlays
 Runtime consumers can call `openapi.CheckRuntimeBuild(profile)` or set `Config.VerifyRuntimeBuild` when linking a document. Known build-condition differences fail; missing metadata is reported. See [build inputs](docs/build-inputs.md) for cross-target exports and verification limits.
 
 The public compiler supports [request-field effects](docs/request-fields.md) for individual body fields, explicit encodings, and composition with whole-body projections. Field presence and body presence remain separate.
+
+The public response SDK also supports sequential `ResponseItem` effects, independent payload codecs, and detached compile-time schema wrapping. See the [response effects guide](docs/response-effects.md) for NDJSON/SSE validation and the remaining framework boundaries.

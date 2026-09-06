@@ -47,3 +47,7 @@
 ## 逐字段请求体与编码
 
 `RequestField` 支持不依赖 DTO 的命名请求体字段，结合 `WireSchema` 或类型/codec 投影并保留标准 `Encoding`。字段 Required 与整个请求体 Required 分开；同路径约束取交集，不同路径使用备选。普通参数读取同时保留显式网络类型、Style/Explode 和冲突诊断。所有权、路径合并及验证边界见[请求字段 SDK](request-fields.md)。
+
+## 逐项响应与内层载荷
+
+`ResponseItem` 将同路径、同媒体类型的连续条目合并为原生 `itemSchema`。`PayloadMediaType` 选择真实内层 codec；`TransformSchema` 在编译期包装独立的投影结果，输入输出均复制隔离，nil 或错误阻止文档发布。普通正文混写和条件分帧冲突保留诊断，HEAD/无正文状态不投影未发送内容。公开 SDK 的 NDJSON/SSE 独立校验、回调约束与剩余框架边界见[响应效果指南](response-effects.md)。

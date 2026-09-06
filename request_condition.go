@@ -390,6 +390,13 @@ func mergeConditionContent(target *map[string]spec.RefOr[spec.MediaType], source
 			}
 			continue
 		}
+		// 分别约束完整正文和流条目的条件不能退化为无约束媒体对象。
+		// Conditions constraining complete bodies versus stream items must not degrade into unconstrained media objects.
+		a, b := old.Value, media.Value
+		if (a.ItemSchema != nil && a.Schema == nil && b.Schema != nil && b.ItemSchema == nil) ||
+			(b.ItemSchema != nil && b.Schema == nil && a.Schema != nil && a.ItemSchema == nil) {
+			return fmt.Errorf("openapi.condition.ambiguous: 完整正文与逐项响应的条件分帧方式不一致")
+		}
 		if err := mergeConditionMetadata(old.Value, media.Value, "schema", "itemSchema", "encoding"); err != nil {
 			return err
 		}

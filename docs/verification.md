@@ -223,3 +223,9 @@ HEAD linking removes content while retaining metadata and local shared-response/
 Core make dev, full go test -race ./..., go vet ./..., and go mod verify passed on Go 1.27.1 with GOWORK=off. The public external SDK fixture now has 33 top-level tests. Two-repository AST review covers 2,291 natural-language Go comment lines with no missing bilingual counterparts or undocumented top-level declarations. These are checkout/cache-based development results; final fixed-remote SDK and CLI evidence is recorded after synchronization.
 
 Complete external HEAD response resolution, renderer/stream/file behavior, specification/UI matrices, CI and final source-only cold-cache acceptance remain required parts of the active Goal.
+
+## Neutral response item increment
+
+The public compiler now models consecutive items through `ResponseItem`, with independent inner payload media types and detached compile-time schema transforms. Two actual failing regressions were observed before their fixes: unknown response-item effects/bodyless handling, and conditional linking silently erasing incompatible framing constraints. The new public tests validate real JSON-encoded NDJSON/SSE samples with the independent contract engine, including contentSchema references, overlapping alternatives, HEAD, 204/304, transform isolation, and transform failures.
+
+On Go 1.27.1, `GOWORK=off make dev`, full `go test -race -count=1 ./...`, `go vet ./...`, and `go mod verify` passed. The external SDK development fixture contains the same seven new public tests; its local replacement is development evidence only. Both repositories' current audit found 2,341 natural-language Go comment lines with no missing counterpart, and no undocumented top-level declaration. Remote fixed-version acceptance is recorded separately after synchronization. This does not claim framework-specific SSE generation or completion of the full Goal.

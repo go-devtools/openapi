@@ -23,6 +23,8 @@ type flow struct {
 	diagnostics     []openapi.Diagnostic
 	ended           bool
 	writes          int
+	bodyKind        EffectKind
+	bodyMedia       string
 	pending         *Effect
 	returned        []Value
 	committed       string
@@ -345,7 +347,7 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 			e.Kind = ResponseStatus
 			copy := e
 			state.pending = &copy
-		case ResponseBody:
+		case ResponseBody, ResponseItem:
 			if state.hasCommit {
 				e.Status = state.committed
 			} else if e.Status == "-1" {
@@ -366,9 +368,10 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 				continue
 			}
 			state.writes++
-			if state.writes > 1 {
-				a.unknown(state, e.Source, "同一路径连续写入多个 body，不能表示为响应备选")
+			if state.writes > 1 && (e.Kind != ResponseItem || state.bodyKind != ResponseItem || state.bodyMedia != e.MediaType) {
+				a.unknown(state, e.Source, "同一路径连续写入多个 body，不能表示为响应备选；只有同媒体类型的逐项响应可连续写入")
 			}
+			state.bodyKind, state.bodyMedia = e.Kind, e.MediaType
 			state.effects = append(state.effects, e)
 			state.pending = nil
 		default:

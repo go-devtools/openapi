@@ -178,3 +178,37 @@ func responseSnapshot(state flow) ResponseState {
 	}
 	return snapshot
 }
+
+// 先投影实际载荷，再隔离前端包装结果，组件引用继续使用共同文档作用域。
+// Project the actual payload before detaching frontend wrapping results; component references retain the shared document scope.
+func (p *Project) responseSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
+	var schema *spec.Schema
+	var err error
+	if effect.WireSchema != nil {
+		schema, err = copyWireSchema(effect.WireSchema)
+	} else {
+		media := effect.PayloadMediaType
+		if media == "" {
+			media = effect.MediaType
+		}
+		schema, err = p.valueSchema(effect.Payload, Output, media, effect.Codec, mappers, components)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if effect.TransformSchema == nil {
+		return schema, nil
+	}
+	schema, err = copyWireSchema(schema)
+	if err != nil {
+		return nil, err
+	}
+	schema, err = effect.TransformSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("响应 Schema 包装失败: %w", err)
+	}
+	if schema == nil {
+		return nil, fmt.Errorf("响应 Schema 包装返回 nil")
+	}
+	return copyWireSchema(schema)
+}

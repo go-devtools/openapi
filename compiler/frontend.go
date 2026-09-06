@@ -45,12 +45,15 @@ const (
 	ParameterObject EffectKind = "parameterObject"
 	ParameterRead   EffectKind = "parameter"
 	ResponseBody    EffectKind = "responseBody"
-	ResponseStatus  EffectKind = "status"
-	ResponseCommit  EffectKind = "commit"
-	Handled         EffectKind = "handled"
-	ResponseHeader  EffectKind = "header"
-	Abort           EffectKind = "abort"
-	Unresolved      EffectKind = "unresolved"
+	// 同媒体类型的连续条目共同约束 itemSchema，不限制流长度或条目顺序。
+	// Consecutive items of one media type constrain itemSchema without claiming stream length or item order.
+	ResponseItem   EffectKind = "responseItem"
+	ResponseStatus EffectKind = "status"
+	ResponseCommit EffectKind = "commit"
+	Handled        EffectKind = "handled"
+	ResponseHeader EffectKind = "header"
+	Abort          EffectKind = "abort"
+	Unresolved     EffectKind = "unresolved"
 )
 
 // 保存响应头值和推导来源，供提交快照与报告共同使用。
@@ -63,6 +66,13 @@ type HeaderValue struct {
 // 记录请求、响应、状态和控制效果及其来源。
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// 指定响应载荷自身的编解码媒体类型，允许外层协议使用不同表示。
+	// Select the response payload codec media type independently of its outer protocol representation.
+	PayloadMediaType string
+	// 编译期包装已投影的响应 Schema；输入输出均隔离，nil 或错误阻止可信发布。
+	// Wrap a projected response schema at compile time; both sides are detached and nil/errors prevent trusted publication.
+	TransformSchema func(*spec.Schema) (*spec.Schema, error)
+
 	// 描述单个请求体字段的网络编码；此效果的 Required 只约束字段存在。
 	// Describe one body field's wire encoding; Required constrains field presence only.
 	Encoding *spec.Encoding
@@ -382,7 +392,7 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		return p.mergeParameterObject(op, e, components, mappers)
 	case ParameterRead:
 		return p.mergeParameterRead(op, e, components, mappers)
-	case ResponseBody, ResponseStatus:
+	case ResponseBody, ResponseItem, ResponseStatus:
 		if e.Status == "" {
 			return fmt.Errorf("响应状态不是可求值常量")
 		}
@@ -390,17 +400,11 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 		if response.Value == nil {
 			response = spec.Inline(spec.Response{Description: "响应 " + e.Status, Content: map[string]spec.RefOr[spec.MediaType]{}})
 		}
-		if e.Kind == ResponseBody {
+		if e.Kind == ResponseBody || e.Kind == ResponseItem {
 			if e.MediaType == "" {
 				return fmt.Errorf("响应媒体类型未解决")
 			}
-			var schema *spec.Schema
-			var err error
-			if e.WireSchema != nil {
-				schema, err = copyWireSchema(e.WireSchema)
-			} else {
-				schema, err = p.valueSchema(e.Payload, Output, e.MediaType, e.Codec, mappers, components)
-			}
+			schema, err := p.responseSchema(e, components, mappers)
 			if err != nil {
 				return err
 			}
@@ -408,7 +412,17 @@ func (p *Project) mergeEffect(op *spec.Operation, e Effect, components map[strin
 			if media.Value == nil {
 				media = spec.Inline(spec.MediaType{})
 			}
-			media.Value.Schema = union(media.Value.Schema, schema)
+			if e.Kind == ResponseItem {
+				if media.Value.Schema != nil {
+					return fmt.Errorf("同一媒体类型同时存在完整正文与逐项响应，无法合并分帧方式")
+				}
+				media.Value.ItemSchema = union(media.Value.ItemSchema, schema)
+			} else {
+				if media.Value.ItemSchema != nil {
+					return fmt.Errorf("同一媒体类型同时存在完整正文与逐项响应，无法合并分帧方式")
+				}
+				media.Value.Schema = union(media.Value.Schema, schema)
+			}
 			response.Value.Content[e.MediaType] = media
 		}
 		if err := mergeResponseHeaders(response.Value, e.Headers); err != nil {
