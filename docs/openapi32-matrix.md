@@ -16,7 +16,7 @@ Model availability, serialization, semantic checking, independent instance valid
 | XML | `spec.XML` | Native model roundtrip fixture | Every nodeType constraint, wire codec and UI combination |
 | Security | `spec.SecurityScheme`, OAuth models | Native fixture and Bearer-only business example | Complete device authorization/deprecation/metadata validation and UI |
 | Callbacks, webhooks, links, servers | Public typed models | Full native fixture, callback/link reference-context tests | Full positive/negative and external resource matrix |
-| Request/response comments | Actual types through `Project.TypeIn`; shared frontend projection | Real-source declarations, generic references, conflicts, conditions, and independent SDK sample validation | Arbitrary unknown helpers retain diagnostics; conservative Schema comparison; source comments of dependencies require explicit loading |
+| Request/response comments | Actual types through `Project.TypeIn`; shared frontend projection | Real-source declarations, generic references, imported DTO metadata, conflicts, conditions, and independent SDK sample validation | Unknown helpers retain diagnostics; conservative Schema comparison; packages mentioned only in comments must be explicitly loaded |
 | JSON Schema | `spec.Schema` and public Schema compiler | Schema tests, independent contract engine, external SDK | Complete Go projection/tag/codec/numeric/nullability matrix |
 | Streams | `spec.MediaType.ItemSchema` and Schema content fields | Native model fixture; neutral ResponseItem frontend, boxed payload/commit snapshots, independent NDJSON/SSE UTF-8 and budget tests; separate Gin SSE/Stream and JSON Encoder HTTP matrices | Remaining writer/framing/async combinations, complete protocol/budget matrix and UI |
 
