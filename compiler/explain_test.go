@@ -369,3 +369,21 @@ func TestExplainTransformedAndFrozenSource(t *testing.T) {
 		t.Fatal("explain read changed source instead of its compilation snapshot")
 	}
 }
+
+// Do not mistake anonymous nested fields for their enclosing unprojected named type.
+// 不将匿名嵌套字段误认成尚未投影的外层命名类型。
+func TestExplainUnprojectedAnonymousIdentity(t *testing.T) {
+	dir, options := explainFixture(t)
+	if err := os.WriteFile(filepath.Join(dir, "unused.go"), []byte(`package app
+type Outer struct { A struct { Outer string }; B struct { Outer int } }
+`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := compiler.Compile(context.Background(), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if explanation, err := result.Explain(compiler.ExplainQuery{Symbol: "example.com/explain.Outer"}); err == nil {
+		t.Fatalf("invented direct field identity: %+v", explanation)
+	}
+}

@@ -247,7 +247,7 @@ func (p *Project) captureKnownFields() {
 	}
 	for object, symbol := range p.metadataSymbols {
 		field, ok := object.(*types.Var)
-		if !ok || !field.IsField() || field.Pkg() == nil || !roots[field.Pkg().Path()] || !strings.HasSuffix(symbol, "."+field.Name()) {
+		if !ok || !field.IsField() || field.Pkg() == nil || !roots[field.Pkg().Path()] || (!strings.HasSuffix(symbol, "."+field.Name()) || !strings.Contains(strings.TrimPrefix(symbol, field.Pkg().Path()+"."), ".")) {
 			continue
 		}
 		source := p.metadataSource(field)
