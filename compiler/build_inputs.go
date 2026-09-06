@@ -35,13 +35,14 @@ type sourceSnapshot struct {
 
 // Account for concurrent parsing and supplemental inputs using logical package paths instead of absolute directories.
 type buildInputs struct {
-	mu          sync.Mutex
-	remaining   int64
-	snapshots   map[string]sourceSnapshot
-	overlay     map[string][]byte
-	entries     map[string]string
-	environment map[string]string
-	profile     openapi.BuildProfile
+	commentPositions map[token.Pos][]token.Pos
+	mu               sync.Mutex
+	remaining        int64
+	snapshots        map[string]sourceSnapshot
+	overlay          map[string][]byte
+	entries          map[string]string
+	environment      map[string]string
+	profile          openapi.BuildProfile
 }
 
 // Hash bytes through an unambiguous JSON manifest instead of delimiter-based concatenation.
@@ -70,7 +71,7 @@ func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.
 	}
 
 	cfg.Env = append(cfg.Env, "GOPACKAGESDRIVER=off")
-	inputs := &buildInputs{remaining: limit, snapshots: map[string]sourceSnapshot{}, overlay: map[string][]byte{}, entries: map[string]string{}}
+	inputs := &buildInputs{commentPositions: map[token.Pos][]token.Pos{}, remaining: limit, snapshots: map[string]sourceSnapshot{}, overlay: map[string][]byte{}, entries: map[string]string{}}
 	for path, raw := range options.Overlay {
 		if !filepath.IsAbs(path) {
 			return nil, fmt.Errorf("openapi.load.overlay: overlay paths must be absolute")
@@ -107,7 +108,9 @@ func prepareBuildInputs(ctx context.Context, options LoadOptions, cfg *packages.
 		if _, err := inputs.snapshot(filename, src); err != nil {
 			return nil, scanner.ErrorList{&scanner.Error{Pos: token.Position{Filename: filename, Line: 1, Column: 1}, Msg: err.Error()}}
 		}
-		return parser.ParseFile(fset, filename, src, parser.ParseComments|parser.AllErrors)
+		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.AllErrors)
+		inputs.captureCommentPositions(file, fset, src)
+		return file, err
 	}
 	return inputs, nil
 }

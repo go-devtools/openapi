@@ -42,13 +42,18 @@ type Package struct {
 
 // Store a composable project view that supports concurrent reads after loading.
 type Project struct {
-	Dir         string
-	Fset        *token.FileSet
-	Packages    []Package
-	comments    map[types.Object]comment.Document
-	functions   map[*types.Func]Function
-	inputs      *buildInputs
-	Diagnostics []openapi.Diagnostic
+	dependencies    []Package
+	constants       []*types.Const
+	commentErrors   map[types.Object]openapi.Diagnostic
+	metadataSymbols map[types.Object]string
+	sourceNames     map[string]string
+	Dir             string
+	Fset            *token.FileSet
+	Packages        []Package
+	comments        map[types.Object]comment.Document
+	functions       map[*types.Func]Function
+	inputs          *buildInputs
+	Diagnostics     []openapi.Diagnostic
 }
 
 // Describe functions without assuming context parameters or return conventions.
@@ -85,11 +90,19 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	if max == 0 {
 		max = 2048
 	}
-	p := &Project{inputs: inputs, Dir: dir, Fset: cfg.Fset, comments: map[types.Object]comment.Document{}, functions: map[*types.Func]Function{}}
+	p := &Project{metadataSymbols: map[types.Object]string{}, commentErrors: map[types.Object]openapi.Diagnostic{}, sourceNames: map[string]string{}, inputs: inputs, Dir: dir, Fset: cfg.Fset, comments: map[types.Object]comment.Document{}, functions: map[*types.Func]Function{}}
 	count := 0
+	roots := map[string]bool{}
+	for _, pkg := range loaded {
+		roots[pkg.PkgPath] = true
+	}
+	var dependencies []*packages.Package
 	var loadErrors []string
 	packages.Visit(loaded, nil, func(pkg *packages.Package) {
 		count++
+		if !roots[pkg.PkgPath] {
+			dependencies = append(dependencies, pkg)
+		}
 		for _, e := range pkg.Errors {
 			loadErrors = append(loadErrors, strings.ReplaceAll(e.Error(), dir+string(filepath.Separator), ""))
 		}
@@ -108,12 +121,38 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 		p.Packages = append(p.Packages, Package{Path: pkg.PkgPath, Name: pkg.Name, Types: pkg.Types, Info: pkg.TypesInfo, Sizes: pkg.TypesSizes, Files: pkg.Syntax, SourceFiles: pkg.CompiledGoFiles})
 	}
 	sort.Slice(p.Packages, func(i, j int) bool { return p.Packages[i].Path < p.Packages[j].Path })
+	for _, pkg := range dependencies {
+		p.dependencies = append(p.dependencies, Package{Path: pkg.PkgPath, Name: pkg.Name, Types: pkg.Types, Info: pkg.TypesInfo, Sizes: pkg.TypesSizes, Files: pkg.Syntax, SourceFiles: pkg.CompiledGoFiles})
+		for _, path := range pkg.CompiledGoFiles {
+			p.sourceNames[filepath.Clean(path)] = pkg.PkgPath + "/" + filepath.Base(path)
+		}
+	}
+	sort.Slice(p.dependencies, func(i, j int) bool { return p.dependencies[i].Path < p.dependencies[j].Path })
+	for i := range p.dependencies {
+		pkg := &p.dependencies[i]
+		for _, file := range pkg.Files {
+			p.indexFile(pkg, file, false)
+		}
+	}
 	for i := range p.Packages {
 		pkg := &p.Packages[i]
 		for _, file := range pkg.Files {
-			p.indexFile(pkg, file)
+			p.indexFile(pkg, file, true)
 		}
 	}
+	for _, group := range [][]Package{p.Packages, p.dependencies} {
+		for _, pkg := range group {
+			for _, name := range pkg.Types.Scope().Names() {
+				if value, ok := pkg.Types.Scope().Lookup(name).(*types.Const); ok {
+					p.constants = append(p.constants, value)
+				}
+			}
+		}
+	}
+	sort.Slice(p.constants, func(i, j int) bool {
+		a, b := p.constants[i], p.constants[j]
+		return a.Pkg().Path()+"."+a.Name() < b.Pkg().Path()+"."+b.Name()
+	})
 	if len(p.Diagnostics) > 0 {
 		return nil, openapi.Report{Diagnostics: p.Diagnostics}
 	}
@@ -121,27 +160,15 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 }
 
 // Index semantic comments for functions, types, fields, and constants.
-func (p *Project) indexFile(pkg *Package, file *ast.File) {
-	attach := func(obj types.Object, groups ...*ast.CommentGroup) {
-		if obj == nil {
-			return
-		}
-		var parts []string
-		for _, g := range groups {
-			if g != nil {
-				parts = append(parts, g.Text())
-			}
-		}
-		d, err := comment.Parse(strings.Join(parts, "\n"))
-		if err != nil {
-			p.Diagnostics = append(p.Diagnostics, openapi.Diagnostic{Code: "openapi.comment.invalid", Severity: openapi.Error, Message: err.Error(), Source: p.Source(obj.Pos()), Fix: "Fix the unified @openapi directive"})
-			return
-		}
-		p.comments[obj] = d
-	}
+func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
+	attach := func(object types.Object, groups ...*ast.CommentGroup) { p.attachComment(object, root, groups...) }
+
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
+			if !root {
+				continue
+			}
 			obj, _ := pkg.Info.Defs[d.Name].(*types.Func)
 			if obj == nil {
 				continue
@@ -162,10 +189,23 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 						groups = append([]*ast.CommentGroup{d.Doc}, groups...)
 					}
 					attach(pkg.Info.Defs[s.Name], groups...)
+					direct := map[*ast.Field]bool{}
+					if structure, ok := s.Type.(*ast.StructType); ok {
+						for _, field := range structure.Fields.List {
+							direct[field] = true
+						}
+					}
 					ast.Inspect(s.Type, func(n ast.Node) bool {
 						if field, ok := n.(*ast.Field); ok {
 							for _, name := range field.Names {
-								attach(pkg.Info.Defs[name], field.Doc, field.Comment)
+								object := pkg.Info.Defs[name]
+								symbol := pkg.Path + "." + s.Name.Name
+								// Nested anonymous fields use their real enclosing named declaration.
+								if direct[field] {
+									symbol += "." + name.Name
+								}
+								p.metadataSymbols[metadataObject(object)] = symbol
+								attach(object, field.Doc, field.Comment)
 							}
 						}
 						return true
@@ -187,7 +227,13 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 
 // Convert positions into project-relative source paths.
 func (p *Project) Source(pos token.Pos) openapi.Source {
-	v := p.Fset.Position(pos)
+	if !pos.IsValid() {
+		return openapi.Source{}
+	}
+	v := p.Fset.PositionFor(pos, false)
+	if logical, ok := p.sourceNames[filepath.Clean(v.Filename)]; ok {
+		return openapi.Source{File: logical, Line: v.Line, Column: v.Column}
+	}
 	file, err := filepath.Rel(p.Dir, v.Filename)
 	if err != nil {
 		file = filepath.Base(v.Filename)

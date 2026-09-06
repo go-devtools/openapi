@@ -50,6 +50,10 @@ func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Di
 			continue
 		}
 		if err := p.mergeEffect(operation, effect, components, mappers); err != nil {
+			if detailed := projectionDiagnostics(err, effect.Source); len(detailed) > 0 {
+				*diagnostics = append(*diagnostics, detailed...)
+				continue
+			}
 			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "Register a centralized frontend rule or TypeMapper", Source: effect.Source})
 		}
 	}

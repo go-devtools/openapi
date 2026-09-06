@@ -132,6 +132,9 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 				continue
 			}
 		}
+		for i := range diagnostics {
+			diagnostics[i].Route = key
+		}
 		report.Diagnostics = append(report.Diagnostics, diagnostics...)
 		report.Facts = append(report.Facts, facts...)
 		if op.OperationID == "" {

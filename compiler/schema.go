@@ -292,10 +292,14 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = p.annotate(s, p.project.comments[named.Obj()], false, named.Obj().Name()); err != nil {
+		doc, err := p.project.metadata(named.Obj())
+		if err != nil {
 			return nil, err
 		}
-		if doc := p.project.comments[named.Obj()]; closedEnum(doc) {
+		if err = p.annotate(s, doc, false, named.Obj().Name(), named.Obj()); err != nil {
+			return nil, err
+		}
+		if closedEnum(doc) {
 			if err := p.annotateEnum(s, t); err != nil {
 				return nil, err
 			}
@@ -409,8 +413,11 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 					field = nullable(field)
 				}
 			}
-			doc := p.project.comments[f.Field]
-			if err = p.annotate(field, doc, true, f.Name); err != nil {
+			doc, err := p.project.metadata(f.Field)
+			if err != nil {
+				return nil, err
+			}
+			if err = p.annotate(field, doc, true, f.Name, f.Field); err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Name, err)
 			}
 			s.Properties[f.Name] = field
@@ -441,7 +448,12 @@ func flag(doc comment.Document, key string) bool {
 func closedEnum(doc comment.Document) bool { return flag(doc, "enum") }
 
 // Apply contract annotations without overriding structural facts.
-func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, site string) error {
+func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, site string, object types.Object) (failure error) {
+	defer func() {
+		if failure != nil {
+			failure = p.project.annotationIssue(failure, object)
+		}
+	}()
 	if doc.Summary == "" && len(doc.Directives) == 0 {
 		return nil
 	}
@@ -552,7 +564,7 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 		return fmt.Errorf("openapi.comment.value: %w", err)
 	}
 	if len(doc.Directives) > 0 {
-		p.annotations = append(p.annotations, annotationCheck{schema: s, before: &before, doc: doc, site: site})
+		p.annotations = append(p.annotations, annotationCheck{schema: s, before: &before, doc: doc, site: site, object: object})
 	}
 	return nil
 }

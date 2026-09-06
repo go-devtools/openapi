@@ -3,7 +3,6 @@ package compiler
 import (
 	"encoding/json"
 	"fmt"
-	"go/token"
 	"go/types"
 	"mime"
 	"strconv"
@@ -25,26 +24,14 @@ type contractDeclaration struct {
 // Resolve function-local declarations once; invalid candidates remain isolated until route selection.
 func (p *Project) declarations(fn Function, diagnostics *[]openapi.Diagnostic) []contractDeclaration {
 	var declarations []contractDeclaration
-	positions := []openapi.Source{}
-	if fn.Declaration.Doc != nil {
-		for _, c := range fn.Declaration.Doc.List {
-			offset := 0
-			for _, line := range strings.Split(c.Text, "\n") {
-				content := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "//")), "/*"))
-				if index := strings.Index(line, "@openapi"); strings.HasPrefix(content, "@openapi") && index >= 0 {
-					positions = append(positions, p.Source(c.Slash+token.Pos(offset+index)))
-				}
-				offset += len(line) + 1
-			}
-		}
-	}
+	positions := p.directivePositions(fn.Declaration.Doc)
 	for i, directive := range p.comments[fn.Object].Directives {
 		if directive.Kind == "" {
 			continue
 		}
 		source := fn.Source
 		if i < len(positions) {
-			source = positions[i]
+			source = p.Source(positions[i])
 		}
 		source.Kind, source.Rule, source.Symbol = "declared", "openapi.comment."+directive.Kind, fn.Symbol
 		declaration, err := parseContractDeclaration(directive)
@@ -191,6 +178,10 @@ func (p *Project) mergeOperationDeclarations(op *spec.Operation, diagnostics *[]
 			err = mergeDeclaredContract(op, d, schema)
 		}
 		if err != nil {
+			if detailed := projectionDiagnostics(err, d.source); len(detailed) > 0 {
+				*diagnostics = append(*diagnostics, detailed...)
+				continue
+			}
 			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: code, Severity: openapi.Error, Message: err.Error(), Source: d.source, Facts: append([]openapi.Source(nil), (*facts)...), Fix: "Keep declarations consistent with observed wire facts; use a centralized frontend or codec rule for unsupported behavior"})
 		}
 	}

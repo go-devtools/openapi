@@ -20,7 +20,7 @@ Supported expressions include `Request`, `*Request`, `[]Request`, and `example.c
 
 Centralized generation entry points can use `Project.TypeIn(packagePath, expression)` to resolve types in an explicit package context. `Project.Type(expression)` accepts a short name only when all successful root-package resolutions identify the same Go type. It reports `openapi.type.ambiguous` for different same-named types. Resolution preserves the original `go/types` identity and does not mutate loaded package scopes.
 
-For source comment and enum projection from a DTO package, load that package as a source root. Resolving a dependency's type alone does not index all of its semantic comments.
+Imported DTO packages retain their type, field, and constant comments automatically, including fields of instantiated generic types. Packages mentioned only in comments still need an explicit source-root pattern because annotations do not initiate package loading. See [imported metadata and source evidence](imported-metadata.md).
 
 ## Accepted keys
 

@@ -58,3 +58,5 @@ For example, openapi.comment.type on minimum for a string is a declaration/type 
 For explicit request/response contracts, read [request and response declarations](request-response-declarations.md). Use TypeIn for an explicit package context; a declaration cannot erase an unknown-effect diagnostic.
 
 See the [support matrix](openapi32-matrix.md) for limits. Automatic derivation, explicit declaration, centralized adaptation, and unresolved behavior are distinct outcomes. Budget errors require a bounded rule or an explicitly justified budget change; they do not authorize partial contracts.
+
+Imported DTOs retain the metadata of their source declarations without becoming operation candidates. For an imported annotation error, inspect its logical package/file location and the selected Route field; Facts retain the application call or explicit declaration that used it. See [imported metadata](imported-metadata.md). Generated reports use physical source positions from the loaded snapshot, including overlays, rather than a later filesystem read.

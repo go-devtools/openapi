@@ -3,6 +3,7 @@ package compiler
 import (
 	"encoding/json"
 	"fmt"
+	"go/types"
 	"math/big"
 	"sort"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 
 // Defer annotation checks until the component graph is complete to include named types and recursion.
 type annotationCheck struct {
+	object types.Object
 	schema *spec.Schema
 	before *spec.Schema
 	doc    comment.Document
@@ -89,7 +91,7 @@ func (p *projector) annotationFacts(schema *spec.Schema) ([]*spec.SchemaObject, 
 func (p *projector) checkAnnotations() error {
 	for _, check := range p.annotations {
 		if err := p.checkAnnotation(check); err != nil {
-			return fmt.Errorf("%s: %w", check.site, err)
+			return p.project.annotationIssue(fmt.Errorf("%s: %w", check.site, err), check.object)
 		}
 	}
 	return nil

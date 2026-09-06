@@ -134,6 +134,10 @@ func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]op
 	for _, path := range paths {
 		body, source, err := p.requestPath(path, components, mappers)
 		if err != nil {
+			if detailed := projectionDiagnostics(err, source); len(detailed) > 0 {
+				*diagnostics = append(*diagnostics, detailed...)
+				continue
+			}
 			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "Provide consistent centralized request-field or encoding rules", Source: source})
 			continue
 		}

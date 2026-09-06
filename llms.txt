@@ -15,6 +15,7 @@ The module is github.com/openapi-golang/openapi. Use Go 1.27.1 and pin a module 
 
 - [Standalone Schema](docs/standalone-schema.md): Go projection and offline Schema export.
 - [Request and response declarations](docs/request-response-declarations.md): Actual type resolution, supplemental contracts, and conflict diagnostics.
+- [Imported metadata](docs/imported-metadata.md): Dependency DTO contracts, generic field origins, source coordinates, and scoped errors.
 - [Annotations](docs/schema-annotations.md): Semantic declarations and conflicts with inferred facts.
 - [Response effects](docs/response-effects.md): Headers, status commitment, payload codecs, and streaming items.
 - [Request fields](docs/request-fields.md): Individual body fields and explicit encoding.

@@ -21,37 +21,39 @@ type enumEntry struct {
 // Generate values and descriptions from actual closed-enum constants while preserving alignment after sorting.
 func (p *projector) annotateEnum(schema *spec.Schema, typ types.Type) error {
 	entries := map[string]*enumEntry{}
-	for _, pkg := range p.project.Packages {
-		for _, name := range pkg.Types.Scope().Names() {
-			item, ok := pkg.Types.Scope().Lookup(name).(*types.Const)
-			if !ok || !types.Identical(item.Type(), typ) {
-				continue
-			}
-			value, err := constantJSON(item)
-			if err != nil {
-				return err
-			}
-			encoded, err := json.Marshal(value)
-			if err != nil {
-				return fmt.Errorf("openapi.enum.value: %s: %w", name, err)
-			}
-			key := string(encoded)
-			entry := entries[key]
-			if entry == nil {
-				entry = &enumEntry{value: value}
-				entries[key] = entry
-			}
-			description := strings.TrimSpace(p.project.comments[item].Summary)
-			if description == "" {
-				continue
-			}
-			duplicate := false
-			for _, existing := range entry.descriptions {
-				duplicate = duplicate || existing == description
-			}
-			if !duplicate {
-				entry.descriptions = append(entry.descriptions, description)
-			}
+	for _, item := range p.project.constants {
+		name := item.Name()
+		if !types.Identical(item.Type(), typ) {
+			continue
+		}
+		value, err := constantJSON(item)
+		if err != nil {
+			return err
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("openapi.enum.value: %s: %w", name, err)
+		}
+		key := string(encoded)
+		entry := entries[key]
+		if entry == nil {
+			entry = &enumEntry{value: value}
+			entries[key] = entry
+		}
+		doc, err := p.project.metadata(item)
+		if err != nil {
+			return err
+		}
+		description := strings.TrimSpace(doc.Summary)
+		if description == "" {
+			continue
+		}
+		duplicate := false
+		for _, existing := range entry.descriptions {
+			duplicate = duplicate || existing == description
+		}
+		if !duplicate {
+			entry.descriptions = append(entry.descriptions, description)
 		}
 	}
 	keys := make([]string, 0, len(entries))
