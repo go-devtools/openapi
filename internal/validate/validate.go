@@ -277,6 +277,14 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			c.add("parameter.querystring", path, "querystring 必须使用 content")
 		}
 		c.parameterContent(m, path)
+	case "response":
+		for _, field := range []string{"summary", "description"} {
+			if value, exists := m[field]; exists {
+				if _, ok := value.(string); !ok {
+					c.add("response."+field, path, "响应 "+field+" 必须是字符串")
+				}
+			}
+		}
 	case "header":
 		c.parameterContent(m, path)
 	case "requestBody":
@@ -358,7 +366,7 @@ func childRole(role, k string) string {
 		return ""
 	}
 	if role == "components" {
-		return map[string]string{"schemas": "schemas", "responses": "responses", "parameters": "parameters", "headers": "headers", "mediaTypes": "mediaTypes", "examples": "examples", "securitySchemes": "securitySchemes", "links": "links", "callbacks": "callbacks", "pathItems": "pathItems", "requestBodies": "requestBodies"}[k]
+		return map[string]string{"schemas": "schemas", "responses": "responseComponents", "parameters": "parameters", "headers": "headers", "mediaTypes": "mediaTypes", "examples": "examples", "securitySchemes": "securitySchemes", "links": "links", "callbacks": "callbacks", "pathItems": "pathItems", "requestBodies": "requestBodies"}[k]
 	}
 	if role == "requestBodies" {
 		return "requestBody"

@@ -190,6 +190,9 @@ type Encoding struct {
 // 表示响应的说明、头、媒体类型和后续链接。
 // Describe response content, headers, and follow-up links.
 type Response struct {
+	// 原生三点二响应摘要，与详细说明独立。
+	// Native 3.2 response summary, independent of the detailed description.
+	Summary     string                      `json:"summary,omitempty"`
 	Description string                      `json:"description,omitempty"`
 	Headers     map[string]RefOr[Header]    `json:"headers,omitempty"`
 	Content     map[string]RefOr[MediaType] `json:"content,omitempty"`

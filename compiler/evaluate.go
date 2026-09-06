@@ -296,7 +296,7 @@ func (a *analyzer) call(fn Function, x *ast.CallExpr, state flow, depth int) []e
 	for _, start := range starts {
 		receiver := scalar(start)
 		for _, args := range a.expressions(fn, x.Args, start.state, depth) {
-			call := CallContext{Function: fn, Call: x, Object: callObject(fn.Package.Info, x.Fun), Arguments: args.values, Receiver: receiver, Source: a.project.Source(x.Pos())}
+			call := CallContext{Response: responseSnapshot(args.state), Function: fn, Call: x, Object: callObject(fn.Package.Info, x.Fun), Arguments: args.values, Receiver: receiver, Source: a.project.Source(x.Pos())}
 			results = append(results, a.invoke(call, args.state, depth)...)
 		}
 	}

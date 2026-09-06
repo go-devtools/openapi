@@ -14,18 +14,19 @@ import (
 // 保存单条可达路径的值状态、效果和函数结束标志。
 // Track values, effects, and termination for one reachable path.
 type flow struct {
-	when        openapi.RequestCondition
-	hasCommit   bool
-	headers     map[string]HeaderValue
-	values      map[types.Object]Value
-	effects     []Effect
-	diagnostics []openapi.Diagnostic
-	ended       bool
-	writes      int
-	pending     *Effect
-	returned    []Value
-	committed   string
-	branch      token.Token
+	when            openapi.RequestCondition
+	hasCommit       bool
+	headers         map[string]HeaderValue
+	observedHeaders map[string]HeaderValue
+	values          map[types.Object]Value
+	effects         []Effect
+	diagnostics     []openapi.Diagnostic
+	ended           bool
+	writes          int
+	pending         *Effect
+	returned        []Value
+	committed       string
+	branch          token.Token
 }
 
 // 保存有界分析调度器，每个 handler 使用独立状态。
@@ -44,6 +45,7 @@ type analyzer struct {
 func (s flow) clone() flow {
 	out := s
 	out.headers = copyHeaders(s.headers)
+	out.observedHeaders = copyHeaders(s.observedHeaders)
 	out.values = map[types.Object]Value{}
 	for k, v := range s.values {
 		out.values[k] = v

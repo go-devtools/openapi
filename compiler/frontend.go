@@ -100,6 +100,9 @@ type Effect struct {
 // 提供标准库调用视图和核心已传播的实参，不暴露第三方 SSA。
 // Expose standard-library call views and propagated arguments without third-party SSA.
 type CallContext struct {
+	// 当前执行路径的响应状态副本，供前端选择实际渲染行为。
+	// A path-local response snapshot lets frontends select actual rendering behavior.
+	Response  ResponseState
 	Function  Function
 	Call      *ast.CallExpr
 	Object    *types.Func

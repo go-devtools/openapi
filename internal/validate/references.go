@@ -108,7 +108,7 @@ func dictionaryRole(role string) string {
 		return "schema"
 	case "paths", "pathItems", "webhooks":
 		return "path"
-	case "responses":
+	case "responses", "responseComponents":
 		return "response"
 	case "parameters":
 		return "parameter"

@@ -213,3 +213,13 @@ The public compiler now accepts RequestField effects, explicit request/parameter
 The initial regressions exposed unknown effects, incorrect whole-map encoding conflicts, and field-required incorrectly requiring the complete body. All now pass. Go 1.27.1 with GOWORK=off passed make dev, full go test -race ./..., go vet ./..., and go mod verify. The external SDK fixture now contains 30 top-level tests; fixed remote consumption is recorded separately after publication. Two-repository comment review covers 2,183 natural-language Go comment lines with no missing translations or undocumented top-level declarations.
 
 This is development-checkout evidence using existing task caches. It does not complete all request-presence inference, codec matrices, or final cold-cache acceptance.
+
+## HTTP response state, HEAD, and native response summaries
+
+The public CallContext.Response snapshot now separates current header storage from commit-time wire headers. Known values, unknown-but-present headers, pending status, and committed status are observable without exposing internal flow objects. Snapshot mutations do not affect the analyzer. Actual Gin regression tests first demonstrated that ignoring a late Content-Type mutation incorrectly predicted a redirect body; preserving current storage while freezing wire headers fixed this.
+
+HEAD linking removes content while retaining metadata and local shared-response/reference overrides; it does not mutate GET or Bundle data. Named response components are validated separately from operation status maps, including x-prefixed component names. Native spec.Response.Summary is typed and roundtrips through HEAD projection. OpenAPI 3.2 permits omitted response description; present summary/description values must be strings. The dedicated tests preserve that version-specific distinction.
+
+Core make dev, full go test -race ./..., go vet ./..., and go mod verify passed on Go 1.27.1 with GOWORK=off. The public external SDK fixture now has 33 top-level tests. Two-repository AST review covers 2,291 natural-language Go comment lines with no missing bilingual counterparts or undocumented top-level declarations. These are checkout/cache-based development results; final fixed-remote SDK and CLI evidence is recorded after synchronization.
+
+Complete external HEAD response resolution, renderer/stream/file behavior, specification/UI matrices, CI and final source-only cold-cache acceptance remain required parts of the active Goal.

@@ -136,6 +136,12 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 			add("openapi.condition.unresolved", key, err.Error())
 			continue
 		}
+		if route.Method == "HEAD" {
+			if err := projectHEADResponses(&op, data.Components); err != nil {
+				add("openapi.head.unresolved", key, err.Error())
+				continue
+			}
+		}
 		report.Diagnostics = append(report.Diagnostics, diagnostics...)
 		report.Facts = append(report.Facts, facts...)
 		if op.OperationID == "" {

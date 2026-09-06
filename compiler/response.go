@@ -29,30 +29,30 @@ func bodylessStatus(status string) bool {
 	return err == nil && (code >= 100 && code < 200 || code == 204 || code == 304)
 }
 
-// 仅应用提交前的头设置、删除与条件设置，保留原始来源。
-// Apply pre-commit header replacement, removal, and conditional insertion while preserving provenance.
+// 保留当前头存储供前端观察，只有提交前的修改进入网络头快照。
+// Preserve current header storage for frontend observation; only pre-commit changes enter wire snapshots.
 func (a *analyzer) responseHeader(state *flow, effect Effect) {
-	if state.hasCommit {
-		return
-	}
 	name := textproto.CanonicalMIMEHeaderKey(effect.Name)
 	if !validHeaderName(name) {
 		a.unknown(state, effect.Source, "响应头名称不是有效的常量")
 		return
 	}
-	if state.headers == nil {
-		state.headers = map[string]HeaderValue{}
+	if state.observedHeaders == nil {
+		state.observedHeaders = copyHeaders(state.headers)
 	}
 	if effect.DeleteHeader {
-		delete(state.headers, name)
-		return
-	}
-	if previous, exists := state.headers[name]; exists && effect.HeaderIfEmpty {
-		if previous.Value.Constant == nil || previous.Value.Constant.Kind() != constant.String || constant.StringVal(previous.Value.Constant) != "" {
-			return
+		delete(state.observedHeaders, name)
+	} else {
+		if previous, exists := state.observedHeaders[name]; exists && effect.HeaderIfEmpty {
+			if previous.Value.Constant == nil || previous.Value.Constant.Kind() != constant.String || constant.StringVal(previous.Value.Constant) != "" {
+				return
+			}
 		}
+		state.observedHeaders[name] = HeaderValue{Value: effect.Payload, Source: effect.Source}
 	}
-	state.headers[name] = HeaderValue{Value: effect.Payload, Source: effect.Source}
+	if !state.hasCommit {
+		state.headers = copyHeaders(state.observedHeaders)
+	}
 }
 
 // 在最终状态确定后保存未写 body 的响应及其提交时头快照。
@@ -141,4 +141,40 @@ func validHeaderName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// 表示已观察到的响应头；Known 为 false 时仍保留字段存在事实。
+// Represent an observed response header; Known=false still preserves header presence.
+type ResponseHeaderState struct {
+	Value string
+	Known bool
+}
+
+// 提供待提交或已提交状态及独立的响应头快照，不暴露分析器内部流。
+// Expose pending/committed status and detached headers without exposing internal analyzer flows.
+type ResponseState struct {
+	Status    string
+	Committed bool
+	Headers   map[string]ResponseHeaderState
+}
+
+// 只复制不可变字符串与布尔值，前端修改映射不能影响后续分析。
+// Copy only immutable strings and booleans so frontend map mutations cannot affect later analysis.
+func responseSnapshot(state flow) ResponseState {
+	snapshot := ResponseState{Committed: state.hasCommit, Headers: map[string]ResponseHeaderState{}}
+	if state.pending != nil {
+		snapshot.Status = state.pending.Status
+	}
+	if state.hasCommit {
+		snapshot.Status = state.committed
+	}
+	for name, header := range state.observedHeaders {
+		value := ResponseHeaderState{}
+		if header.Value.Constant != nil && header.Value.Constant.Kind() == constant.String {
+			value.Known = true
+			value.Value = constant.StringVal(header.Value.Constant)
+		}
+		snapshot.Headers[name] = value
+	}
+	return snapshot
 }
