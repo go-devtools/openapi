@@ -73,3 +73,5 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 ## AI 辅助接入
 
 从 [llms.txt](llms.txt) 查看精简文档索引，再阅读 [AI 接入指南](docs/ai-integration.md)，获取真实可执行的命令、结构化诊断说明及公开 API 边界。生成的 JSON 和来源信息可用于核对接入判断。
+
+参见[性能指南](docs/performance.md)，运行可复现的 100／1000 路由生成、启动 Build、文档读取与内存分配基准。
