@@ -16,10 +16,8 @@ import (
 )
 
 // Accept normalized OpenAPI paths without framework route syntax.
-// 仅接收标准化 OpenAPI 路径，不识别任何框架路由语法。
 type Route struct {
 	// Explicitly declare request media types for this route; an empty slice means unresolved.
-	// 显式声明此路由的请求媒体类型；空切片表示尚未确定。
 	RequestMediaTypes []string
 	Method            string
 	Path              string
@@ -29,10 +27,8 @@ type Route struct {
 }
 
 // Configure document metadata and typed advanced extensions.
-// 配置核心文档信息与类型化高级表达入口。
 type Config struct {
 	// Optionally verify the current executable when linking; leave disabled for cross-target offline exports.
-	// 运行时链接可选择核对当前程序；离线跨目标导出默认不启用。
 	VerifyRuntimeBuild bool
 
 	Title       string
@@ -44,27 +40,22 @@ type Config struct {
 	Extensions  spec.Extensions
 	Configure   func(*spec.OpenAPI) error
 	// Use the same offline resources and budgets for reference pruning and final specification checks.
-	// 将相同离线资源与预算用于引用裁剪和最终规范检查。
 	Validation CheckOptions
 }
 
 // Store validated immutable JSON and its provenance report.
-// 保存已验证的不可变 JSON 与来源报告。
 type Document struct {
 	data   string
 	report Report
 }
 
 // Return a defensive copy of cached JSON.
-// 返回缓存 JSON 的防御性副本。
 func (d *Document) JSON() []byte { return []byte(d.data) }
 
 // Return a defensive copy of provenance and diagnostics.
-// 返回来源报告的防御性副本。
 func (d *Document) Report() Report { return copyJSON(d.report) }
 
 // Write atomically and clean up the temporary file on failure.
-// 原子写入目标文件；失败清除本次临时文件。
 func (d *Document) WriteFile(path string) error {
 	file, err := os.CreateTemp(filepath.Dir(path), ".openapi-*")
 	if err != nil {
@@ -87,7 +78,6 @@ func (d *Document) WriteFile(path string) error {
 }
 
 // Link neutral routes to static templates without reading source or executing handlers.
-// 在中立路由与静态模板间链接并验证；不读取源码，不执行 handler。
 func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 	if err := bundle.Validate(); err != nil {
 		return nil, err
@@ -155,7 +145,6 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 			add("openapi.response.missing", key, "Provide an analyzable response or an explicit fallback contract")
 		}
 		// Derive string path parameters from the route template when no read evidence exists.
-		// 路径模板本身证明命名参数存在；缺少读取证据时只声明字符串。
 		for _, name := range pathParameters(route.Path) {
 			found := false
 			for _, p := range op.Parameters {
@@ -164,7 +153,7 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 				}
 			}
 			if !found {
-				op.Parameters = append(op.Parameters, spec.Inline(spec.Parameter{Name: name, In: "path", Required: true, Schema: spec.Typed("string")}))
+				op.Parameters = append(op.Parameters, spec.Inline(spec.Parameter{Name: name, In: "path", Required: spec.Set(true), Schema: spec.Typed("string")}))
 			}
 		}
 		path := doc.Paths[route.Path]
@@ -208,7 +197,6 @@ func Build(bundle Bundle, routes []Route, cfg Config) (*Document, error) {
 }
 
 // Extract standard brace parameters without interpreting framework prefixes.
-// 从标准花括号模板提取路径参数；不处理框架的特殊前缀。
 func pathParameters(path string) []string {
 	var names []string
 	for {
@@ -228,7 +216,6 @@ func pathParameters(path string) []string {
 }
 
 // Dispatch fixed and additional OpenAPI methods.
-// 仅按 OpenAPI 固定方法和扩展方法分派。
 func putOperation(p *spec.PathItem, method string, op *spec.Operation) error {
 	switch method {
 	case "GET":
@@ -262,7 +249,6 @@ func putOperation(p *spec.PathItem, method string, op *spec.Operation) error {
 }
 
 // Retain only reachable Schemas, including references from advanced objects.
-// 裁剪不可达 Schema，保留高级对象引用到的类型闭包。
 func pruneSchemas(doc *spec.OpenAPI, options CheckOptions) error {
 	if doc.Components == nil {
 		return nil

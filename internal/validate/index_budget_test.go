@@ -8,7 +8,6 @@ import (
 )
 
 // Long prefixes must not amplify indexes through many short children; a larger budget accepts the same document.
-// 长前缀不能通过大量短子字段放大索引；放宽预算后同一规范应可检查。
 func TestReferenceIndexTextBudget(t *testing.T) {
 	properties := map[string]any{}
 	for i := 0; i < 100; i++ {
@@ -27,7 +26,6 @@ func TestReferenceIndexTextBudget(t *testing.T) {
 }
 
 // Normalized absolute references must not duplicate long resource URIs without a bound.
-// 规范化的绝对引用不能无限复制长资源 URI。
 func TestNormalizedReferenceBudget(t *testing.T) {
 	refs := make([]any, 100)
 	for i := range refs {

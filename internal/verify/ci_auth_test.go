@@ -9,7 +9,6 @@ import (
 )
 
 // Restrict CI credentials to exact repository paths and avoid storing token values.
-// 将 CI 凭据限制到精确仓库路径，并禁止保存 token 值。
 func TestCICredentialScope(t *testing.T) {
 	helper := filepath.Join("..", "..", "scripts", "git-credential-ci.sh")
 	for _, sample := range []struct {

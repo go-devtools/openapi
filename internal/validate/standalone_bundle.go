@@ -8,7 +8,6 @@ import (
 )
 
 // Preserve resource identities and dialects, embed explicit dependencies, and normalize retrieval aliases.
-// 保留各资源的身份与方言，在根定义中嵌入显式依赖并规范化检索别名。
 func (set *resourceSet) exportStandalone(root *referenceNode, options Options) ([]byte, []Issue) {
 	g := set.graph
 	for _, entry := range set.documents {
@@ -123,7 +122,6 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 		return nil, g.issues
 	}
 	// Re-index the final document to prove it no longer relies on separately supplied resources.
-	// 对最终单文档重新建图，证明它不再依赖调用方另行提供资源。
 	outputOptions := options
 	outputOptions.Resources = nil
 	outputOptions.ExampleResources = nil

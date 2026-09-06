@@ -1,7 +1,6 @@
 package spec
 
 // Represent a complete framework-independent OpenAPI document.
-// 表示完整 OpenAPI 文档；规范模型不依赖任何路由框架。
 type OpenAPI struct {
 	OpenAPI           string                          `json:"openapi"`
 	Self              string                          `json:"$self,omitempty"`
@@ -18,7 +17,6 @@ type OpenAPI struct {
 }
 
 // Describe the API title and version.
-// 表示 API 的业务名称和版本信息。
 type Info struct {
 	Title          string     `json:"title"`
 	Summary        string     `json:"summary,omitempty"`
@@ -31,7 +29,6 @@ type Info struct {
 }
 
 // Describe maintenance contact information.
-// 表示维护联系信息。
 type Contact struct {
 	Name       string     `json:"name,omitempty"`
 	URL        string     `json:"url,omitempty"`
@@ -40,7 +37,6 @@ type Contact struct {
 }
 
 // Describe a license identifier or URL.
-// 表示许可证标识或地址。
 type License struct {
 	Name       string     `json:"name"`
 	Identifier string     `json:"identifier,omitempty"`
@@ -49,7 +45,6 @@ type License struct {
 }
 
 // Describe server URLs and variable declarations.
-// 表示服务地址及其变量声明。
 type Server struct {
 	URL         string                    `json:"url"`
 	Description string                    `json:"description,omitempty"`
@@ -59,7 +54,6 @@ type Server struct {
 }
 
 // Describe one server URL variable.
-// 表示服务地址中的单个替换变量。
 type ServerVariable struct {
 	Enum        []string   `json:"enum,omitempty"`
 	Default     string     `json:"default"`
@@ -68,7 +62,6 @@ type ServerVariable struct {
 }
 
 // Group reusable components by kind, including OAS 3.2 media types.
-// 保存按类别隔离的可复用组件，媒体类型也是三点二组件。
 type Components struct {
 	Schemas         map[string]*Schema               `json:"schemas,omitempty"`
 	Responses       map[string]RefOr[Response]       `json:"responses,omitempty"`
@@ -85,7 +78,6 @@ type Components struct {
 }
 
 // Represent normalized paths with separate QUERY and additional operation fields.
-// 表示规范化路径，包含 QUERY 与扩展方法的独立入口。
 type PathItem struct {
 	Ref                  string                `json:"$ref,omitempty"`
 	Summary              string                `json:"summary,omitempty"`
@@ -106,7 +98,6 @@ type PathItem struct {
 }
 
 // Represent an operation independently of source template identities.
-// 表示单个接口契约，与源码模板标识相互独立。
 type Operation struct {
 	Tags         []string                        `json:"tags,omitempty"`
 	Summary      string                          `json:"summary,omitempty"`
@@ -117,14 +108,13 @@ type Operation struct {
 	RequestBody  *RefOr[RequestBody]             `json:"requestBody,omitempty"`
 	Responses    map[string]RefOr[Response]      `json:"responses,omitempty"`
 	Callbacks    map[string]RefOr[Callback]      `json:"callbacks,omitempty"`
-	Deprecated   bool                            `json:"deprecated,omitempty"`
+	Deprecated   Optional[bool]                  `json:"deprecated,omitzero"`
 	Security     Optional[[]SecurityRequirement] `json:"security,omitzero"`
 	Servers      []Server                        `json:"servers,omitempty"`
 	Extensions   Extensions                      `json:"-"`
 }
 
 // Describe external documentation; renderers must encode it safely.
-// 表示外部文档链接；渲染层负责安全编码。
 type ExternalDocumentation struct {
 	Description string     `json:"description,omitempty"`
 	URL         string     `json:"url"`
@@ -132,17 +122,16 @@ type ExternalDocumentation struct {
 }
 
 // Describe a named parameter or whole-querystring media contract.
-// 表示命名参数或整个 querystring 的媒体类型契约。
 type Parameter struct {
 	Name            string                      `json:"name,omitempty"`
 	In              string                      `json:"in"`
 	Description     string                      `json:"description,omitempty"`
-	Required        bool                        `json:"required,omitempty"`
-	Deprecated      bool                        `json:"deprecated,omitempty"`
-	AllowEmptyValue bool                        `json:"allowEmptyValue,omitempty"`
+	Required        Optional[bool]              `json:"required,omitzero"`
+	Deprecated      Optional[bool]              `json:"deprecated,omitzero"`
+	AllowEmptyValue Optional[bool]              `json:"allowEmptyValue,omitzero"`
 	Style           string                      `json:"style,omitempty"`
 	Explode         Optional[bool]              `json:"explode,omitzero"`
-	AllowReserved   bool                        `json:"allowReserved,omitempty"`
+	AllowReserved   Optional[bool]              `json:"allowReserved,omitzero"`
 	Schema          *Schema                     `json:"schema,omitempty"`
 	Example         Optional[any]               `json:"example,omitzero"`
 	Examples        map[string]RefOr[Example]   `json:"examples,omitempty"`
@@ -151,16 +140,14 @@ type Parameter struct {
 }
 
 // Describe a request body whose required flag is separate from property requirements.
-// 表示请求体；required 与内部属性 required 含义不同。
 type RequestBody struct {
 	Description string                      `json:"description,omitempty"`
 	Content     map[string]RefOr[MediaType] `json:"content"`
-	Required    bool                        `json:"required,omitempty"`
+	Required    Optional[bool]              `json:"required,omitzero"`
 	Extensions  Extensions                  `json:"-"`
 }
 
 // Describe complete content, stream items, and multipart encodings.
-// 表示单个媒体类型的完整数据、流式单项与 multipart 编码。
 type MediaType struct {
 	Description    string                    `json:"description,omitempty"`
 	Schema         *Schema                   `json:"schema,omitempty"`
@@ -174,13 +161,12 @@ type MediaType struct {
 }
 
 // Describe named or positional encodings, including nested multipart content.
-// 表示按名称或位置绑定的编码，支持嵌套 multipart。
 type Encoding struct {
 	ContentType    string                   `json:"contentType,omitempty"`
 	Headers        map[string]RefOr[Header] `json:"headers,omitempty"`
 	Style          string                   `json:"style,omitempty"`
 	Explode        Optional[bool]           `json:"explode,omitzero"`
-	AllowReserved  bool                     `json:"allowReserved,omitempty"`
+	AllowReserved  Optional[bool]           `json:"allowReserved,omitzero"`
 	Encoding       map[string]Encoding      `json:"encoding,omitempty"`
 	PrefixEncoding []Encoding               `json:"prefixEncoding,omitempty"`
 	ItemEncoding   *Encoding                `json:"itemEncoding,omitempty"`
@@ -188,10 +174,8 @@ type Encoding struct {
 }
 
 // Describe response content, headers, and follow-up links.
-// 表示响应的说明、头、媒体类型和后续链接。
 type Response struct {
 	// Native 3.2 response summary, independent of the detailed description.
-	// 原生三点二响应摘要，与详细说明独立。
 	Summary     string                      `json:"summary,omitempty"`
 	Description string                      `json:"description,omitempty"`
 	Headers     map[string]RefOr[Header]    `json:"headers,omitempty"`
@@ -201,11 +185,9 @@ type Response struct {
 }
 
 // Map callback expressions to path items.
-// 表示回调表达式到路径项的映射。
 type Callback map[string]RefOr[PathItem]
 
 // Distinguish logical examples from serialized text and preserve explicit null.
-// 区分逻辑示例值与真实序列化文本，显式 null 不省略。
 type Example struct {
 	Summary         string           `json:"summary,omitempty"`
 	Description     string           `json:"description,omitempty"`
@@ -217,7 +199,6 @@ type Example struct {
 }
 
 // Describe link expressions without executing business operations.
-// 表示链接参数和请求体表达式，不执行表达式中的业务操作。
 type Link struct {
 	OperationRef string         `json:"operationRef,omitempty"`
 	OperationID  string         `json:"operationId,omitempty"`
@@ -229,11 +210,10 @@ type Link struct {
 }
 
 // Describe a response header named by its containing map.
-// 表示响应头，名称由外层映射提供。
 type Header struct {
 	Description string                      `json:"description,omitempty"`
-	Required    bool                        `json:"required,omitempty"`
-	Deprecated  bool                        `json:"deprecated,omitempty"`
+	Required    Optional[bool]              `json:"required,omitzero"`
+	Deprecated  Optional[bool]              `json:"deprecated,omitzero"`
 	Style       string                      `json:"style,omitempty"`
 	Explode     Optional[bool]              `json:"explode,omitzero"`
 	Schema      *Schema                     `json:"schema,omitempty"`
@@ -244,7 +224,6 @@ type Header struct {
 }
 
 // Describe OAS 3.2 tag hierarchy and classification.
-// 表示三点二标签层级及分类。
 type Tag struct {
 	Name         string                 `json:"name"`
 	Summary      string                 `json:"summary,omitempty"`
@@ -256,7 +235,6 @@ type Tag struct {
 }
 
 // Describe security schemes with metadata URLs and deprecation flags.
-// 表示安全方案，保留三点二的元数据地址和弃用标记。
 type SecurityScheme struct {
 	Type              string         `json:"type"`
 	Description       string         `json:"description,omitempty"`
@@ -272,7 +250,6 @@ type SecurityScheme struct {
 }
 
 // Describe OAuth flows, including device authorization.
-// 表示各类 OAuth 流，包括设备授权。
 type OAuthFlows struct {
 	Implicit            *OAuthFlow `json:"implicit,omitempty"`
 	Password            *OAuthFlow `json:"password,omitempty"`
@@ -283,7 +260,6 @@ type OAuthFlows struct {
 }
 
 // Describe authorization endpoints and required scope maps.
-// 表示授权端点与必需的作用域映射。
 type OAuthFlow struct {
 	AuthorizationURL       string            `json:"authorizationUrl,omitempty"`
 	DeviceAuthorizationURL string            `json:"deviceAuthorizationUrl,omitempty"`
@@ -294,5 +270,4 @@ type OAuthFlow struct {
 }
 
 // Combine schemes within each requirement and alternatives across the array.
-// 同一映射内方案是共同要求，数组中的各映射是备选要求。
 type SecurityRequirement map[string][]string

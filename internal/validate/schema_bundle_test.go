@@ -6,7 +6,6 @@ import (
 )
 
 // Reference normalization must preserve OpenAPI annotation data instead of interpreting mapping names as schema keywords.
-// 引用整理必须保留 OpenAPI 注解数据，不能把映射名称解释为 Schema 关键字。
 func TestBundlePreservesDiscriminatorData(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","components":{"schemas":{"A":{"type":"object","discriminator":{"propertyName":"kind","mapping":{"$ref":"#/components/schemas/B","$dynamicRef":"#/components/schemas/B"}}},"B":{"type":"string"}}}}`)
 	bundle, issues := BundleSchemas(raw, "/components/schemas/A", Options{BaseURI: "https://example.test/api"})

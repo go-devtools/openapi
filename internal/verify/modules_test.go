@@ -9,7 +9,6 @@ import (
 )
 
 // Reject both declared replacements and replacements selected by the actual module graph.
-// 拒绝 go.mod 声明的替换与实际模块图选中的替换。
 func TestNoLocalReplace(t *testing.T) {
 	edit := exec.Command("go", "mod", "edit", "-json")
 	edit.Dir = "../.."

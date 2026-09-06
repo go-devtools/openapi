@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Run reproducible module checks without changing global tool or credential configuration.
-# 执行可复现的模块检查，不修改全局工具或凭据设置。
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export GOWORK=off GOTOOLCHAIN=local GIT_TERMINAL_PROMPT=0
@@ -19,7 +18,6 @@ if [[ "$ci_module" == github.com/openapi-golang/gin-swagger && "${GITHUB_ACTIONS
 fi
 
 # Verify that required named gates exist before executing their real tests.
-# 先确认规定名称的检查入口存在，再执行真实测试。
 required_tests() {
   local ci_package="$1" ci_names="$2" ci_available ci_name
   local ci_expected=()
@@ -32,7 +30,6 @@ required_tests() {
 }
 
 # Exercise one bounded fuzz target and reject empty target selection.
-# 执行一个有时间预算的 fuzz 入口，并拒绝空匹配。
 fuzz_target() {
   local ci_package="$1" ci_name="$2" ci_available
   ci_available="$(go test "$ci_package" -list "^$ci_name$")"
@@ -49,7 +46,6 @@ case "${1:-test}" in
     if [[ "$ci_module" == github.com/openapi-golang/gin-swagger ]]; then
       [[ "$(go list -m -f '{{.Version}}' github.com/gin-gonic/gin)" == v1.12.0 ]] || { echo 'ci.gin.version: Gin v1.12.0 is required'; exit 2; }
       # The committed example uses the documented Darwin/arm64 generation profile.
-      # 已提交示例使用文档注明的 Darwin/arm64 生成配置。
       if [[ "$(go env GOOS)/$(go env GOARCH)" == darwin/arm64 ]]; then
         go run ./cmd/gin-swagger check --dir ./examples/basic --output ./internal/apidoc | tee "$ci_artifacts/committed-freshness.json"
       else

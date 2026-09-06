@@ -2,8 +2,6 @@ package consumer
 
 import "testing"
 
-// 生成器必须保存已知空选择，运行时才可区分默认构建与缺少元数据。
-
 // Preserve known empty selectors so runtime checks distinguish default builds from missing metadata.
 func TestRuntimeProfileRecordsDefaultSelectors(t *testing.T) {
 	dir := t.TempDir()

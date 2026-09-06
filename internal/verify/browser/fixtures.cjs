@@ -6,7 +6,6 @@ const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 
 // Own the compiled service and ephemeral port; shut down only the process created by this fixture.
-// 独占编译出的服务与临时端口，只关闭本 fixture 启动的进程。
 const test = base.extend({
  server: [async ({}, use) => {
   const root = resolve(__dirname, '../../..');

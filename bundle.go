@@ -10,15 +10,12 @@ import (
 )
 
 // Identify a source template independently of the final operationId.
-// 表示稳定源码模板键，不等于最终 operationId。
 type OperationKey string
 
 // Declare the supported Bundle protocol version.
-// 声明当前 Bundle 协议范围。
 const BundleFormatVersion = 1
 
 // Record effective module selections without serializing local replacement directories.
-// 记录有效模块选择，不序列化本地替换目录。
 type ModuleProfile struct {
 	Path           string `json:"path"`
 	Version        string `json:"version,omitempty"`
@@ -30,13 +27,11 @@ type ModuleProfile struct {
 }
 
 // Store actual load targets, versions, and reproducible settings without claiming runtime source equivalence.
-// 保存实际加载目标、版本和可重现配置；不是运行时代码一致性的证明。
 type BuildProfile struct {
 	CGOEnabled       string `json:"cgoEnabled,omitempty"`
 	GoExperiment     string `json:"goExperiment,omitempty"`
 	BuildFlagsDigest string `json:"buildFlagsDigest,omitempty"`
 	// Empty map values record known default selectors; absent keys represent unknown values.
-	// map 中的空值表示已记录的默认选择，缺少键表示未知。
 	Settings            map[string]string `json:"settings,omitempty"`
 	Modules             []ModuleProfile   `json:"modules,omitempty"`
 	Workspace           bool              `json:"workspace,omitempty"`
@@ -52,10 +47,8 @@ type BuildProfile struct {
 }
 
 // Store a source template and its framework-neutral contract.
-// 保存可匹配的源码模板与框架中立契约。
 type Template struct {
 	// Select finite conditional variants when linking routes.
-	// 有限条件变体在路由链接时选择。
 	Variants       []OperationVariant `json:"variants,omitempty"`
 	Key            OperationKey       `json:"key"`
 	Symbol         string             `json:"symbol"`
@@ -67,7 +60,6 @@ type Template struct {
 }
 
 // Define the public Bundle exchange format; construction saves an immutable copy.
-// 表示版本化 Bundle 的公开交换格式，构造后由 Bundle 保存不可变副本。
 type BundleData struct {
 	FormatVersion int             `json:"formatVersion"`
 	SpecVersion   string          `json:"specVersion"`
@@ -80,14 +72,12 @@ type BundleData struct {
 }
 
 // Store an immutable contract snapshot that can serve multiple framework instances.
-// 保存不可变的契约快照，可以安全地同时供多个框架实例链接。
 type Bundle struct {
 	data      string
 	loadError string
 }
 
 // Validate the protocol, keys, and capabilities before saving a deterministic snapshot.
-// 校验协议、模板键与能力后，保存确定性快照。
 func NewBundle(data BundleData) (Bundle, error) {
 	if data.FormatVersion != BundleFormatVersion || data.SpecVersion != "3.2.0" {
 		return Bundle{}, fmt.Errorf("openapi.bundle.incompatible: unsupported format %d / specification %s", data.FormatVersion, data.SpecVersion)
@@ -120,7 +110,6 @@ func NewBundle(data BundleData) (Bundle, error) {
 		}
 	}
 	// Detach collections before sorting to preserve caller-owned data.
-	// 先序列化隔离调用方集合，再排序，避免构造过程改变输入。
 	raw, err := json.Marshal(data)
 	if err != nil {
 		return Bundle{}, err
@@ -142,7 +131,6 @@ func NewBundle(data BundleData) (Bundle, error) {
 }
 
 // Strictly decode Bundle fields and protocol versions.
-// 严格读取 Bundle，拒绝不认识的顶层字段和协议版本。
 func ParseBundle(raw []byte) (Bundle, error) {
 	if len(raw) > 16<<20 {
 		return Bundle{}, fmt.Errorf("openapi.bundle.budget: Bundle exceeds the size limit")
@@ -161,7 +149,6 @@ func ParseBundle(raw []byte) (Bundle, error) {
 }
 
 // Return an independent snapshot without exposing internal packages.
-// 返回可变的独立快照，适配器无需访问核心内部包。
 func (b Bundle) Snapshot() BundleData {
 	var data BundleData
 	_ = json.Unmarshal([]byte(b.data), &data)
@@ -169,15 +156,12 @@ func (b Bundle) Snapshot() BundleData {
 }
 
 // Return an independent encoded copy.
-// 返回独立的编码副本。
 func (b Bundle) JSON() []byte { return []byte(b.data) }
 
 // Return a copied template index with runtime matching evidence.
-// 返回模板索引的独立副本，包含运行时匹配所需证据。
 func (b Bundle) Index() []Template { return b.Snapshot().Templates }
 
 // Preserve generated-data errors for startup validation instead of panicking.
-// 从生成器固定文本创建 Bundle，错误保留到启动层返回而不触发 panic。
 func GeneratedBundle(raw string) Bundle {
 	b, err := ParseBundle([]byte(raw))
 	if err != nil {
@@ -187,7 +171,6 @@ func GeneratedBundle(raw string) Bundle {
 }
 
 // Validate generated text before adapters match routes.
-// 检查静态生成文本和格式兼容性，适配器可在匹配路由前调用。
 func (b Bundle) Validate() error {
 	if b.loadError != "" {
 		return fmt.Errorf("openapi.bundle.invalid: %s", b.loadError)

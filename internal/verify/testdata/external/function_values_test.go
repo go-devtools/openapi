@@ -14,8 +14,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 以真正源码验证函数值、捕获单元和接收者，不执行待分析业务函数。
-
 // Verify function values, captured cells, and receivers from real source without executing analyzed business functions.
 func TestFunctionValues(t *testing.T) {
 	dir := t.TempDir()

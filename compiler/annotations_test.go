@@ -7,7 +7,6 @@ import (
 )
 
 // Reproduce conflicting annotations from real source before document generation or runtime.
-// 从真实源码复现注释矛盾，防止把错误推迟到文档生成或运行阶段。
 func TestSourceAnnotationConflicts(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -36,7 +35,6 @@ func TestSourceAnnotationConflicts(t *testing.T) {
 }
 
 // Preserve valid bounds and fixed-array facts without duplicating nullable union members.
-// 保留合法范围与固定数组事实，nullable 不能产生重复的联合类型。
 func TestSourceAnnotationValidConstraints(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {
@@ -60,7 +58,6 @@ func TestSourceAnnotationValidConstraints(t *testing.T) {
 }
 
 // Do not report type conflicts for open fields merely because they lack a fixed type keyword.
-// 开放字段不应因为没有固定 type 关键字而误报类型冲突。
 func TestOpenAnnotationConstraint(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
 	if err != nil {

@@ -11,7 +11,6 @@ import (
 )
 
 // Test nested statements and status commits using a neutral effect carrier.
-// 用框架中立替身验证嵌套语句、状态提交与多返回值传播。
 func TestFlowWriteOrdering(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

@@ -6,7 +6,6 @@ import (
 )
 
 // Rewrite projection component references within actual resource scopes, then run shared offline checks.
-// 在真实资源作用域中改写投影组件引用，然后执行共享离线检查。
 func Standalone(raw []byte, componentNames []string, options Options) ([]byte, []Issue) {
 	options.schemaOnly = true
 	set, issues := prepareSchemaResources(raw, options, false)

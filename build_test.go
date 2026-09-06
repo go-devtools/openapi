@@ -10,7 +10,6 @@ import (
 )
 
 // Build a neutral template without an HTTP framework.
-// 构造一个中立模板，测试不依赖任何 HTTP 框架。
 func testBundle(t *testing.T) Bundle {
 	t.Helper()
 	b, err := NewBundle(BundleData{FormatVersion: 1, SpecVersion: "3.2.0", Templates: []Template{{Key: "user", Symbol: "example.com/app.User", Operation: spec.Operation{Summary: "Read user", Responses: map[string]spec.RefOr[spec.Response]{"200": spec.Inline(spec.Response{Description: "Success", Content: map[string]spec.RefOr[spec.MediaType]{"application/json": spec.Inline(spec.MediaType{Schema: &spec.Schema{SchemaObject: &spec.SchemaObject{Ref: "#/components/schemas/User"}}})}})}}}}, Components: spec.Components{Schemas: map[string]*spec.Schema{"User": spec.Typed("object"), "Unused": spec.Typed("string")}}})
@@ -21,7 +20,6 @@ func testBundle(t *testing.T) Bundle {
 }
 
 // Verify defensive copies isolate repeated document builds.
-// 验证 Bundle 与最终文档通过防御性复制隔离多次构建。
 func TestBuildImmutableAndStable(t *testing.T) {
 	b := testBundle(t)
 	routes := []Route{{Method: "GET", Path: "/users/{id}", OperationKey: "user"}}
@@ -90,7 +88,6 @@ func TestBuildImmutableAndStable(t *testing.T) {
 }
 
 // Reject unknown templates, duplicate routes, and unresolved facts.
-// 验证未知模板、重复路由和未解决事实不会伪装成成功文档。
 func TestBuildRejectsUnresolvedAndConflicts(t *testing.T) {
 	b := testBundle(t)
 	for _, routes := range [][]Route{{{Method: "GET", Path: "/a", OperationKey: "missing"}}, {{Method: "GET", Path: "/a", OperationKey: "user"}, {Method: "GET", Path: "/a", OperationKey: "user"}}, {{Method: "GET", Path: "/users/{id", OperationKey: "user"}}} {
@@ -113,7 +110,6 @@ func TestBuildRejectsUnresolvedAndConflicts(t *testing.T) {
 }
 
 // Reject future formats and unknown required capabilities at the read boundary.
-// 验证未来格式和未知必需能力会在读取边界明确失败。
 func TestBundleCompatibility(t *testing.T) {
 	data := testBundle(t).Snapshot()
 	data.FormatVersion = 2

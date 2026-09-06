@@ -50,7 +50,7 @@ The public compiler SDK supports commit-time response headers and explicit non-J
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.
 
-Project-owned source comments include English and Simplified Chinese. OpenAPI descriptions, diagnostics, CLI help, and example text use English; companion translations are kept separate from semantic comments in examples and fixtures. Multilingual encoding tests retain their input values through escaped literals. Upstream assets retain their original form. Commit messages use English; [README.zh-cn.md](README.zh-cn.md) provides corresponding Chinese documentation.
+Project-owned source comments, OpenAPI descriptions, diagnostics, CLI help, example text, and commit messages use English. Multilingual encoding tests preserve their actual input data. Upstream assets retain their original form; [README.zh-cn.md](README.zh-cn.md) provides corresponding Chinese documentation.
 
 The public compiler supports [parameter object and wire-type codec extensions](docs/parameter-codec.md) without framework dependencies.
 
@@ -81,3 +81,5 @@ See the [independent CI guide](docs/ci.md) for pinned tools, private module acce
 See the [security model guide](docs/security-models.md) for typed OAuth flows, native 3.2 fields, presence, validation, and UI boundaries.
 
 See [source explanations](docs/explain.md) for opt-in field, type, handler, and response provenance with explicit enforcement limits.
+
+See [native objects and explicit values](docs/native-objects.md) for Example, Discriminator, XML validation and the optional boolean API migration.

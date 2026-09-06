@@ -10,7 +10,6 @@ import (
 )
 
 // Cross-check security objects through the public checker and the pinned official schema.
-// 通过公开检查器和固定官方 Schema 交叉验证安全对象。
 func TestNativeSecurity32Matrix(t *testing.T) {
 	independent := official32(t)
 	cases := []struct {
@@ -106,7 +105,6 @@ func TestNativeSecurity32Matrix(t *testing.T) {
 }
 
 // Preserve explicit deprecation and construct device authorization with public typed models.
-// 保留显式弃用标记，并使用公开类型构造设备授权。
 func TestNativeSecurity32Model(t *testing.T) {
 	doc := spec.OpenAPI{OpenAPI: "3.2.0", Info: spec.Info{Title: "Device authorization", Version: "1"},
 		Paths: map[string]*spec.PathItem{}, Security: spec.Set([]spec.SecurityRequirement{}),

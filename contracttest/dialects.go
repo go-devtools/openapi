@@ -7,13 +7,11 @@ import (
 )
 
 // Fixed official dialect resources ship with the optional contract package and require no network access.
-// 固定官方方言资源随可选契约测试包分发，编译阶段不访问网络。
 //
 //go:embed dialects/*.json
 var builtinDialects embed.FS
 
 // Registers fixed OpenAPI dialects and meta-schemas with the independent engine.
-// 将固定的 OpenAPI 方言与元 Schema 加入独立引擎。
 func addBuiltinDialects(c *jsonschema.Compiler) error {
 	entries, err := builtinDialects.ReadDir("dialects")
 	if err != nil {

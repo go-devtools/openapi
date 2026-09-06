@@ -13,7 +13,6 @@ import (
 )
 
 // Keep physical directive offsets from the exact parsed bytes; AST comment text may normalize CR characters.
-// 从原始解析字节保留指令偏移；AST 注释文本可能规范化 CR 字符。
 func (b *buildInputs) captureCommentPositions(file *ast.File, fset *token.FileSet, raw []byte) {
 	if file == nil {
 		return
@@ -55,7 +54,6 @@ func (b *buildInputs) captureCommentPositions(file *ast.File, fset *token.FileSe
 }
 
 // Recognize the same line prefix as the shared parser without interpreting prose as a directive.
-// 识别与共享解析器相同的行前缀，避免将普通说明误作指令。
 func directiveLine(line string) bool {
 	line = strings.TrimSpace(line)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "//"))
@@ -64,7 +62,6 @@ func directiveLine(line string) bool {
 }
 
 // Return original positions in the same order as the supplied semantic comment groups.
-// 按传入语义注释组的顺序返回原始位置。
 func (p *Project) directivePositions(groups ...*ast.CommentGroup) []token.Pos {
 	var positions []token.Pos
 	if p.inputs == nil {
@@ -81,7 +78,6 @@ func (p *Project) directivePositions(groups ...*ast.CommentGroup) []token.Pos {
 }
 
 // Associate instantiated generic fields with their declaration's comments and diagnostics.
-// 将实例化的泛型字段关联到原始声明的注释和诊断。
 func metadataObject(object types.Object) types.Object {
 	if field, ok := object.(*types.Var); ok {
 		return field.Origin()
@@ -90,7 +86,6 @@ func metadataObject(object types.Object) types.Object {
 }
 
 // Freeze metadata errors during loading and surface dependency errors only when their actual objects are projected.
-// 加载时冻结元数据错误，仅在实际投影对应对象时报告依赖错误。
 func (p *Project) attachComment(object types.Object, root bool, groups ...*ast.CommentGroup) {
 	if object == nil {
 		return
@@ -135,7 +130,6 @@ func (p *Project) attachComment(object types.Object, root bool, groups ...*ast.C
 }
 
 // Read immutable metadata through original Go identities rather than requiring every DTO package to be a source root.
-// 通过原始 Go 对象身份读取不可变元数据，无需将每个 DTO 包设为源码根。
 func (p *Project) metadata(object types.Object) (comment.Document, error) {
 	object = metadataObject(object)
 	if issue, ok := p.commentErrors[object]; ok {
@@ -145,7 +139,6 @@ func (p *Project) metadata(object types.Object) (comment.Document, error) {
 }
 
 // Preserve structured source diagnostics returned by shared projection instead of replacing them with call-site-only text.
-// 保留共享投影返回的结构化源码诊断，避免替换为仅包含调用位置的文本。
 func projectionDiagnostics(err error, source openapi.Source) []openapi.Diagnostic {
 	var report openapi.Report
 	if !errors.As(err, &report) {
@@ -159,7 +152,6 @@ func projectionDiagnostics(err error, source openapi.Source) []openapi.Diagnosti
 }
 
 // Locate the original source object; anonymous nested fields refer to their real enclosing named declaration.
-// 定位原始源码对象；匿名嵌套字段指向其实际所属的命名声明。
 func (p *Project) metadataSource(object types.Object) openapi.Source {
 	object = metadataObject(object)
 	if object == nil {
@@ -179,7 +171,6 @@ func (p *Project) metadataSource(object types.Object) openapi.Source {
 }
 
 // Preserve the shared annotation code while adding a structured declaration source for programmatic diagnostics.
-// 保留共享注释错误编码，并为程序化诊断补充结构化声明来源。
 func (p *Project) annotationIssue(err error, object types.Object) error {
 	if err == nil {
 		return nil

@@ -8,7 +8,6 @@ import (
 )
 
 // Merge complete analysis paths with identical request conditions while isolating diagnostics for other conditions.
-// 将具有相同请求条件的完整分析路径合并，保持其他条件的诊断独立。
 func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	conditional := false
 	for _, path := range paths {
@@ -40,7 +39,6 @@ func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow
 }
 
 // Reuse shared projection and provenance rules without putting callbacks or Go types into runtime paths.
-// 复用共同投影与来源规则，条件路径不携带运行时回调或 Go 类型对象。
 func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Diagnostic, facts *[]openapi.Source, path flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	defer p.explanationPath(path.when)()
 	*diagnostics = append(*diagnostics, path.diagnostics...)

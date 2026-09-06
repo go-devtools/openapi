@@ -14,7 +14,6 @@ import (
 )
 
 // Preserve actual DTO component references across inner/outer media types while SSE data remains a protocol string.
-// 内外媒体类型分离后保留真实 DTO 的组件引用，SSE data 仍是协议字符串。
 func TestResponseItemPayloadProjection(t *testing.T) {
 	for _, media := range []string{"application/x-ndjson", "text/event-stream"} {
 		t.Run(media, func(t *testing.T) {
@@ -76,7 +75,6 @@ func TestResponseItemPayloadProjection(t *testing.T) {
 }
 
 // Reusing callback input or output objects must not mutate merged items or frontend-owned schemas.
-// 回调复用输入或输出对象不能改写已合并条目，也不能改变前端拥有的 Schema。
 func TestResponseSchemaTransformIsolation(t *testing.T) {
 	owned, shared := spec.Typed("string"), spec.Typed("string")
 	calls := 0
@@ -116,7 +114,6 @@ func TestResponseSchemaTransformIsolation(t *testing.T) {
 }
 
 // Errors or nil results from schema transforms must prevent publication instead of becoming empty schemas.
-// 包装回调的错误或 nil 结果必须阻止文档发布，不能转为空 Schema。
 func TestResponseSchemaTransformErrors(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		result := compileItemFixture(t, `Emit(Item{})`, func(c core.CallContext) ([]core.Effect, error) {

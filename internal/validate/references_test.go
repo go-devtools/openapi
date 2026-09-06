@@ -7,13 +7,11 @@ import (
 )
 
 // Isolate reference semantics with minimal native documents and no unrelated business fields.
-// 用最小原生文档隔离引用语义，避免无关业务字段干扰。
 func referenceDocument(schemas string, extra string) []byte {
 	return []byte(`{"openapi":"3.2.0","info":{"title":"Reference test","version":"1"},"components":{"schemas":` + schemas + `}` + extra + `}`)
 }
 
 // Verify base URIs, resource anchors, and recursive references without expanding cyclic schemas.
-// 验证基准 URI、资源内锚点与递归引用，不展开循环 Schema。
 func TestLocalReferenceResources(t *testing.T) {
 	cases := []struct{ name, schemas, extra string }{
 		{"anchor", `{"Node":{"$anchor":"node","properties":{"next":{"$ref":"#node"}}}}`, ""},
@@ -38,7 +36,6 @@ func TestLocalReferenceResources(t *testing.T) {
 }
 
 // Preserve a separate location for every invalid reference, including repeated reference text.
-// 每个错误引用都必须带独立位置，不能被相同引用文本覆盖。
 func TestInvalidReferenceResources(t *testing.T) {
 	cases := []struct{ name, schemas, extra, code string }{
 		{"cross-id-pointer", `{"A":{"$id":"https://example.test/a","type":"string"},"B":{"$ref":"#/components/schemas/A"}}`, "", "ref.scope"},
@@ -83,7 +80,6 @@ func TestInvalidReferenceResources(t *testing.T) {
 }
 
 // Require Reference Objects and Links to target the correct kind, not merely an existing JSON Pointer.
-// Reference Object 和 Link 必须指向对应种类，而不能仅证明 JSON Pointer 存在。
 func TestReferenceTargetRoles(t *testing.T) {
 	for _, fragment := range []string{
 		`"paths":{"/x":{"get":{"responses":{"200":{"$ref":"#/components/schemas/A"}}}}},"components":{"schemas":{"A":true}}`,
@@ -102,7 +98,6 @@ func TestReferenceTargetRoles(t *testing.T) {
 }
 
 // Report duplicate identities deterministically for reproducible CI comparisons.
-// 相同输入必须稳定报告重复身份的位置，便于 CI 比对。
 func TestReferenceDiagnosticsDeterministic(t *testing.T) {
 	raw := referenceDocument(`{"B":{"$anchor":"same"},"A":{"$anchor":"same"}}`, "")
 	want, _ := json.Marshal(Check(raw))
@@ -115,7 +110,6 @@ func TestReferenceDiagnosticsDeterministic(t *testing.T) {
 }
 
 // Treat callback extensions as business data without triggering reference checks.
-// 回调对象的扩展是业务数据，不能触发引用检查。
 func TestCallbackExtensionReferencesAreData(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"components":{"callbacks":{"Notify":{"x-note":{"$ref":"https://data.invalid/note"},"{$request.body#/callback}":{"post":{"responses":{"200":{"description":"OK"}}}}}}}}`)
 	if issues := Check(raw); len(issues) != 0 {

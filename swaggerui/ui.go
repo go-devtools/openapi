@@ -1,5 +1,4 @@
 // Provide pinned offline Swagger UI resources independently of HTTP frameworks.
-// 提供固定版本、离线可用且不绑定 HTTP 框架的 Swagger UI 资源。
 package swaggerui
 
 import (
@@ -18,64 +17,53 @@ import (
 )
 
 // Identify the verified upstream release.
-// 标识经过固定校验的上游发行版本。
 const Version = "5.32.15"
 
 // Link static assets only when the swaggerui subpackage is imported.
-// 静态资源只会在显式导入 swaggerui 子包时链接。
 //
 //go:embed assets/*
 var assets embed.FS
 
 // Extend display names without modifying pinned upstream assets.
-// 对固定上游版本补充展示名称，不修改其发行资源。
 //
 //go:embed display-names.js
 var displayNames string
 
 // Keep project presentation styles separate from upstream resources.
-// 本项目的表现层样式与原始上游资源分别保存。
 //
 //go:embed presentation.css
 var presentationStyles string
 
 // Start the page from explicit configuration and restore only registered document names.
-// 从显式配置启动页面，并仅恢复已注册的分类名称。
 //
 //go:embed startup.js
 var startupScript string
 
 // Configure the page title, local specification URL, and explicitly allowed methods.
-// 独立配置页面标题、相对文档地址及明确允许的提交方法。
 type Config struct {
 	Title         string
 	SpecURL       string
 	SubmitMethods []string
 	// Configure tag filtering and default expansion and sorting for tags and operations.
-	// 启用按标签筛选，并选择标签或接口的默认展开与排序方式。
 	Filter           bool
 	DocExpansion     string
 	TagsSorter       string
 	OperationsSorter string
 	// Enable the top-right selector for multiple documents, selecting the first by default.
-	// 多份文档时启用右上角分类选择器，默认选中第一份。
 	Definitions       []Definition
 	PrimaryDefinition string
 }
 
 // Identify a switchable local document whose name is used only for display.
-// 标记可切换的整份本地文档，名称仅用于选择器展示。
 type Definition struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
 }
 
 // Store read-only resources without requiring net/http.
-// 保存只读资源，传输层不需要采用 net/http。
 type UI struct{ resources map[string]Resource }
 
 // Store immutable resource content and metadata with defensive-copy access.
-// 保存不可变内容和响应元数据，所有集合访问都返回副本。
 type Resource struct {
 	body         string
 	contentType  string
@@ -84,21 +72,17 @@ type Resource struct {
 }
 
 // Return a defensive copy of resource bytes.
-// 返回资源内容的防御性副本。
 func (r Resource) Bytes() []byte { return []byte(r.body) }
 
 // Return security and cache metadata for any transport adapter.
-// 返回适用于任意传输适配器的安全与缓存元数据。
 func (r Resource) Headers() map[string]string {
 	return map[string]string{"Content-Type": r.contentType, "ETag": r.etag, "Cache-Control": r.cacheControl, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'", "Referrer-Policy": "no-referrer"}
 }
 
 // Return the resource media type without requiring adapters to guess it.
-// 返回媒体类型，框架可以直接复用而不重新猜测。
 func (r Resource) ContentType() string { return r.contentType }
 
 // Encode HTML and JSON safely when constructing the page.
-// 构造经过 HTML/JSON 编码的页面，不插入未编码业务文字。
 func New(cfg Config) (*UI, error) {
 	if cfg.Title == "" {
 		cfg.Title = "API Documentation"
@@ -190,14 +174,12 @@ func New(cfg Config) (*UI, error) {
 }
 
 // Compute deterministic ETags for cached resource responses.
-// 计算固定 ETag，使资源请求只读取缓存字节。
 func resource(raw []byte, contentType, cacheControl string) Resource {
 	sum := sha256.Sum256(raw)
 	return Resource{body: string(raw), contentType: contentType, etag: "\"" + hex.EncodeToString(sum[:]) + "\"", cacheControl: cacheControl}
 }
 
 // Read one named resource and reject traversal and encoded bypasses.
-// 严格读取单个命名资源，拒绝编码绕过与目录穿越。
 func (u *UI) Resource(name string) (Resource, error) {
 	if name == "" {
 		name = "index.html"
@@ -213,7 +195,6 @@ func (u *UI) Resource(name string) (Resource, error) {
 }
 
 // Return sorted resource names for transport-neutral preloading.
-// 返回稳定排序的资源名称副本，方便非 HTTP 消费者预载。
 func (u *UI) Names() []string {
 	out := make([]string, 0, len(u.resources))
 	for name := range u.resources {
@@ -224,7 +205,6 @@ func (u *UI) Names() []string {
 }
 
 // Restrict all specification entry points to same-origin paths, including checks against encoded parent traversal.
-// 所有规范加载入口都限制为同源路径，编码后的父级跳转也不能绕过校验。
 func localSpecURL(value string) error {
 	parsed, err := url.Parse(value)
 	if err != nil || value == "" || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Contains(parsed.Path, "..") || strings.HasPrefix(value, "//") || strings.ContainsAny(parsed.Path, "\\\r\n") {

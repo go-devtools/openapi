@@ -18,7 +18,6 @@ import (
 )
 
 // Synchronous callback repetition, termination, commit ordering, and interruption must preserve actual effects.
-// 同步回调的重复、结束、提交顺序和中断都必须保留真实效果。
 func TestCallbackPlan(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

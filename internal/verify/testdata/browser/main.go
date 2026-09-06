@@ -1,5 +1,4 @@
 // Serve isolated local documentation for browser contract tests.
-// 为浏览器契约测试提供隔离的本地文档服务。
 package main
 
 import (
@@ -19,7 +18,6 @@ import (
 )
 
 // Keep the schema-first fixture limited to browser verification of shared resources.
-// 此 schema-first fixture 仅用于共享资源的浏览器验证。
 const documentJSON = `{
   "openapi": "3.2.0",
   "info": {
@@ -104,7 +102,6 @@ const documentJSON = `{
 }`
 
 // Start an owned ephemeral listener and stop it when the test process requests shutdown.
-// 启动测试独占的临时监听，并在测试进程要求结束时关闭。
 func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

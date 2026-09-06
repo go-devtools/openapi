@@ -13,7 +13,6 @@ import (
 )
 
 // Load actual source with declarations without importing comment-only DTO packages.
-// 加载带有声明的真实源码，不导入仅在注释中提及的 DTO 包。
 func declarationProject(t *testing.T, source string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -42,7 +41,6 @@ type Request struct { Other bool }
 }
 
 // Use a neutral return convention so annotation behavior cannot depend on Gin.
-// 使用中立的返回约定，确保注释行为不依赖 Gin。
 func declarationFrontend() compiler.Frontend {
 	return compiler.Frontend{
 		Name:  "declaration-test-v1",
@@ -63,7 +61,6 @@ func declarationFrontend() compiler.Frontend {
 }
 
 // Resolve local and fully qualified generic types, keep provenance, and validate real instances independently.
-// 解析局部及完整限定的泛型类型，保留来源，并独立验证真实实例。
 func TestCommentDeclarations(t *testing.T) {
 	source := `package api
 // Describe the local request.
@@ -154,7 +151,6 @@ func Unselected() {}
 }
 
 // Reject malformed contracts and conflicting observed types without fabricating successful fallback responses.
-// 拒绝格式错误的契约及与已观察类型冲突的声明，不伪造成功的回退响应。
 func TestCommentDeclarationBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		name, directive, code string
@@ -193,7 +189,6 @@ func TestCommentDeclarationBoundaries(t *testing.T) {
 }
 
 // Resolve loaded qualified generic expressions while rejecting ambiguous short names.
-// 解析已加载的限定泛型表达式，拒绝有歧义的短名称。
 func TestQualifiedTypeExpressions(t *testing.T) {
 	dir := declarationProject(t, "package api\ntype Request struct { Name string }\ntype Reply struct { ID int64 }\n")
 	project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: dir, Patterns: []string{"./..."}, Env: []string{"GOWORK=off", "GOPROXY=off"}})
@@ -211,7 +206,6 @@ func TestQualifiedTypeExpressions(t *testing.T) {
 }
 
 // Preserve source coordinates when prose mentions directives and reject contradictory repeated presence declarations.
-// 普通说明提及指令时仍保留源码坐标，并拒绝相互矛盾的重复存在性声明。
 func TestDeclarationSourceAndDuplicateConstraints(t *testing.T) {
 	source := `package api
 // Explain the @openapi syntax in prose without changing directive positions.
@@ -261,7 +255,6 @@ func Open() {}
 }
 
 // Keep uncertain status and selected-path errors even when a default response is explicitly documented.
-// 即使显式记录了默认响应，也保留不确定状态及选中路径的错误。
 func TestDeclarationDoesNotResolveUnknownStatus(t *testing.T) {
 	source := `package api
 type Reply struct { ID int64 }
@@ -284,7 +277,6 @@ func Handler() Reply { return Reply{ID:1} }
 }
 
 // Evaluate pure Go type expressions in a detached scope without rewriting literal data or mutating loaded identities.
-// 在独立作用域中求值纯 Go 类型表达式，不改写字面量数据或已加载的对象身份。
 func TestTypeExpressionScope(t *testing.T) {
 	dir := declarationProject(t, "package api\ntype Request struct { Name string }\ntype Reply struct { ID int64 }\n")
 	project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: dir, Patterns: []string{"./..."}, Env: []string{"GOWORK=off", "GOPROXY=off"}})
@@ -323,7 +315,6 @@ func TestTypeExpressionScope(t *testing.T) {
 }
 
 // Keep declared alternatives and source conditions on each selected variant without hiding unsupported variants.
-// 在每个选中变体上保留声明分支及源码条件，不隐藏不受支持的变体。
 func TestConditionalDeclarations(t *testing.T) {
 	source := `package api
 type Channel struct{}

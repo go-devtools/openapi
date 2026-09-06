@@ -15,7 +15,6 @@ import (
 )
 
 // Compile real source with a return-value frontend and no framework dependency.
-// 使用返回值前端编译真实源码，不依赖任何框架。
 func explainFixture(t *testing.T) (string, compiler.Options) {
 	t.Helper()
 	dir := t.TempDir()
@@ -68,7 +67,6 @@ func Create() dto.Page[User] { return dto.Page[User]{Value: User{}} }
 }
 
 // Explain imported and generic origins while preserving declared and derived evidence.
-// 解释导入与泛型来源，并区分声明证据和推导证据。
 func TestExplainFieldsAndResponses(t *testing.T) {
 	_, options := explainFixture(t)
 	result, err := compiler.Compile(context.Background(), options)
@@ -130,7 +128,6 @@ func TestExplainFieldsAndResponses(t *testing.T) {
 }
 
 // Keep explanation capture opt-in, deterministic, bounded, and detached from callers.
-// 保证解释收集显式启用、确定、有界，并与调用方修改隔离。
 func TestExplainIsolationAndBudget(t *testing.T) {
 	_, options := explainFixture(t)
 	calls := 0
@@ -186,15 +183,12 @@ func TestExplainIsolationAndBudget(t *testing.T) {
 }
 
 // Rename wire fields through the public codec without changing their Go source identity.
-// 通过公开 codec 改名网络字段，保留真实 Go 源码身份。
 type explainCodec struct{}
 
 // Identify the explicit codec profile.
-// 标识显式编解码配置。
 func (explainCodec) Name() string { return "test-renamed-v1" }
 
 // Select exported fields and expose a different wire name.
-// 选择导出字段，并提供不同的网络名称。
 func (explainCodec) Fields(st *types.Struct) ([]compiler.WireField, error) {
 	var fields []compiler.WireField
 	for i := 0; i < st.NumFields(); i++ {
@@ -207,7 +201,6 @@ func (explainCodec) Fields(st *types.Struct) ([]compiler.WireField, error) {
 }
 
 // Preserve actual codec names, origin positions, and primitive mapping rules.
-// 保留实际 codec 名称、来源位置和基础类型映射规则。
 func TestExplainProjectionCodec(t *testing.T) {
 	dir, _ := explainFixture(t)
 	project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: dir, Patterns: []string{"./dto"}, Env: []string{"GOWORK=off"}})
@@ -244,11 +237,9 @@ func TestExplainProjectionCodec(t *testing.T) {
 }
 
 // Keep public diagnostic types available to external explanation consumers.
-// 确保外部解释使用方可直接使用公开诊断类型。
 var _ openapi.Source
 
 // Keep reporting options out of custom projection semantics and preserve the captured Bundle snapshot.
-// 报告选项不影响自定义投影语义，并保留捕获时的 Bundle 快照。
 func TestExplainDoesNotChangeMapperContext(t *testing.T) {
 	_, options := explainFixture(t)
 	options.Configuration = map[string]json.RawMessage{"mapper": json.RawMessage(`"string-v1"`)}
@@ -282,7 +273,6 @@ func TestExplainDoesNotChangeMapperContext(t *testing.T) {
 }
 
 // Explain conditional bodyless commits and unresolved helper effects without inventing payload fields.
-// 解释有条件的无响应体提交与未解决 helper 效果，不虚构载荷字段。
 func TestExplainConditionalBodylessAndUnknown(t *testing.T) {
 	dir := t.TempDir()
 	for name, data := range map[string]string{"go.mod": "module example.com/conditions\n\ngo 1.27.1\n", "app.go": `package app
@@ -330,7 +320,6 @@ func H(c *Channel){c.Choose()}
 }
 
 // Preserve payload origins before wrapping and return the independently wrapped final response.
-// 保留包装前的载荷来源，并返回独立包装后的最终响应。
 func TestExplainTransformedAndFrozenSource(t *testing.T) {
 	dir, options := explainFixture(t)
 	original := options.Frontends[0].Return
@@ -371,7 +360,6 @@ func TestExplainTransformedAndFrozenSource(t *testing.T) {
 }
 
 // Do not mistake anonymous nested fields for their enclosing unprojected named type.
-// 不将匿名嵌套字段误认成尚未投影的外层命名类型。
 func TestExplainUnprojectedAnonymousIdentity(t *testing.T) {
 	dir, options := explainFixture(t)
 	if err := os.WriteFile(filepath.Join(dir, "unused.go"), []byte(`package app

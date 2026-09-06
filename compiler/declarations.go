@@ -14,7 +14,6 @@ import (
 )
 
 // Preserve resolved annotation data independently of inferred control-flow effects.
-// 独立保存已解析的注释数据，不与推导出的控制流效果混合。
 type contractDeclaration struct {
 	kind, status, media string
 	typ                 types.Type
@@ -23,7 +22,6 @@ type contractDeclaration struct {
 }
 
 // Resolve function-local declarations once; invalid candidates remain isolated until route selection.
-// 函数内声明仅解析一次；无效候选在路由选择前保持隔离。
 func (p *Project) declarations(fn Function, diagnostics *[]openapi.Diagnostic) []contractDeclaration {
 	var declarations []contractDeclaration
 	positions := p.directivePositions(fn.Declaration.Doc)
@@ -60,7 +58,6 @@ func (p *Project) declarations(fn Function, diagnostics *[]openapi.Diagnostic) [
 }
 
 // Require explicit payload media and type; only response declarations may omit both for a bodyless result.
-// 显式指定载荷媒体类型和 Go 类型；仅无响应体的响应声明可同时省略两者。
 func parseContractDeclaration(d comment.Directive) (contractDeclaration, error) {
 	result := contractDeclaration{kind: d.Kind}
 	for _, key := range sortedKeys(d.Values) {
@@ -113,7 +110,6 @@ func parseContractDeclaration(d comment.Directive) (contractDeclaration, error) 
 }
 
 // Supplement contracts after deriving all paths; declarations never remove analysis diagnostics or observed responses.
-// 完成所有路径推导后补充契约；声明不得移除分析诊断或已观察到的响应。
 func (p *Project) mergeDeclarations(template *openapi.Template, declarations []contractDeclaration, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	if len(declarations) == 0 {
 		return
@@ -140,7 +136,6 @@ func (p *Project) mergeDeclarations(template *openapi.Template, declarations []c
 }
 
 // Reuse a known matching wire codec, diagnosing ambiguous codecs rather than assuming JSON for foreign representations.
-// 复用已知且匹配的网络编解码器；歧义应报错，不能为其他表示形式默认采用 JSON。
 func declarationCodec(d contractDeclaration, paths []flow) (WireCodec, error) {
 	found := false
 	var codec WireCodec
@@ -165,7 +160,6 @@ func declarationCodec(d contractDeclaration, paths []flow) (WireCodec, error) {
 }
 
 // Compare matching wire schemas conservatively; different shapes require an explicit centralized rule rather than silent unions.
-// 保守比较匹配的网络 Schema；结构差异需通过集中规则明确处理，不能静默合并。
 func (p *Project) mergeOperationDeclarations(op *spec.Operation, diagnostics *[]openapi.Diagnostic, facts *[]openapi.Source, declarations []contractDeclaration, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	for _, d := range declarations {
 		*facts = append(*facts, d.source)
@@ -194,7 +188,6 @@ func (p *Project) mergeOperationDeclarations(op *spec.Operation, diagnostics *[]
 }
 
 // Add absent alternatives and semantic presence constraints while preserving every already observed contract.
-// 补充缺失分支及存在性语义约束，并保留所有已观察到的契约。
 func mergeDeclaredContract(op *spec.Operation, d contractDeclaration, schema *spec.Schema) error {
 	if d.kind == "request" {
 		if op.RequestBody == nil {
@@ -208,7 +201,7 @@ func mergeDeclaredContract(op *spec.Operation, d contractDeclaration, schema *sp
 		if previous := body.Content[d.media].Value; previous != nil && (previous.ItemSchema != nil || !sameRequestJSON(previous.Schema, schema)) {
 			return fmt.Errorf("declared request type conflicts with the observed schema for %s", d.media)
 		}
-		if d.required.Present && !d.required.Value && body.Required {
+		if d.required.Present && !d.required.Value && body.Required.Value {
 			return fmt.Errorf("declared optional body conflicts with a required request body")
 		}
 		if body.Content == nil {
@@ -218,7 +211,7 @@ func mergeDeclaredContract(op *spec.Operation, d contractDeclaration, schema *sp
 			body.Content[d.media] = spec.Inline(spec.MediaType{Schema: schema})
 		}
 		if d.required.Present {
-			body.Required = d.required.Value
+			body.Required = d.required
 		}
 		return nil
 	}

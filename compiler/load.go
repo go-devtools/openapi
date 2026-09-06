@@ -1,5 +1,4 @@
 // Expose static loading and frontend extensions separately from runtime packages.
-// 公开静态加载、源码视图与前端扩展能力；运行时包不导入本包。
 package compiler
 
 import (
@@ -19,7 +18,6 @@ import (
 )
 
 // Configure read-only package loading without running generation scripts.
-// 配置只读包加载和资源预算，不执行项目生成脚本。
 type LoadOptions struct {
 	Dir            string
 	Patterns       []string
@@ -31,10 +29,8 @@ type LoadOptions struct {
 }
 
 // Expose standard-library types and AST as read-only views.
-// 暴露标准库类型和 AST；调用方须将这些视图视为只读。
 type Package struct {
 	// Go type sizes for the actual loaded target; this view is read-only.
-	// 实际加载目标的 Go 类型尺寸，视图只读。
 	Sizes       types.Sizes
 	Path        string
 	Name        string
@@ -45,10 +41,8 @@ type Package struct {
 }
 
 // Store a composable project view that supports concurrent reads after loading.
-// 保存可组合的静态项目视图，加载后可并发读取。
 type Project struct {
 	// Capture is private to Compile; public Schema calls never mutate it.
-	// 捕获状态仅供 Compile 私有实例使用，公开 Schema 调用不修改它。
 	explanations    *explanationCapture
 	dependencies    []Package
 	constants       []*types.Const
@@ -65,7 +59,6 @@ type Project struct {
 }
 
 // Describe functions without assuming context parameters or return conventions.
-// 用标准库视图表示任何函数形态，不预设 context 参数或返回值模式。
 type Function struct {
 	Object      *types.Func
 	Signature   *types.Signature
@@ -76,7 +69,6 @@ type Function struct {
 }
 
 // Load actual build-selected source and types without changing module files.
-// 按实际构建条件加载源码与类型，默认禁止修改模块文件。
 func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	dir, err := filepath.Abs(options.Dir)
 	if err != nil {
@@ -170,7 +162,6 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 }
 
 // Index semantic comments for functions, types, fields, and constants.
-// 为函数、类型、字段及常量建立共享语义注释索引。
 func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 	attach := func(object types.Object, groups ...*ast.CommentGroup) { p.attachComment(object, root, groups...) }
 
@@ -212,7 +203,6 @@ func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 								object := pkg.Info.Defs[name]
 								symbol := pkg.Path + "." + s.Name.Name
 								// Nested anonymous fields use their real enclosing named declaration.
-								// 嵌套匿名字段使用其实际所属的命名声明。
 								if direct[field] {
 									symbol += "." + name.Name
 								}
@@ -225,7 +215,6 @@ func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 				case *ast.ValueSpec:
 					groups := []*ast.CommentGroup{s.Doc, s.Comment}
 					// Read standalone constant comments from GenDecl; group headings do not describe individual enum values.
-					// 单独声明的常量注释位于 GenDecl；分组标题不冒充单个枚举的含义。
 					if s.Doc == nil && !d.Lparen.IsValid() {
 						groups = append([]*ast.CommentGroup{d.Doc}, groups...)
 					}
@@ -239,7 +228,6 @@ func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 }
 
 // Convert positions into project-relative source paths.
-// 将源码位置转换为项目相对路径。
 func (p *Project) Source(pos token.Pos) openapi.Source {
 	if !pos.IsValid() {
 		return openapi.Source{}
@@ -256,7 +244,6 @@ func (p *Project) Source(pos token.Pos) openapi.Source {
 }
 
 // Resolve real types and generic instances from already loaded packages.
-// 解析当前包或已加载模块限定的真实类型及泛型实例。
 func (p *Project) Type(name string) (types.Type, error) {
 	var result types.Type
 	for _, pkg := range p.Packages {
@@ -276,7 +263,6 @@ func (p *Project) Type(name string) (types.Type, error) {
 }
 
 // Return function views sorted by stable source symbols.
-// 返回按稳定符号排序的只读函数视图。
 func (p *Project) Functions() []Function {
 	out := make([]Function, 0, len(p.functions))
 	for _, f := range p.functions {

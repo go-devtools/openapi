@@ -13,7 +13,6 @@ import (
 )
 
 // Change each build selector independently so one change cannot hide another missing input.
-// 独立改变每项构建选择，防止一个变化掩盖其他遗漏。
 func TestFingerprintIndependentSelectors(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/selectors\n\ngo 1.27.1\n")
@@ -31,7 +30,6 @@ func TestFingerprintIndependentSelectors(t *testing.T) {
 }
 
 // Embedded-resource changes invalidate output while unrelated output files do not enter the fingerprint.
-// 嵌入资源变化使生成物过期，未引用的输出文件不参与指纹。
 func TestFingerprintEmbeddedResources(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/resources\n\ngo 1.27.1\n")
@@ -50,7 +48,6 @@ func TestFingerprintEmbeddedResources(t *testing.T) {
 }
 
 // Include workspace dependency source without putting absolute use paths into generated output.
-// workspace 的本地依赖源码必须参与指纹，绝对 use 路径不进入产物。
 func TestFingerprintWorkspaceSource(t *testing.T) {
 	var initial [][]byte
 	for i := 0; i < 2; i++ {
@@ -80,7 +77,6 @@ func TestFingerprintWorkspaceSource(t *testing.T) {
 }
 
 // Require declared configuration for custom mappings and expose only its digest in the public profile.
-// 自定义映射必须声明配置身份，配置值仅以摘要进入公开 profile。
 func TestFingerprintCustomConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/configured\n\ngo 1.27.1\n")
@@ -103,7 +99,6 @@ func TestFingerprintCustomConfiguration(t *testing.T) {
 }
 
 // Prevent executable drivers and writable module modes from escaping read-only static analysis.
-// 禁止加载器通过可执行 driver 或改写模式突破只读静态分析边界。
 func TestLoadRejectsExecutableDriversAndWritableModes(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/readonly\n\ngo 1.27.1\n")
@@ -132,7 +127,6 @@ func TestLoadRejectsExecutableDriversAndWritableModes(t *testing.T) {
 }
 
 // Fail on input budget exhaustion instead of publishing a complete contract with unaccounted inputs.
-// 输入预算溢出必须失败，不能在未指纹化的输入上继续发布完整契约。
 func TestFingerprintInputBudget(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/budget\n\ngo 1.27.1\n")
@@ -145,7 +139,6 @@ func TestFingerprintInputBudget(t *testing.T) {
 }
 
 // Apply Go's last-entry-wins environment rule so an explicitly disabled driver permits loading.
-// 显式环境覆盖沿用 Go 的最后一项优先规则，禁用 driver 后可以正常加载。
 func TestLoadDriverEnvironmentOverride(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/override\n\ngo 1.27.1\n")
@@ -156,7 +149,6 @@ func TestLoadDriverEnvironmentOverride(t *testing.T) {
 }
 
 // Linker flags may contain deployment settings; they must affect freshness without exposing values in output.
-// 链接参数可能含部署配置；新鲜度应受其影响，但生成产物不能泄漏值。
 func TestFingerprintFlagsDoNotExposeValues(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/flags\n\ngo 1.27.1\n")
@@ -174,7 +166,6 @@ func TestFingerprintFlagsDoNotExposeValues(t *testing.T) {
 }
 
 // Vendor mode must fingerprint selected vendor source instead of silently using module-cache source.
-// vendor 模式使用实际选中的本地依赖文件，不能退回模块缓存源码。
 func TestFingerprintVendorSource(t *testing.T) {
 	dir := t.TempDir()
 	fingerprintFile(t, dir, "go.mod", "module example.test/vendorapp\n\ngo 1.27.1\nrequire example.test/vendordep v1.0.0\n")

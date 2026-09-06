@@ -13,7 +13,6 @@ import (
 )
 
 // Bound total bytes, line length, and stream items in contract tests.
-// 限制测试样本的总字节、单行字节及条目数，避免无界流占用测试进程。
 type Limits struct {
 	MaxBytes     int64
 	MaxLineBytes int
@@ -21,7 +20,6 @@ type Limits struct {
 }
 
 // Apply explicit default budgets and reject invalid limits.
-// 填充明确的默认预算并拒绝非法配置。
 func (l Limits) normalized() (Limits, error) {
 	if l.MaxBytes == 0 {
 		l.MaxBytes = 8 << 20
@@ -42,7 +40,6 @@ func (l Limits) normalized() (Limits, error) {
 }
 
 // Scan bounded lines with protocol-specific delimiters without passing line endings to callbacks.
-// 执行有预算的行扫描，分隔符由协议指定；回调不接收行尾。
 func lines(reader io.Reader, limits Limits, splitter bufio.SplitFunc, visit func(string) error) error {
 	if reader == nil {
 		return fmt.Errorf("openapi.contract.reader: input stream is required")
@@ -73,7 +70,6 @@ func lines(reader io.Reader, limits Limits, splitter bufio.SplitFunc, visit func
 }
 
 // Handle SSE line endings and wait for a possible LF after CR.
-// 遵循 SSE 的三种换行表示，并在 CR 后等待可能的 LF。
 func splitLine(data []byte, atEOF bool) (int, []byte, error) {
 	for i, c := range data {
 		if c == '\n' {
@@ -97,7 +93,6 @@ func splitLine(data []byte, atEOF bool) (int, []byte, error) {
 }
 
 // Split NDJSON only on LF or CRLF, retaining bare CR in unfinished lines for format rejection.
-// NDJSON 只按 LF 或 CRLF 分隔，未结束行中的裸 CR 留给格式检查拒绝。
 func splitNDJSON(data []byte, atEOF bool) (int, []byte, error) {
 	if index := bytes.IndexByte(data, '\n'); index >= 0 {
 		line := data[:index]
@@ -113,7 +108,6 @@ func splitNDJSON(data []byte, atEOF bool) (int, []byte, error) {
 }
 
 // Apply itemSchema to each JSON line and explicitly ignore empty lines.
-// 对每行 JSON 独立应用 itemSchema；空行明确忽略。
 func (v *Validator) NDJSON(reader io.Reader, limits Limits) error {
 	l, err := limits.normalized()
 	if err != nil {
@@ -139,7 +133,6 @@ func (v *Validator) NDJSON(reader io.Reader, limits Limits) error {
 }
 
 // Parse SSE frames into OAS 3.2 event objects while keeping data as a string.
-// 将真正 SSE 帧转换为 OAS 三点二定义的事件对象，data 保持字符串。
 func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 	l, err := limits.normalized()
 	if err != nil {
@@ -155,7 +148,6 @@ func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 			first = false
 		}
 		// Decode SSE as UTF-8 and replace invalid byte sequences.
-		// 网络 SSE 采用 UTF-8；替换无效字节以符合文本解码语义。
 		if !utf8.ValidString(line) {
 			var err error
 			line, err = unicode.UTF8.NewDecoder().String(line)
@@ -207,7 +199,6 @@ func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 		return nil
 	})
 	// An unfinished frame is not a dispatched event.
-	// 未以空行结束的帧不构成已分派事件。
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +206,6 @@ func ParseSSE(reader io.Reader, limits Limits) ([]map[string]any, error) {
 }
 
 // Validate each parsed SSE event against itemSchema.
-// 对已按 SSE 协议解析的每个事件应用 itemSchema。
 func (v *Validator) SSE(reader io.Reader, limits Limits) error {
 	events, err := ParseSSE(reader, limits)
 	if err != nil {

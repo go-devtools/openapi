@@ -10,7 +10,6 @@ import (
 )
 
 // Forward CLI bases, dialects, and manifest resources while projecting actual Go types.
-// CLI 将基准、方言及清单资源送入共享导出器，输出仍来自真实 Go 类型。
 func TestSchemaCLIResources(t *testing.T) {
 	dir := t.TempDir()
 	resource := filepath.Join(dir, "extra.json")
@@ -41,7 +40,6 @@ func TestSchemaCLIResources(t *testing.T) {
 }
 
 // Exit successfully for help and reject positional arguments and invalid budgets.
-// 帮助正常退出，位置参数和非法预算不能被静默忽略。
 func TestSchemaCLIArguments(t *testing.T) {
 	for _, sample := range []struct {
 		args []string
@@ -60,7 +58,6 @@ func TestSchemaCLIArguments(t *testing.T) {
 }
 
 // Preserve existing output and leave no temporary files on resource or cancellation failure.
-// 资源读取或取消失败时保留已有输出，不留下临时文件。
 func TestSchemaCLIFailurePreservesOutput(t *testing.T) {
 	dir := t.TempDir()
 	output := filepath.Join(dir, "schema.json")

@@ -7,7 +7,6 @@ import (
 )
 
 // Cross-check the shared keyword examples against independent official meta-schema validation.
-// 使用同一组标准关键字样例，与独立官方元 Schema 校验交叉核对。
 func TestSchemaKeywordMatrix(t *testing.T) {
 	raw, err := os.ReadFile("../../testdata/golden/schema-keywords.json")
 	if err != nil {
@@ -33,7 +32,6 @@ func TestSchemaKeywordMatrix(t *testing.T) {
 }
 
 // Classify integers with decimal precision without expanding extreme exponents.
-// 极端指数不按位数展开，整数判定仍保持十进制精度。
 func TestSchemaNumberTraits(t *testing.T) {
 	for _, tc := range []struct {
 		keyword, number string
@@ -56,7 +54,6 @@ func TestSchemaNumberTraits(t *testing.T) {
 }
 
 // Resolve relative references and identities within composition members as independent schema locations.
-// 组合成员仍是独立 Schema 位置，其相对引用和资源身份必须参与解析。
 func TestSchemaArrayResourceReferences(t *testing.T) {
 	good := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{},"components":{"schemas":{"X":{"allOf":[{"$id":"https://example.test/a","$anchor":"item","type":"string"},{"$ref":"https://example.test/a#item"}]}}}}`)
 	if issues := Check(good); len(issues) != 0 {

@@ -13,7 +13,6 @@ import (
 )
 
 // Verify mutually exclusive conditions on consecutive calls intersect during compilation rather than runtime analysis.
-// 验证连续调用的互斥请求条件在源码分析阶段求交，而不是在运行时重跑分析器。
 func TestCompileRequestConditions(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample

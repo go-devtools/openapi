@@ -14,11 +14,9 @@ import (
 )
 
 // Retain returned snapshots so allocation measurements include their public defensive copies.
-// 保留返回的快照，使分配测量包含公开接口的防御性复制。
 var scaleJSON []byte
 
 // Compile distinct neutral handlers from actual tag-free Go source.
-// 从真实零 tag Go 源码编译不同的中立 handler。
 func scaleProject(b *testing.B, count int) (compiler.Options, []openapi.Route) {
 	b.Helper()
 	dir := b.TempDir()
@@ -46,7 +44,6 @@ func scaleProject(b *testing.B, count int) (compiler.Options, []openapi.Route) {
 }
 
 // Measure full source generation separately from startup Build and cached document reads.
-// 分别测量完整源码生成、启动阶段 Build 和缓存文档读取。
 func BenchmarkScale(b *testing.B) {
 	for _, count := range []int{100, 1000} {
 		b.Run(fmt.Sprintf("routes=%d", count), func(b *testing.B) {

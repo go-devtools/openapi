@@ -15,7 +15,6 @@ import (
 )
 
 // Export schemas from actual source, using only explicitly listed external resources.
-// 从真实源码导出 Schema，所有外部内容仅来自显式资源清单。
 func runSchema(ctx context.Context, args []string, stdout, stderr io.Writer, fail func(error) int) int {
 	flags := flag.NewFlagSet("schema", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -93,7 +92,6 @@ func runSchema(ctx context.Context, args []string, stdout, stderr io.Writer, fai
 }
 
 // Complete a same-directory temporary file before replacing the target; preserve it on failure or cancellation.
-// 在同目录写完临时文件再替换目标，失败或取消时保留原文件。
 func writeSchemaFile(ctx context.Context, path string, raw []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err

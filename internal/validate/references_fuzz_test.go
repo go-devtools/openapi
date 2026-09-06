@@ -7,7 +7,6 @@ import (
 )
 
 // Fuzz the actual reference graph with bounded inputs and deterministic-diagnostic checks.
-// 模糊测试直接进入真实引用图，限制输入体积并检查诊断确定性。
 func FuzzReferenceGraph(f *testing.F) {
 	f.Add("#node", "https://example.test/openapi.json", "node")
 	f.Add("#/$defs/a~1b", "https://example.test/openapi.json", "value")

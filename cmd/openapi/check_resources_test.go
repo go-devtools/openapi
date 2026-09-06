@@ -11,7 +11,6 @@ import (
 )
 
 // Read resources from the explicit manifest and resolve relative paths against its directory.
-// 命令通过用户指定清单读取资源；清单相对路径相对于清单目录解析。
 func TestCheckResourceManifest(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
@@ -54,7 +53,6 @@ func TestCheckResourceManifest(t *testing.T) {
 }
 
 // Reject invalid manifests and missing resources while allowing help to exit successfully.
-// 错误清单和未提供的资源必须明确失败，help 应正常退出。
 func TestCheckManifestErrorsAndHelp(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "openapi.json")

@@ -11,18 +11,15 @@ import (
 )
 
 // Record unexpected resource access without loading files to hide export defects.
-// 记录意外资源访问，不能通过加载外部文件掩盖导出缺陷。
 type standaloneLoader struct{ calls int }
 
 // Reject implicit loading so the independent engine uses only the exported document.
-// 拒绝隐式加载，独立引擎只能读取导出的单个文档。
 func (l *standaloneLoader) Load(uri string) (any, error) {
 	l.calls++
 	return nil, fmt.Errorf("unexpected load: %s", uri)
 }
 
 // Check export bytes with an independent engine, exact numbers, and no external loader.
-// 用独立引擎检查导出字节，保留数值精度并禁止外部加载。
 func compileStandalone(t *testing.T, raw []byte) *jsonschema.Schema {
 	t.Helper()
 	var value any
@@ -50,7 +47,6 @@ func compileStandalone(t *testing.T, raw []byte) *jsonschema.Schema {
 }
 
 // Preserve identified component references and dynamic recursion constraints on children.
-// 含 $id 的组件引用必须保持资源身份，动态递归仍约束子节点。
 func TestStandaloneIdentifiedComponent(t *testing.T) {
 	node := spec.Typed("object")
 	node.ID = "https://example.test/node"
@@ -80,7 +76,6 @@ func TestStandaloneIdentifiedComponent(t *testing.T) {
 }
 
 // Do not reinterpret matching text in a new resource as a root component or local definition.
-// 不把新资源内的同形引用误认为根组件或局部定义。
 func TestStandaloneDoesNotRewriteAcrossResourceScope(t *testing.T) {
 	scoped := spec.Typed("object")
 	scoped.ID = "https://example.test/scoped"

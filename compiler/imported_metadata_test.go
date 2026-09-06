@@ -16,7 +16,6 @@ import (
 )
 
 // Build a real imported DTO package while selecting only the application's package as a source root.
-// 创建实际导入的 DTO 包，仅将应用包选为源码根。
 func metadataProject(t *testing.T) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -78,7 +77,6 @@ func Handle(value dto.Request) dto.Envelope[dto.Request] { return dto.Envelope[d
 }
 
 // Imported fields, closed enums, and generic field origins must retain declarations without broadening operation discovery.
-// 导入字段、闭合枚举和泛型字段来源应保留声明，且不扩大操作发现范围。
 func TestImportedMetadata(t *testing.T) {
 	dir, _ := metadataProject(t)
 	front := compiler.Frontend{Name: "imported-metadata-v1", Match: func(f compiler.Function) bool { return f.Signature.Results().Len() == 1 },
@@ -131,7 +129,6 @@ func TestImportedMetadata(t *testing.T) {
 }
 
 // Validate only referenced imported metadata and keep the frozen loaded view independent of later filesystem writes.
-// 仅验证实际引用的导入元数据，加载后的冻结视图不受后续文件写入影响。
 func TestImportedMetadataSnapshotAndErrors(t *testing.T) {
 	dir, dto := metadataProject(t)
 	project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: dir, Env: []string{"GOWORK=off", "GOPROXY=off"}})
@@ -146,7 +143,6 @@ func TestImportedMetadataSnapshotAndErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A loaded Project must not reread source to obtain dependency comments.
-	// 已加载的 Project 不得重新读取源码以获取依赖注释。
 	path := filepath.Join(dir, "../dto/dto.go")
 	if err := os.WriteFile(path, []byte(strings.ReplaceAll(dto, "minLength=3", "minLength=20")), 0600); err != nil {
 		t.Fatal(err)
@@ -196,17 +192,14 @@ func TestImportedMetadataSnapshotAndErrors(t *testing.T) {
 }
 
 // Report a schema assertion from a concurrent read without calling Fatal inside a worker.
-// 报告并发读取中的 Schema 断言，避免在工作协程内调用 Fatal。
 type metadataFailure struct{}
 
 // Explain the lost imported constraint.
-// 说明缺失的导入约束。
 func (*metadataFailure) Error() string {
 	return "imported metadata was not retained in the immutable loaded view"
 }
 
 // Preserve actual directive locations in CRLF blocks and report coordinates for the loaded overlay rather than a later file.
-// 保留 CRLF 块中的实际指令位置，坐标对应已加载的 overlay 内容。
 func TestCommentSourcePositions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "app.go")
@@ -246,7 +239,6 @@ func TestCommentSourcePositions(t *testing.T) {
 }
 
 // Keep a referenced dependency error at its physical source while retaining the calling effect or declaration as evidence.
-// 依赖错误应指向其实际源码，并保留调用效果或声明作为证据。
 func TestImportedMetadataDiagnosticSources(t *testing.T) {
 	dir, dto := metadataProject(t)
 	path := filepath.Join(dir, "app.go")
@@ -306,7 +298,6 @@ func Declared() {}
 }
 
 // Use physical source coordinates even when a Go line directive supplies a synthetic filename.
-// 即使 Go 行号指令提供虚拟文件名，也使用实际源码坐标。
 func TestCommentSourceLineDirective(t *testing.T) {
 	dir := t.TempDir()
 	source := "package app\n//line misleading.go:900\n// @openapi response status=204\nfunc H() {}\n"
@@ -330,7 +321,6 @@ func TestCommentSourceLineDirective(t *testing.T) {
 }
 
 // Source-level type and range errors must expose stable codes and the actual imported field, not only formatted text.
-// 源码类型与范围错误应提供稳定编码和实际导入字段，而非仅返回格式化文本。
 func TestImportedSemanticDiagnosticSources(t *testing.T) {
 	for _, sample := range []struct{ name, constraint, code string }{
 		{"type", "minimum=1", "openapi.comment.type"},

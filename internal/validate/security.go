@@ -3,7 +3,6 @@ package validate
 import "strings"
 
 // Validate fields applicable to each security scheme without interpreting extension data.
-// 验证各安全方案适用的字段，不解释扩展数据。
 func (c *checker) security(m map[string]any, path string) {
 	allowed := []string{"type", "description", "deprecated"}
 	switch str(m, "type") {
@@ -54,7 +53,6 @@ func (c *checker) security(m map[string]any, path string) {
 }
 
 // Check all five OAuth flows while permitting empty objects and namespaced extensions.
-// 检查五种 OAuth 流程，允许空流程集合和命名空间扩展。
 func (c *checker) oauthFlows(flows map[string]any, path string) {
 	for _, kind := range sortedKeys(flows) {
 		if c.stopped() {
@@ -111,7 +109,6 @@ func (c *checker) oauthFlows(flows map[string]any, path string) {
 }
 
 // Reject misspelled or inapplicable standard fields while keeping x- values opaque.
-// 拒绝拼写错误或不适用的标准字段，保留不透明的 x- 扩展值。
 func (c *checker) securityFields(m map[string]any, path string, allowed ...string) {
 	for _, key := range sortedKeys(m) {
 		if c.stopped() {
@@ -131,7 +128,6 @@ func (c *checker) securityFields(m map[string]any, path string, allowed ...strin
 }
 
 // Check URL syntax and explicit TLS violations without fetching endpoints or guessing runtime servers.
-// 检查 URL 语法和显式 TLS 违规，不抓取端点或猜测运行时服务器。
 func (c *checker) securityURL(m map[string]any, key, path, missingCode string) {
 	value, exists := m[key]
 	if !exists {

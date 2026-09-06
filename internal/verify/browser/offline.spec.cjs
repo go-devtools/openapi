@@ -1,7 +1,6 @@
 const { test, expect } = require('./fixtures.cjs');
 
 // Render actual offline documentation without enabling request execution by default.
-// 渲染真实离线文档，默认不允许执行请求。
 test('safe defaults, display names, enum labels, and definition selection', async ({ page, request }, testInfo) => {
  await page.goto('/safe/docs/?url=https://outside.invalid/spec.json');
  await expect(page).toHaveTitle('Browser contract');
@@ -28,7 +27,6 @@ test('safe defaults, display names, enum labels, and definition selection', asyn
 });
 
 // Send a harmless local request only after explicit configuration and Bearer authorization.
-// 仅在显式配置和 Bearer 授权后发送无副作用的本地请求。
 test('explicit submission sends the Bearer token and typed JSON', async ({ page, request }, testInfo) => {
  await page.goto('/enabled/docs/');
  await expect(page.locator('.info .title')).toContainText('Browser API');

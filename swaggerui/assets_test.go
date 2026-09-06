@@ -11,7 +11,6 @@ import (
 )
 
 // Verify every embedded upstream asset against its pinned digest and preserve required notices.
-// 对每个内嵌上游资源核对固定摘要，并保留必要的许可证与声明。
 func TestBundledAssetLicenses(t *testing.T) {
 	raw, err := os.ReadFile("checksums.json")
 	if err != nil {

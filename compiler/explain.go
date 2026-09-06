@@ -12,14 +12,12 @@ import (
 )
 
 // Select a fully qualified Go symbol and optionally one response status.
-// 选择完整 Go 符号，并可限定一个响应状态。
 type ExplainQuery struct {
 	Symbol   string `json:"symbol"`
 	Response string `json:"response,omitempty"`
 }
 
 // Preserve parsed declarations without claiming that business code enforces them.
-// 保留已解析声明，不据此声称业务代码实施了约束。
 type DeclarationEvidence struct {
 	Source         openapi.Source             `json:"source"`
 	Description    string                     `json:"description,omitempty"`
@@ -28,7 +26,6 @@ type DeclarationEvidence struct {
 }
 
 // Associate one projected field or type with its actual Go declaration.
-// 将投影后的字段或类型关联到真实 Go 声明。
 type SchemaOrigin struct {
 	Kind         string                `json:"kind"`
 	Source       openapi.Source        `json:"source"`
@@ -40,7 +37,6 @@ type SchemaOrigin struct {
 }
 
 // Describe the payload projection used by a neutral effect before optional response wrapping.
-// 描述中立效果实际使用的载荷投影；该投影位于可选响应包装之前。
 type SchemaUse struct {
 	Handler          string                  `json:"handler"`
 	Kind             EffectKind              `json:"kind"`
@@ -64,17 +60,14 @@ type SchemaUse struct {
 }
 
 // Keep the request condition attached to each selected final response.
-// 保留每个最终响应对应的请求条件。
 type ExplainedResponse struct {
 	When     *openapi.RequestCondition `json:"when,omitempty"`
 	Response spec.RefOr[spec.Response] `json:"response"`
 }
 
 // Return detached evidence, final contracts, diagnostics, and centralized remediation guidance.
-// 返回独立的来源证据、最终契约、诊断及集中修复指引。
 type Explanation struct {
 	// Resolve final contract references using the captured Bundle components.
-	// 使用捕获时的 Bundle 组件解析最终契约引用。
 	Components   *spec.Components      `json:"components,omitempty"`
 	Kind         string                `json:"kind"`
 	Symbol       string                `json:"symbol"`
@@ -89,7 +82,6 @@ type Explanation struct {
 }
 
 // Bound optional compile-time records separately from runtime Bundle data.
-// 独立限制可选编译期记录，不写入运行时 Bundle。
 type explanationCapture struct {
 	bundle          openapi.Bundle
 	when            *openapi.RequestCondition
@@ -102,7 +94,6 @@ type explanationCapture struct {
 }
 
 // Charge serialized evidence before retaining it; overflow never produces a partial successful report.
-// 保存证据前计入序列化字节预算；超限不返回部分成功的报告。
 func (c *explanationCapture) charge(value any) bool {
 	if c.err != nil {
 		return false
@@ -121,7 +112,6 @@ func (c *explanationCapture) charge(value any) bool {
 }
 
 // Snapshot effects only when capture is requested, without invoking any frontend callback.
-// 仅在显式请求时保存效果快照，不调用任何前端回调。
 func (p *Project) captureProjection(site SchemaUse, projection *Projection, failure error) {
 	c := p.explanations
 	if c == nil || c.err != nil {
@@ -150,7 +140,6 @@ func (p *Project) captureProjection(site SchemaUse, projection *Projection, fail
 }
 
 // Describe an actual effect without retaining Go objects or executable callbacks.
-// 描述实际效果，不保留 Go 对象或可执行回调。
 func (p *Project) effectUse(effect Effect, direction Direction) SchemaUse {
 	if p.explanations == nil {
 		return SchemaUse{}
@@ -169,7 +158,6 @@ func (p *Project) effectUse(effect Effect, direction Direction) SchemaUse {
 }
 
 // Use import paths instead of local aliases for stable type identities.
-// 使用导入路径代替局部别名，确保类型身份稳定。
 func explainType(typ types.Type) string {
 	if typ == nil {
 		return ""
@@ -178,7 +166,6 @@ func explainType(typ types.Type) string {
 }
 
 // Freeze semantic descriptions and directive values as unproven declarations.
-// 将语义描述及指令值保存为未经实施证明的声明。
 func declarationEvidence(doc comment.Document, source openapi.Source) []DeclarationEvidence {
 	description := strings.TrimSpace(doc.Summary + "\n\n" + doc.Description)
 	if description == "" && len(doc.Directives) == 0 {
@@ -200,7 +187,6 @@ func declarationEvidence(doc comment.Document, source openapi.Source) []Declarat
 }
 
 // Record a completed projection using the same metadata and codec decisions as Schema generation.
-// 使用 Schema 生成时相同的元数据与 codec 决策，记录已完成的投影。
 func (p *projector) recordOrigin(object types.Object, typ types.Type, schema *spec.Schema, kind, wireName string, required bool) {
 	if !p.request.Explain {
 		return
@@ -213,7 +199,6 @@ func (p *projector) recordOrigin(object types.Object, typ types.Type, schema *sp
 }
 
 // Retain the rule that actually handled a type, not every rule that was considered.
-// 保留实际处理类型的规则，不把尝试但未采用的规则列为证据。
 func (p *projector) recordRule(typ types.Type, rule, kind string) {
 	if p.request.Explain {
 		p.rules = append(p.rules, openapi.Source{Symbol: explainType(typ), Rule: rule, Kind: kind})
@@ -221,7 +206,6 @@ func (p *projector) recordRule(typ types.Type, rule, kind string) {
 }
 
 // Index source-root fields that lack a selected projection and semantic declarations on candidate functions.
-// 索引源码根中未参与投影的字段，以及候选函数的语义声明。
 func (p *Project) captureDeclarations(fn Function) {
 	c := p.explanations
 	if c == nil {
@@ -235,7 +219,6 @@ func (p *Project) captureDeclarations(fn Function) {
 }
 
 // Preserve known source fields without retaining the project or its AST in Result.
-// 保存已知源码字段，避免 Result 持有整个项目或 AST。
 func (p *Project) captureKnownFields() {
 	c := p.explanations
 	if c == nil {
@@ -258,7 +241,6 @@ func (p *Project) captureKnownFields() {
 }
 
 // Query captured evidence without reading source again or executing mappers and codecs.
-// 查询已捕获的证据，不重新读取源码或执行 mapper 与 codec。
 func (r *Result) Explain(query ExplainQuery) (Explanation, error) {
 	if r == nil || r.explanations == nil {
 		return Explanation{}, fmt.Errorf("openapi.explain.disabled: compile with Options.Explain enabled")
@@ -356,7 +338,6 @@ func (r *Result) Explain(query ExplainQuery) (Explanation, error) {
 }
 
 // Match parsed numeric or string statuses without changing their original JSON values.
-// 匹配已解析的数字或字符串状态，不改写原始 JSON 值。
 func declarationStatus(declaration DeclarationEvidence, status string) bool {
 	if declaration.Source.Rule != "openapi.comment.response" {
 		return false
@@ -370,7 +351,6 @@ func declarationStatus(declaration DeclarationEvidence, status string) bool {
 }
 
 // Detach nested schemas, raw JSON, maps, slices, and conditions in one checked copy.
-// 通过一次经过检查的复制隔离嵌套 Schema、原始 JSON、映射、切片及条件。
 func copyExplanationJSON[T any](value T) (T, error) {
 	var out T
 	raw, err := json.Marshal(value)
@@ -384,7 +364,6 @@ func copyExplanationJSON[T any](value T) (T, error) {
 }
 
 // Scope captured evidence to the current path while leaving generated facts unchanged.
-// 将捕获证据限定于当前路径，不改变生成的事实数据。
 func (p *Project) explanationPath(when openapi.RequestCondition) func() {
 	if p.explanations == nil {
 		return func() {}

@@ -9,7 +9,6 @@ import (
 )
 
 // Expand an explicit object projection into named parameters, reusing field annotations and component references.
-// 将明确对象投影展开为命名参数，复用共享字段注释与组件引用。
 func (p *Project) mergeParameterObject(op *spec.Operation, effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) error {
 	if effect.In != "query" && effect.In != "path" && effect.In != "header" && effect.In != "cookie" {
 		return fmt.Errorf("invalid parameter object location: %s", effect.In)
@@ -51,7 +50,7 @@ func (p *Project) mergeParameterObject(op *spec.Operation, effect Effect, compon
 		if err != nil {
 			return err
 		}
-		parameter := spec.Parameter{Name: name, In: effect.In, Required: required[name] || effect.In == "path", Schema: field, Style: effect.Style, Explode: effect.Explode}
+		parameter := spec.Parameter{Name: name, In: effect.In, Required: spec.Set(required[name] || effect.In == "path"), Schema: field, Style: effect.Style, Explode: effect.Explode}
 		if field.SchemaObject != nil {
 			parameter.Description = field.Description
 		}
@@ -75,7 +74,6 @@ func (p *Project) mergeParameterObject(op *spec.Operation, effect Effect, compon
 }
 
 // Parameter expansion can preserve only per-field constraints; reject whole-object constraints and resource scopes explicitly.
-// 参数展开只能保留逐字段约束，整体约束与资源作用域必须明确拒绝。
 func parameterObjectKeywords(schema *spec.Schema, reference bool) error {
 	raw, err := json.Marshal(schema)
 	if err != nil {
@@ -104,7 +102,6 @@ func parameterObjectKeywords(schema *spec.Schema, reference bool) error {
 }
 
 // Check presence requirements across alternative locations without disguising them as local property constraints.
-// 检查替代输入位置的必填关系，不能用局部属性展开伪装跨位置约束。
 func alternativeLocationRequirements(schema *spec.Schema, components map[string]*spec.Schema) error {
 	seen := map[string]bool{}
 	for schema != nil && schema.SchemaObject != nil && schema.Ref != "" {
@@ -122,7 +119,6 @@ func alternativeLocationRequirements(schema *spec.Schema, components map[string]
 }
 
 // Preserve explicit single-field wire types and serialization without silently replacing conflicting observations.
-// 保留单字段的明确网络类型和序列化；重复观察不能静默覆盖矛盾契约。
 func (p *Project) mergeParameterRead(operation *spec.Operation, effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) error {
 	if effect.Name == "" {
 		return fmt.Errorf("parameter name is not an evaluable constant")
@@ -134,7 +130,7 @@ func (p *Project) mergeParameterRead(operation *spec.Operation, effect Effect, c
 	if err != nil {
 		return err
 	}
-	parameter := spec.Parameter{Name: effect.Name, In: effect.In, Required: effect.Required || effect.In == "path", Schema: schema, Style: effect.Style, Explode: effect.Explode}
+	parameter := spec.Parameter{Name: effect.Name, In: effect.In, Required: spec.Set(effect.Required || effect.In == "path"), Schema: schema, Style: effect.Style, Explode: effect.Explode}
 	for _, existing := range operation.Parameters {
 		if existing.Value == nil || existing.Value.Name != effect.Name || existing.Value.In != effect.In {
 			continue

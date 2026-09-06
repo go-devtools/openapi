@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// HEAD 仅保留响应元数据，复用的 GET 契约及原始 Bundle 不受修改。
-
 // HEAD retains response metadata without modifying the shared GET contract or original Bundle.
 func TestHEADResponseProjection(t *testing.T) {
 	response := spec.Response{Summary: "Original summary", Description: "ok", Headers: map[string]spec.RefOr[spec.Header]{"X-Version": spec.Inline(spec.Header{Schema: spec.Typed("string")})}, Content: map[string]spec.RefOr[spec.MediaType]{"application/json": spec.Inline(spec.MediaType{Schema: spec.Typed("string")})}}
@@ -53,8 +51,6 @@ func TestHEADResponseProjection(t *testing.T) {
 		}
 	}
 }
-
-// 响应组件按名称索引，操作响应仍必须使用合法状态码，x- 名称不是组件扩展。
 
 // Response components use names, while operation responses require status codes and x- names remain components.
 func TestNamedResponseComponents(t *testing.T) {

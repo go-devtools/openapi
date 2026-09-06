@@ -15,7 +15,6 @@ import (
 )
 
 // Compile ordered response effects from framework-free source through the public SDK only.
-// 用无框架源码编译有序响应效果，测试只访问公开 SDK。
 func compileItemFixture(t *testing.T, body string, call func(core.CallContext) ([]core.Effect, error)) *core.Result {
 	t.Helper()
 	dir := t.TempDir()
@@ -39,7 +38,6 @@ func compileItemFixture(t *testing.T, body string, call func(core.CallContext) (
 }
 
 // Supply explicit item wire schemas while distinguishing streams from complete response bodies.
-// 使用明确的逐项网络表示，保留普通完整正文与流式正文的区别。
 func itemWireEffects(c core.CallContext) ([]core.Effect, error) {
 	if c.Object == nil || c.Object.Pkg() == nil || c.Object.Pkg().Path() != "example.test/items" {
 		return nil, nil
@@ -65,7 +63,6 @@ func itemWireEffects(c core.CallContext) ([]core.Effect, error) {
 }
 
 // Consecutive items share itemSchema; an independent validator accepts overlapping alternatives and rejects invalid fields.
-// 连续条目共享 itemSchema；独立验证器接受重叠备选并拒绝错误字段。
 func TestResponseItems(t *testing.T) {
 	result := compileItemFixture(t, `Status(202); Emit(Item{"first"}); Emit(Other{2}); Emit(Item{"last"})`, itemWireEffects)
 	route := openapi.Route{Method: "GET", Path: "/items", OperationKey: result.Bundle.Index()[0].Key}
@@ -105,7 +102,6 @@ func TestResponseItems(t *testing.T) {
 }
 
 // Diagnose incompatible framing instead of disguising sequential output as response alternatives.
-// 不兼容的分帧方式必须诊断，不能将实际连续输出伪装成互斥备选。
 func TestResponseItemFramingConflicts(t *testing.T) {
 	for _, body := range []string{
 		`Emit(Item{}); Whole(Item{})`,
@@ -125,7 +121,6 @@ func TestResponseItemFramingConflicts(t *testing.T) {
 }
 
 // Bodyless statuses discard items before projection, avoiding errors for payloads never sent.
-// 无正文状态在投影前消除条目，不会因未发送的未知 payload 误报。
 func TestBodylessResponseItems(t *testing.T) {
 	for _, status := range []string{"204", "304"} {
 		result := compileItemFixture(t, "Status("+status+"); Emit(Item{})", func(c core.CallContext) ([]core.Effect, error) {
@@ -145,7 +140,6 @@ func TestBodylessResponseItems(t *testing.T) {
 }
 
 // Conditional merging must retain item constraints rather than erasing both complete and item framing.
-// 条件合并必须保留逐项约束；完整正文与逐项分帧不能同时消失。
 func TestConditionalItemFraming(t *testing.T) {
 	for _, mixed := range []bool{false, true} {
 		for _, reverse := range []bool{false, true} {

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Supply read-only CI credentials only to the exact requested repository.
-# 仅向精确指定的仓库提供 CI 只读凭据。
 set +x
 set -eu
 [[ "${1:-}" == get ]] || exit 0
