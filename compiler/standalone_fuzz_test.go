@@ -11,10 +11,9 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 通过独立引擎验证组件名的 URI 与 JSON Pointer 转义及资源身份。
 // Validate component URI and JSON Pointer escaping and resource identity with an independent engine.
 func FuzzStandaloneComponentIdentity(f *testing.F) {
-	for _, name := range []string{"Name", "a/b", "a~b", "", "汉字", "# %?", "~01"} {
+	for _, name := range []string{"Name", "a/b", "a~b", "", "\u6c49\u5b57", "# %?", "~01"} {
 		f.Add(name, false)
 		f.Add(name, true)
 	}

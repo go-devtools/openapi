@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// 前端按当前路径观察待提交状态和响应头，修改观察值不会写回分析器。
 // Frontends observe path-local pending status and headers without mutating analyzer state through snapshots.
 func TestFrontendResponseSnapshot(t *testing.T) {
 	dir := t.TempDir()

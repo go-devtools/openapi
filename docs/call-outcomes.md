@@ -5,7 +5,6 @@ A generation frontend can supply `Frontend.CallOutcomes` to describe a finite se
 An empty alternative set falls back to the existing `Call` callback and source-helper analysis. A callback error, an incorrect result count, contradictory nil facts, or an exceeded path budget produces a diagnostic. The result tuple must have exactly the call signature's arity; omit an individual Value.Type to use its static result type. `Nil` and `NonNil` describe known Go nil comparisons. Leave both unset when nullness is unknown. They do not authorize guessing an unknown interface payload's concrete wire type.
 
 ```go
-// 成功不写响应；错误立即提交状态，但不结束当前 Go 函数。
 // Success does not write a response; failure commits a status without ending the current Go function.
 outcomes := []compiler.CallOutcome{
     {Results: []compiler.Value{{Nil: true}}},
@@ -23,7 +22,7 @@ The core evaluates each alternative independently through subsequent assignments
 
 Method receivers are evaluated before call arguments. Expressions and arguments retain Go's left-to-right call order, including unknown short-circuit conditions. Known nil and boolean results prune impossible branches. Bounded source helpers can return multiple correlated paths and tuples; their local return does not terminate the caller. A typed nil pointer boxed in an interface is distinct from a nil interface. Simple local pointer aliases preserve helper writes; calls governed by frontend rules or unknown external calls invalidate facts about addresses they may mutate.
 
-MaxPaths applies within expressions and call alternatives as well as statement paths. MaxCalls and MaxDepth remain shared analysis limits. Truncation is reported and blocks document construction for an included operation. This implementation does not claim complete heap alias analysis, higher-order closures, arbitrary pointer/field mutation, generic specialization, or a cached parameterized-helper summary engine. Unsupported operations and the remaining full-goal matrix still need explicit work.
+MaxPaths applies within expressions and call alternatives as well as statement paths. MaxCalls and MaxDepth remain shared analysis limits. Truncation is reported and blocks document construction for an included operation. Known function values and captured cells use the [callback and function-value analyzer](callbacks.md). Complete heap alias analysis, arbitrary pointer mutation, and cached parameterized helper summaries are outside its supported scope. Unsupported effects remain diagnostics.
 
 Tests exercise a neutral carrier, public SDK consumers outside the core module, ignored and checked errors, malformed callback results, helper tuples, switch and short-circuit branches, pointer aliases, boxed nil values, and receiver/argument write ordering. Framework-specific error statuses and codec selection belong to adapters.
 

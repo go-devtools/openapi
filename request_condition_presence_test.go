@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// 不同媒体要求不同的请求体必填状态时，必须诊断不可无损合并。
 // Diagnose media-dependent body presence when it cannot be merged without losing requirements.
 func TestConditionalBodyPresence(t *testing.T) {
 	raw := []byte(`{"formatVersion":1,"specVersion":"3.2.0","capabilities":["request-conditions-v1"],"components":{},"profile":{},"templates":[{"key":"body","operation":{},"variants":[

@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// 固定可选包内的官方资源字节，防止无记录的上游替换。
 // Pins official resource bytes in the optional package to prevent unrecorded upstream replacements.
 func TestBuiltinDialectChecksums(t *testing.T) {
 	expected := map[string]string{

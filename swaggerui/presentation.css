@@ -1,4 +1,3 @@
-/* 字段示例是值列表，标量紧凑展示，结构化数据保留可读缩进。 */
 /* Display field examples as value lists, using compact scalars and readable indentation for structured data. */
 .swagger-ui .openapi-field-examples { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 12px; font-size: 13px; }
 .swagger-ui .openapi-field-examples__label { color: #576374; font-weight: 600; flex: 0 0 auto; }
@@ -6,7 +5,6 @@
 .swagger-ui .openapi-field-examples__values li { min-width: 0; max-width: 100%; }
 .swagger-ui .openapi-field-examples code, .swagger-ui .openapi-field-examples pre { display: block; margin: 0; padding: 4px 8px; border: 1px solid #c9d7d0; border-radius: 5px; background: #ffffffc9; color: #24362e; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
 .swagger-ui .openapi-field-examples pre { max-height: 16rem; overflow: auto; padding: 8px 10px; }
-/* 复制与展开按钮分开占位，使用高对比度的双页图标。 */
 /* Give copy and expansion buttons separate space and use a high-contrast double-page icon. */
 .swagger-ui .opblock-summary .copy-to-clipboard { position: static; flex: 0 0 32px; width: 32px; height: 32px; margin: 0 6px; border: 1px solid #bccbc3; border-radius: 6px; background: #fff; }
 .swagger-ui .opblock-summary .copy-to-clipboard button { position: relative; display: block; flex: none; width: 30px; height: 30px; padding: 0; background: none; color: #384b41; }
@@ -17,7 +15,6 @@
 .swagger-ui .opblock-summary .copy-to-clipboard button:focus-visible { outline: 2px solid #14744b; outline-offset: 3px; border-radius: 5px; }
 @media (max-width: 540px) { .swagger-ui .openapi-field-examples { flex-direction: column; gap: 4px; } }
 
-/* 参考 Petstore 的紧凑层级，模型使用中性底色，字段名称与类型同排对齐。 */
 /* Follow Petstore's compact hierarchy with neutral model backgrounds and aligned field names and types. */
 body { margin: 0; background: #fafafa; }
 .swagger-ui .info { margin: 32px 0; }
@@ -35,7 +32,6 @@ body { margin: 0; background: #fafafa; }
 .swagger-ui .json-schema-2020-12-property:first-child { border-top: 0; }
 .swagger-ui .json-schema-2020-12-property > .json-schema-2020-12 { margin: 0; padding: 0; }
 .swagger-ui .json-schema-2020-12-property > .json-schema-2020-12 > .json-schema-2020-12-head > .json-schema-2020-12-accordion { min-width: min(140px, 45%); }
-/* 保留模型的整体展开操作；每个字段仍可通过名称旁的箭头独立展开。 */
 /* Keep whole-model expansion and allow individual fields to expand using their adjacent arrows. */
 .swagger-ui .json-schema-2020-12-property > .json-schema-2020-12 > .json-schema-2020-12-head > .json-schema-2020-12-expand-deep-button { display: none; }
 .swagger-ui .json-schema-2020-12-property > .json-schema-2020-12 > .json-schema-2020-12-body { margin-left: 12px; padding-left: 12px; border-left: 2px solid #dce1e7; }
@@ -44,7 +40,6 @@ body { margin: 0; background: #fafafa; }
 .swagger-ui .openapi-field-examples { margin: 6px 0; gap: 8px; font-size: 12px; }
 .swagger-ui .openapi-field-examples__label { min-width: 54px; }
 .swagger-ui .openapi-field-examples code, .swagger-ui .openapi-field-examples pre { background: #fff; color: #344054; border-color: #d7dde5; border-radius: 3px; padding: 2px 6px; }
-/* 长路径和摘要允许换行，操作图标始终保持自己的点击区域。 */
 /* Wrap long paths and summaries while preserving separate clickable areas for operation icons. */
 .swagger-ui .opblock-summary-control { min-width: 0; flex-wrap: wrap; row-gap: 5px; }
 .swagger-ui .opblock .opblock-summary-path { min-width: 0; }
@@ -56,7 +51,6 @@ body { margin: 0; background: #fafafa; }
   .swagger-ui .openapi-field-examples { flex-direction: row; align-items: baseline; }
   .swagger-ui .json-schema-2020-12-property > .json-schema-2020-12 > .json-schema-2020-12-head > .json-schema-2020-12-accordion { min-width: min(110px, 45%); }
 }
-/* 窄屏顶部保留两行：品牌与主题按钮同排，文档分类独占第二行。 */
 /* Use two header rows on narrow screens: branding and theme controls first, document selection second. */
 @media (max-width: 540px) {
   .swagger-ui .topbar .topbar-wrapper { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 10px; align-items: center; }

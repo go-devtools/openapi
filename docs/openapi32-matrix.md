@@ -1,8 +1,8 @@
-# Native OpenAPI 3.2 acceptance matrix
+# Native OpenAPI 3.2 support matrix
 
-This matrix tracks the complete Goal scope. Model availability, serialization, semantic validation, independent validation, and UI rendering are separate claims. An existing broad fixture does not prove every positive/negative combination. Pending cells remain required acceptance work.
+Model availability, serialization, semantic checking, independent instance validation, and UI rendering are separate capabilities. The table identifies existing tests and the limits of their coverage; a roundtrip fixture alone does not establish every positive and negative combination.
 
-| Area | Public expression/model | Current evidence | Remaining acceptance |
+| Area | Public expression/model | Current evidence | Coverage limits |
 | --- | --- | --- | --- |
 | Root, `$self`, dialect, references | `spec.OpenAPI`, `spec.Ref`, Schema references | `spec/model_test.go`, offline reference tests and `docs/references.md` | Complete base-URI and external-reference matrix; UI behavior |
 | HTTP methods | `spec.PathItem.Query`, `AdditionalOperations` | Native fixture and duplicate-method validation tests | All method-conflict and UI combinations |
@@ -19,6 +19,6 @@ This matrix tracks the complete Goal scope. Model availability, serialization, s
 | JSON Schema | `spec.Schema` and public Schema compiler | Schema tests, independent contract engine, external SDK | Complete Go projection/tag/codec/numeric/nullability matrix |
 | Streams | `spec.MediaType.ItemSchema` and Schema content fields | Native model fixture; neutral ResponseItem frontend, boxed payload/commit snapshots, independent NDJSON/SSE UTF-8 and budget tests; separate Gin SSE/Stream and JSON Encoder HTTP matrices | Remaining writer/framing/async combinations, complete protocol/budget matrix and UI |
 
-The current HTTP response increment corrected a 3.1-era assumption during review: Response.description is optional in 3.2. The validator checks the types of present summary/description fields. Component response names are not HTTP status codes, and an `x-` component name must still be validated as a response.
+Response.description is optional in OpenAPI 3.2. The validator checks the types of present summary/description fields. Component response names are not HTTP status codes, and an `x-` component name must still be validated as a response.
 
-Go 1.27.1 development, race, fixed-remote and UI evidence is recorded in [verification.md](verification.md). The full Goal remains active until all required cells have authoritative evidence.
+Run `GOWORK=off make dev` for the module tests and build. Framework-specific behavior is tested separately in the Gin adapter. See the linked guides before depending on a feature outside the listed coverage.

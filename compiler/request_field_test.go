@@ -14,7 +14,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 从真实源码编译单个中立入口，字段读取效果不依赖任何 HTTP 框架。
 // Compile a real neutral entry point whose field-read effects depend on no HTTP framework.
 func requestFieldDocument(t *testing.T, entry func(Function) []Effect) (*openapi.Document, error) {
 	t.Helper()
@@ -33,7 +32,6 @@ func requestFieldDocument(t *testing.T, entry func(Function) []Effect) (*openapi
 	return openapi.Build(result.Bundle, []openapi.Route{{Method: "POST", Path: "/fields", OperationKey: result.Bundle.Index()[0].Key}}, openapi.Config{Title: "Fields", Version: "1"})
 }
 
-// 同一路径读取的属性共同生效，不能各自成为允许丢失其他约束的备选。
 // Conjoin fields read along one path rather than alternatives that lose other field constraints.
 func TestRequestFieldsComposeOneBody(t *testing.T) {
 	doc, err := requestFieldDocument(t, func(f Function) []Effect {
@@ -68,18 +66,16 @@ func TestRequestFieldsComposeOneBody(t *testing.T) {
 	}
 }
 
-// 重复字段的冲突应明确失败，不能沿用第一个读取而忽略后续表示。
 // Reject conflicting repeated fields instead of silently retaining the first representation.
 func TestRequestFieldsRejectConflicts(t *testing.T) {
 	_, err := requestFieldDocument(t, func(f Function) []Effect {
 		return []Effect{{Kind: EffectKind("requestField"), Name: "item", MediaType: "multipart/form-data", WireSchema: spec.Typed("string"), Source: f.Source}, {Kind: EffectKind("requestField"), Name: "item", MediaType: "multipart/form-data", WireSchema: spec.Typed("integer"), Source: f.Source}}
 	})
-	if err == nil || !strings.Contains(err.Error(), "同名请求字段") {
+	if err == nil || !strings.Contains(err.Error(), "request field item has inconsistent wire representation") {
 		t.Fatalf("conflicting fields were not diagnosed: %v", err)
 	}
 }
 
-// 完整对象和单字段读取在同一路径共同约束正文，不能用 anyOf 放宽任一读取。
 // Whole-object and single-field reads constrain the same body without anyOf weakening either read.
 func TestRequestFieldsAndWholeBody(t *testing.T) {
 	doc, err := requestFieldDocument(t, func(f Function) []Effect {
@@ -106,7 +102,6 @@ func TestRequestFieldsAndWholeBody(t *testing.T) {
 	}
 }
 
-// 有可达路径不读取正文时，不因另一路径要求正文而错误地标记整体必填。
 // A reachable path that reads no body prevents another path from making the body universally required.
 func TestRequestBodyPresenceAcrossPaths(t *testing.T) {
 	for _, source := range []string{`if flag { Require() }; return "ok"`, `if flag { return "ok" }; Require(); return "ok"`} {

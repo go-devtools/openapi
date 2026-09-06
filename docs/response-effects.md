@@ -11,7 +11,6 @@ The analyzer owns `Effect.Headers`, a map of `HeaderValue` snapshots. Frontends 
 `Effect.WireSchema` is an optional **request or response** representation supplied by a frontend. Without it, the core projects `Payload` using the actual Go type and codec. With it, the core detaches the schema before merging, preserving caller-owned values. This supports representations such as formatted text or raw binary; it must not be used to hide unknown business DTO structure. The frontend remains responsible for proving that its representation matches the serializer.
 
 ```go
-// 明确描述文本输出，业务 DTO 的 JSON 投影仍使用默认路径。
 // Describe text output explicitly while keeping business DTO JSON projection on the default path.
 effect := compiler.Effect{
     Kind: compiler.ResponseBody,

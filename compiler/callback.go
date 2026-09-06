@@ -5,7 +5,6 @@ import (
 	"reflect"
 )
 
-// 描述一次同步回调或由其布尔返回值控制的重复调用，不包含框架类型。
 // Describe a synchronous callback or repetition controlled by its boolean result without framework types.
 type CallbackPlan struct {
 	Function  Value
@@ -13,20 +12,17 @@ type CallbackPlan struct {
 	After     []Effect
 	Results   []Value
 	Repeat    *CallbackRepeat
-	// 调用前可能中断，保留此路径和对应外层返回值。
 	// Preserve possible interruption before invocation and the corresponding outer results.
 	MayInterrupt     bool
 	InterruptResults []Value
 }
 
-// 指定控制重复的布尔返回位置及继续值；次数预算在公共编译选项中设置。
 // Select the boolean result index and continuation value; public compile options set the iteration budget.
 type CallbackRepeat struct {
 	ResultIndex   int
 	ContinueValue bool
 }
 
-// 校验外层返回元组并保留其实际 Go 类型，不接受错误的前端返回约定。
 // Validate the outer result tuple and preserve actual Go types, rejecting incorrect frontend result conventions.
 func callbackResults(values, expected []Value) ([]Value, bool) {
 	if len(values) != len(expected) {
@@ -45,7 +41,6 @@ func callbackResults(values, expected []Value) ([]Value, bool) {
 	return result, true
 }
 
-// 使用共享词法状态逐次调用回调；重复和中断均受同一调用及路径预算约束。
 // Invoke callbacks through shared lexical state, bounding repetition and interruption with the same call and path budgets.
 func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flow, depth int, fallback []Value) []evaluation {
 	fail := func(message string) []evaluation {
@@ -54,27 +49,27 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 	}
 	normal, ok := callbackResults(plan.Results, fallback)
 	if !ok {
-		return fail("回调计划的外层返回元组与 Go 签名不一致")
+		return fail("callback plan outer return tuple differs from the Go signature")
 	}
 	interrupted, ok := callbackResults(plan.InterruptResults, fallback)
 	if plan.MayInterrupt && !ok {
-		return fail("回调中断的返回元组与 Go 签名不一致")
+		return fail("interrupted callback return tuple differs from the Go signature")
 	}
 	callable := plan.Function.callable
 	if callable == nil || plan.Function.Nil || plan.Function.DynamicNil {
-		return fail("回调为 nil 或实际函数实现未解决")
+		return fail("callback is nil or its actual function implementation is unresolved")
 	}
 	helper, ok := a.resolveFunction(callable, callable.object)
 	if !ok {
-		return fail("回调没有可分析的源码实现")
+		return fail("callback has no analyzable source implementation")
 	}
 	signature := helper.Signature
 	if signature.Variadic() || len(plan.Arguments) != signature.Params().Len() {
-		return fail("回调实参不匹配或变参展开规则未解决")
+		return fail("callback arguments do not match or variadic expansion is unresolved")
 	}
 	for i, value := range plan.Arguments {
 		if value.Type == nil || !types.AssignableTo(value.Type, signature.Params().At(i).Type()) {
-			return fail("回调实参类型与 Go 签名不一致")
+			return fail("callback argument types differ from the Go signature")
 		}
 	}
 	var callbackReturns []Value
@@ -84,11 +79,11 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 	if plan.Repeat != nil {
 		index := plan.Repeat.ResultIndex
 		if index < 0 || index >= len(callbackReturns) {
-			return fail("回调重复条件引用了不存在的返回位置")
+			return fail("callback repetition condition references a nonexistent return position")
 		}
 		basic, ok := callbackReturns[index].Type.Underlying().(*types.Basic)
 		if !ok || basic.Info()&types.IsBoolean == 0 {
-			return fail("回调重复条件必须使用布尔返回值")
+			return fail("callback repetition condition requires a boolean result")
 		}
 	}
 	pending := []flow{state}
@@ -100,7 +95,7 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 				finished = append(finished, evaluation{state: before.clone(), values: interrupted})
 			}
 			if iteration >= a.options.MaxIterations || a.calls >= a.options.MaxCalls || a.ctx.Err() != nil {
-				a.unknown(&before, call.Source, "同步回调重复超过预算或已取消")
+				a.unknown(&before, call.Source, "synchronous callback repetition exceeded the budget or was canceled")
 				finished = append(finished, evaluation{state: before, values: normal})
 				continue
 			}
@@ -121,7 +116,6 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 					if len(after.state.diagnostics) > len(before.diagnostics) {
 						finished = append(finished, evaluation{state: after.state, values: normal})
 					} else if (plan.MayInterrupt || !known) && sameCallbackState(before, after.state, plan) {
-						// 同一抽象状态的下一次调用不会产生新的契约；只能保留已经存在的出口。
 						// Reinvoking the same abstract state adds no contract; retain only exits that already exist.
 						if plan.MayInterrupt {
 							finished = append(finished, evaluation{state: after.state, values: interrupted})
@@ -144,7 +138,6 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 	return a.limitEvaluations(call.Function, call.Call, finished)
 }
 
-// 只比较可达捕获单元和响应状态，已退出帧的临时变量不阻止固定点收敛。
 // Compare reachable captured cells and response state; temporaries from exited frames do not prevent fixed-point convergence.
 func sameCallbackState(before, after flow, plan CallbackPlan) bool {
 	if before.bodyKind != after.bodyKind || before.bodyMedia != after.bodyMedia || min(before.writes, 2) != min(after.writes, 2) || !reflect.DeepEqual(before.when, after.when) || !reflect.DeepEqual(responseSnapshot(before), responseSnapshot(after)) {

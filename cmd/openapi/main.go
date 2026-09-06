@@ -1,4 +1,3 @@
-// 提供框架无关的 Schema、规范检查与版本命令。
 // Provide framework-neutral Schema, specification, and version commands.
 package main
 
@@ -17,7 +16,6 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 响应中断取消，不运行用户项目脚本。
 // Cancel on interruption without running project scripts.
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -25,7 +23,6 @@ func main() {
 	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// 分派核心命令；命令编排不包含任何框架前端。
 // Dispatch core commands without embedding framework frontends.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fail := func(err error) int {
@@ -56,13 +53,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	case "check", "check-spec":
 		flags := flag.NewFlagSet("check", flag.ContinueOnError)
 		flags.SetOutput(stderr)
-		file := flags.String("spec", "", "待校验的 OpenAPI JSON 文件")
-		base := flags.String("base-uri", "", "主文档的绝对检索 URI；仅用于解析，不下载内容")
-		manifest := flags.String("resources", "", "离线资源清单 JSON；条目包含 uri、file 和可选 kind")
-		maxBytes := flags.Int("max-bytes", 8<<20, "主文档与预载内容的总字节上限")
-		maxResources := flags.Int("max-resources", 64, "包括主文档及内嵌 $id 的资源数量上限")
-		maxReferences := flags.Int("max-references", 10000, "规范引用次数上限")
-		maxIndexBytes := flags.Int("max-index-bytes", 16<<20, "索引、URI 解析和诊断文本的累计字节上限")
+		file := flags.String("spec", "", "OpenAPI JSON file to validate")
+		base := flags.String("base-uri", "", "Absolute retrieval URI for the main document; used only for resolution, without downloading content")
+		manifest := flags.String("resources", "", "Offline resource manifest JSON; entries contain uri, file, and optional kind")
+		maxBytes := flags.Int("max-bytes", 8<<20, "Maximum total bytes for the main document and preloaded content")
+		maxResources := flags.Int("max-resources", 64, "Maximum resource count including the main document and embedded $id values")
+		maxReferences := flags.Int("max-references", 10000, "Maximum specification reference count")
+		maxIndexBytes := flags.Int("max-index-bytes", 16<<20, "Maximum cumulative bytes for indexing, URI resolution, and diagnostic text")
 		if err := flags.Parse(args[1:]); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
 				return 0
@@ -70,10 +67,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		if flags.NArg() != 0 {
-			return fail(fmt.Errorf("check 不接受未命名参数"))
+			return fail(fmt.Errorf("check does not accept positional arguments"))
 		}
 		if *file == "" {
-			return fail(fmt.Errorf("缺少 --spec"))
+			return fail(fmt.Errorf("--spec is required"))
 		}
 		options := openapi.CheckOptions{BaseURI: *base, MaxBytes: *maxBytes, MaxResources: *maxResources, MaxReferences: *maxReferences, MaxIndexBytes: *maxIndexBytes}
 		raw, options, err := readCheckInputs(ctx, *file, *manifest, options)
@@ -95,6 +92,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	case "schema":
 		return runSchema(ctx, args[1:], stdout, stderr, fail)
 	default:
-		return fail(fmt.Errorf("未知命令 %s", args[0]))
+		return fail(fmt.Errorf("unknown command %s", args[0]))
 	}
 }

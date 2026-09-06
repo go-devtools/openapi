@@ -2,14 +2,12 @@ package spec
 
 import "encoding/json"
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v OpenAPI) MarshalJSON() ([]byte, error) {
 	type plain OpenAPI
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *OpenAPI) UnmarshalJSON(b []byte) error {
 	type plain OpenAPI
@@ -21,14 +19,12 @@ func (v *OpenAPI) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Info) MarshalJSON() ([]byte, error) {
 	type plain Info
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Info) UnmarshalJSON(b []byte) error {
 	type plain Info
@@ -40,14 +36,12 @@ func (v *Info) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Contact) MarshalJSON() ([]byte, error) {
 	type plain Contact
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Contact) UnmarshalJSON(b []byte) error {
 	type plain Contact
@@ -59,14 +53,12 @@ func (v *Contact) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v License) MarshalJSON() ([]byte, error) {
 	type plain License
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *License) UnmarshalJSON(b []byte) error {
 	type plain License
@@ -78,14 +70,12 @@ func (v *License) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Server) MarshalJSON() ([]byte, error) {
 	type plain Server
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Server) UnmarshalJSON(b []byte) error {
 	type plain Server
@@ -97,14 +87,12 @@ func (v *Server) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v ServerVariable) MarshalJSON() ([]byte, error) {
 	type plain ServerVariable
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *ServerVariable) UnmarshalJSON(b []byte) error {
 	type plain ServerVariable
@@ -116,14 +104,12 @@ func (v *ServerVariable) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Components) MarshalJSON() ([]byte, error) {
 	type plain Components
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Components) UnmarshalJSON(b []byte) error {
 	type plain Components
@@ -135,14 +121,12 @@ func (v *Components) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v PathItem) MarshalJSON() ([]byte, error) {
 	type plain PathItem
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *PathItem) UnmarshalJSON(b []byte) error {
 	type plain PathItem
@@ -154,14 +138,12 @@ func (v *PathItem) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Operation) MarshalJSON() ([]byte, error) {
 	type plain Operation
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Operation) UnmarshalJSON(b []byte) error {
 	type plain Operation
@@ -173,14 +155,12 @@ func (v *Operation) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v ExternalDocumentation) MarshalJSON() ([]byte, error) {
 	type plain ExternalDocumentation
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *ExternalDocumentation) UnmarshalJSON(b []byte) error {
 	type plain ExternalDocumentation
@@ -192,14 +172,12 @@ func (v *ExternalDocumentation) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Parameter) MarshalJSON() ([]byte, error) {
 	type plain Parameter
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Parameter) UnmarshalJSON(b []byte) error {
 	type plain Parameter
@@ -211,14 +189,12 @@ func (v *Parameter) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v RequestBody) MarshalJSON() ([]byte, error) {
 	type plain RequestBody
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *RequestBody) UnmarshalJSON(b []byte) error {
 	type plain RequestBody
@@ -230,14 +206,12 @@ func (v *RequestBody) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v MediaType) MarshalJSON() ([]byte, error) {
 	type plain MediaType
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *MediaType) UnmarshalJSON(b []byte) error {
 	type plain MediaType
@@ -249,14 +223,12 @@ func (v *MediaType) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Encoding) MarshalJSON() ([]byte, error) {
 	type plain Encoding
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Encoding) UnmarshalJSON(b []byte) error {
 	type plain Encoding
@@ -268,14 +240,12 @@ func (v *Encoding) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Response) MarshalJSON() ([]byte, error) {
 	type plain Response
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Response) UnmarshalJSON(b []byte) error {
 	type plain Response
@@ -287,14 +257,12 @@ func (v *Response) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Example) MarshalJSON() ([]byte, error) {
 	type plain Example
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Example) UnmarshalJSON(b []byte) error {
 	type plain Example
@@ -306,14 +274,12 @@ func (v *Example) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Link) MarshalJSON() ([]byte, error) {
 	type plain Link
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Link) UnmarshalJSON(b []byte) error {
 	type plain Link
@@ -325,14 +291,12 @@ func (v *Link) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Header) MarshalJSON() ([]byte, error) {
 	type plain Header
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Header) UnmarshalJSON(b []byte) error {
 	type plain Header
@@ -344,14 +308,12 @@ func (v *Header) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Tag) MarshalJSON() ([]byte, error) {
 	type plain Tag
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Tag) UnmarshalJSON(b []byte) error {
 	type plain Tag
@@ -363,14 +325,12 @@ func (v *Tag) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v SecurityScheme) MarshalJSON() ([]byte, error) {
 	type plain SecurityScheme
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *SecurityScheme) UnmarshalJSON(b []byte) error {
 	type plain SecurityScheme
@@ -382,14 +342,12 @@ func (v *SecurityScheme) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v OAuthFlows) MarshalJSON() ([]byte, error) {
 	type plain OAuthFlows
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *OAuthFlows) UnmarshalJSON(b []byte) error {
 	type plain OAuthFlows
@@ -401,14 +359,12 @@ func (v *OAuthFlows) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v OAuthFlow) MarshalJSON() ([]byte, error) {
 	type plain OAuthFlow
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *OAuthFlow) UnmarshalJSON(b []byte) error {
 	type plain OAuthFlow
@@ -420,14 +376,12 @@ func (v *OAuthFlow) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v Discriminator) MarshalJSON() ([]byte, error) {
 	type plain Discriminator
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *Discriminator) UnmarshalJSON(b []byte) error {
 	type plain Discriminator
@@ -439,14 +393,12 @@ func (v *Discriminator) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 序列化标准字段和扩展，禁止扩展覆盖标准语义。
 // Serialize standard fields and extensions without allowing standard-field overrides.
 func (v XML) MarshalJSON() ([]byte, error) {
 	type plain XML
 	return marshalExtensions(plain(v), v.Extensions)
 }
 
-// 恢复标准字段与原始扩展值。
 // Restore standard fields and raw extension values.
 func (v *XML) UnmarshalJSON(b []byte) error {
 	type plain XML

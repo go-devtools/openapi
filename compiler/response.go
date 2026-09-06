@@ -12,7 +12,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 复制响应头状态，分支和已提交的响应不能共享可变映射。
 // Copy header state so branches and committed responses do not share mutable maps.
 func copyHeaders(headers map[string]HeaderValue) map[string]HeaderValue {
 	copy := make(map[string]HeaderValue, len(headers))
@@ -22,19 +21,17 @@ func copyHeaders(headers map[string]HeaderValue) map[string]HeaderValue {
 	return copy
 }
 
-// 按 HTTP 状态的通用消息语义识别没有响应体的状态。
 // Identify bodyless statuses using protocol-level HTTP message semantics.
 func bodylessStatus(status string) bool {
 	code, err := strconv.Atoi(status)
 	return err == nil && (code >= 100 && code < 200 || code == 204 || code == 304)
 }
 
-// 保留当前头存储供前端观察，只有提交前的修改进入网络头快照。
 // Preserve current header storage for frontend observation; only pre-commit changes enter wire snapshots.
 func (a *analyzer) responseHeader(state *flow, effect Effect) {
 	name := textproto.CanonicalMIMEHeaderKey(effect.Name)
 	if !validHeaderName(name) {
-		a.unknown(state, effect.Source, "响应头名称不是有效的常量")
+		a.unknown(state, effect.Source, "response header name is not a valid constant")
 		return
 	}
 	if state.observedHeaders == nil {
@@ -55,7 +52,6 @@ func (a *analyzer) responseHeader(state *flow, effect Effect) {
 	}
 }
 
-// 在最终状态确定后保存未写 body 的响应及其提交时头快照。
 // Save a bodyless final response with its commit-time header snapshot once the final status is known.
 func (a *analyzer) finishResponse(state *flow) {
 	if state.writes != 0 || state.pending == nil {
@@ -68,7 +64,6 @@ func (a *analyzer) finishResponse(state *flow) {
 	state.effects = append(state.effects, effect)
 }
 
-// 检测与已知渲染格式不一致的媒体类型覆盖，不能假装编码事实不变。
 // Diagnose media-type overrides that conflict with a known rendering representation.
 func (a *analyzer) checkResponseMedia(state *flow, effect Effect) {
 	header, exists := state.headers["Content-Type"]
@@ -76,17 +71,16 @@ func (a *analyzer) checkResponseMedia(state *flow, effect Effect) {
 		return
 	}
 	if header.Value.Constant == nil || header.Value.Constant.Kind() != constant.String {
-		a.unknown(state, header.Source, "动态 Content-Type 需要集中编解码规则")
+		a.unknown(state, header.Source, "Dynamic Content-Type requires a centralized codec rule")
 		return
 	}
 	actual, _, err := mime.ParseMediaType(constant.StringVal(header.Value.Constant))
 	expected, _, expectedErr := mime.ParseMediaType(effect.MediaType)
 	if err != nil || expectedErr != nil || actual != expected {
-		a.unknown(state, header.Source, "Content-Type 覆盖与渲染格式不同，需要明确的集中编解码规则")
+		a.unknown(state, header.Source, "Content-Type differs from the rendering format; register an explicit centralized codec rule")
 	}
 }
 
-// 脱离前端拥有的明确网络 Schema，避免备选合并修改调用方对象。
 // Detach an explicit frontend wire schema so alternative merging cannot modify caller-owned values.
 func copyWireSchema(schema *spec.Schema) (*spec.Schema, error) {
 	raw, err := json.Marshal(schema)
@@ -100,7 +94,6 @@ func copyWireSchema(schema *spec.Schema) (*spec.Schema, error) {
 	return &detached, nil
 }
 
-// 将同一响应状态的头备选合并，常量值仍由实际调用提供。
 // Merge header alternatives for one response status using values supplied by actual calls.
 func mergeResponseHeaders(response *spec.Response, headers map[string]HeaderValue) error {
 	for _, name := range sortedKeys(headers) {
@@ -111,7 +104,7 @@ func mergeResponseHeaders(response *spec.Response, headers map[string]HeaderValu
 		schema := spec.Typed("string")
 		if value.Constant != nil {
 			if value.Constant.Kind() != constant.String {
-				return fmt.Errorf("响应头 %s 不是字符串", name)
+				return fmt.Errorf("response header %s is not a string", name)
 			}
 			schema.Const = spec.Set[any](constant.StringVal(value.Constant))
 		}
@@ -128,7 +121,6 @@ func mergeResponseHeaders(response *spec.Response, headers map[string]HeaderValu
 	return nil
 }
 
-// HTTP 字段名称仅接受 ASCII token 字符，拒绝分隔符和控制字符。
 // Accept only ASCII HTTP token characters in field names, excluding separators and controls.
 func validHeaderName(name string) bool {
 	if name == "" {
@@ -143,17 +135,14 @@ func validHeaderName(name string) bool {
 	return true
 }
 
-// 表示已观察到的响应头；Known 为 false 时仍保留字段存在事实。
 // Represent an observed response header; Known=false still preserves header presence.
 type ResponseHeaderState struct {
 	Value string
 	Known bool
 }
 
-// 提供待提交或已提交状态及独立的响应头快照，不暴露分析器内部流。
 // Expose pending/committed status and detached headers without exposing internal analyzer flows.
 type ResponseState struct {
-	// 只包含真正提交时的响应头，之后的存储修改不进入此快照。
 	// Include only headers present at the actual commit; subsequent storage mutations do not enter this snapshot.
 	CommittedHeaders map[string]ResponseHeaderState
 	Status           string
@@ -161,7 +150,6 @@ type ResponseState struct {
 	Headers          map[string]ResponseHeaderState
 }
 
-// 只复制不可变字符串与布尔值，前端修改映射不能影响后续分析。
 // Copy only immutable strings and booleans so frontend map mutations cannot affect later analysis.
 func responseSnapshot(state flow) ResponseState {
 	snapshot := ResponseState{Committed: state.hasCommit, Headers: snapshotHeaderValues(state.observedHeaders)}
@@ -175,7 +163,6 @@ func responseSnapshot(state flow) ResponseState {
 	return snapshot
 }
 
-// 复制头名称及不可变标量，前端对快照的修改不会影响分析状态。
 // Copy header names and immutable scalars so frontend snapshot mutations cannot affect analysis state.
 func snapshotHeaderValues(headers map[string]HeaderValue) map[string]ResponseHeaderState {
 	snapshot := map[string]ResponseHeaderState{}
@@ -190,7 +177,6 @@ func snapshotHeaderValues(headers map[string]HeaderValue) map[string]ResponseHea
 	return snapshot
 }
 
-// 先投影实际载荷，再隔离前端包装结果，组件引用继续使用共同文档作用域。
 // Project the actual payload before detaching frontend wrapping results; component references retain the shared document scope.
 func (p *Project) responseSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
 	var schema *spec.Schema
@@ -216,10 +202,10 @@ func (p *Project) responseSchema(effect Effect, components map[string]*spec.Sche
 	}
 	schema, err = effect.TransformSchema(schema)
 	if err != nil {
-		return nil, fmt.Errorf("响应 Schema 包装失败: %w", err)
+		return nil, fmt.Errorf("response Schema wrapping failed: %w", err)
 	}
 	if schema == nil {
-		return nil, fmt.Errorf("响应 Schema 包装返回 nil")
+		return nil, fmt.Errorf("response Schema wrapping returned nil")
 	}
 	return copyWireSchema(schema)
 }

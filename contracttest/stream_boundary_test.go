@@ -8,7 +8,6 @@ import (
 	ct "github.com/openapi-golang/openapi/contracttest"
 )
 
-// UTF-8 错误子序列分别替换；单字节读取不能改变 BOM、换行或数据拼接。
 // Replace malformed UTF-8 subparts independently; one-byte reads must preserve BOM, line endings, and data joining.
 func TestSSEUTF8AndChunking(t *testing.T) {
 	for _, sample := range []struct{ name, input, want string }{
@@ -34,7 +33,6 @@ func TestSSEUTF8AndChunking(t *testing.T) {
 	}
 }
 
-// 极限预算返回错误而非溢出或 panic，精确字节及行边界仍然可用。
 // Extreme budgets return errors instead of overflowing or panicking, while exact byte and line bounds remain usable.
 func TestStreamBudgetBoundaries(t *testing.T) {
 	for _, limits := range []ct.Limits{{MaxBytes: 1<<63 - 1}, {MaxLineBytes: int(^uint(0) >> 1)}} {
@@ -67,7 +65,6 @@ func TestStreamBudgetBoundaries(t *testing.T) {
 	}
 }
 
-// NDJSON 的裸 CR 不能充当记录分隔符，LF 与 CRLF 保持可用。
 // A bare CR must not delimit NDJSON records; LF and CRLF remain supported.
 func TestNDJSONRecordDelimiters(t *testing.T) {
 	validator, err := ct.Compile([]byte(`{"type":"integer"}`), "", ct.Options{})

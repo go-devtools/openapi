@@ -7,7 +7,6 @@ import (
 	"math/big"
 )
 
-// 按实际 Go 整数位宽传播自增/自减，未知值或浮点舍入保留类型而不伪造常量。
 // Propagate increments/decrements at the actual Go integer width, retaining types without invented constants for unknown values or float rounding.
 func incrementValue(value Value, target types.Type, sizes types.Sizes, operation token.Token) Value {
 	result := Value{Type: target}

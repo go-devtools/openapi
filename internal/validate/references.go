@@ -8,20 +8,17 @@ import (
 	"strings"
 )
 
-// 保存真实规范节点的位置、上下文和所属文档。
 // Record a specification node's physical location, context, and owning document.
 type referenceNode struct {
 	value                      any
 	path, role, base, document string
 }
 
-// 保存每次引用使用，而非仅按引用文本去重。
 // Record every reference occurrence instead of deduplicating by reference text.
 type referenceUse struct {
 	value, path, base, role, owner string
 }
 
-// 对已提供内容建立离线资源图，不包含文件或网络加载器。
 // Index supplied content as an offline resource graph without file or network loaders.
 type referenceGraph struct {
 	schemaOnly            bool
@@ -40,33 +37,29 @@ type referenceGraph struct {
 	limitReported         bool
 }
 
-// 建立默认有界引用图，资源身份只在本次检查内生效。
 // Build a bounded reference graph whose resource identities exist only for the current check.
 func newReferenceGraph() *referenceGraph {
 	return &referenceGraph{budget: byteBudget{remaining: 16 << 20}, maxNormalizedBytes: 16 << 20, nodes: map[string]*referenceNode{}, resources: map[string]*referenceNode{}, anchors: map[string]*referenceNode{}, maxReferences: 10000, maxResources: 64, resourceNodes: map[string]bool{}, exampleResources: map[string]bool{}}
 }
 
-// 记录与普通检查一致的错误编码。
 // Record the same error codes used by ordinary checks.
 func (g *referenceGraph) add(code, path, message string) {
 	if !g.spend(len(code), len(path), len(message), 128) {
 		return
 	}
-	g.issues = append(g.issues, Issue{Code: "openapi.spec." + code, Path: path, Message: message, Fix: "修正引用或显式提供离线资源；检查器不会读取文件或网络"})
+	g.issues = append(g.issues, Issue{Code: "openapi.spec." + code, Path: path, Message: message, Fix: "Fix the reference or explicitly provide offline resources; the checker does not read files or access the network"})
 }
 
-// 拒绝 URI 中未编码的非法字符，同时保留合法的相对引用。
 // Reject unescaped invalid URI characters while preserving valid relative references.
 func parseURIReference(value string) (*url.URL, error) {
 	for _, c := range value {
 		if c <= 0x20 || c >= 0x7f || strings.ContainsRune("<>\"{}|\\^`", c) {
-			return nil, fmt.Errorf("URI 包含未编码字符")
+			return nil, fmt.Errorf("URI contains unencoded characters")
 		}
 	}
 	return url.Parse(value)
 }
 
-// 解析相对引用并返回绝对 URI；不触发任何 I/O。
 // Resolve relative references into absolute URIs without performing I/O.
 func absoluteReference(base, value string) (*url.URL, error) {
 	u, err := parseURIReference(value)
@@ -80,7 +73,6 @@ func absoluteReference(base, value string) (*url.URL, error) {
 	return b.ResolveReference(u), nil
 }
 
-// 资源身份不包含片段，空片段与无片段使用同一键。
 // Exclude fragments from resource identities; empty and absent fragments share one key.
 func resourceURI(u *url.URL) string {
 	copy := *u
@@ -89,7 +81,6 @@ func resourceURI(u *url.URL) string {
 	return copy.String()
 }
 
-// 固定遍历顺序，使重复身份的诊断位置可复现。
 // Keeps traversal deterministic so duplicate-identity diagnostics are reproducible.
 func sortedKeys[T any](m map[string]T) []string {
 	keys := make([]string, 0, len(m))
@@ -100,7 +91,6 @@ func sortedKeys[T any](m map[string]T) []string {
 	return keys
 }
 
-// 映射规范字典的元素上下文；字典键本身不是关键字。
 // Assign contexts to specification map entries; map keys are not themselves keywords.
 func dictionaryRole(role string) string {
 	switch role {
@@ -134,13 +124,11 @@ func dictionaryRole(role string) string {
 	return ""
 }
 
-// 只有支持扩展的字典将 x- 键解释为扩展，Schema 属性名始终保留。
 // Interpret x- keys as extensions only in extensible maps; always preserve schema property names.
 func dictionaryExtension(role, key string) bool {
 	return (role == "paths" || role == "responses") && strings.HasPrefix(key, "x-")
 }
 
-// 标识允许 Reference Object 或 Schema 引用的标准位置。
 // Identify standard locations allowing Reference Objects or schema references.
 func referenceRole(role string) bool {
 	switch role {
@@ -150,7 +138,6 @@ func referenceRole(role string) bool {
 	return false
 }
 
-// 建立 URI、锚点和规范对象索引，示例及扩展内容不作为引用指令。
 // Index URIs, anchors, and specification objects without treating examples or extensions as reference instructions.
 func (g *referenceGraph) collect(v any, path, role, base, document string, root bool) {
 	if g.budget.exceeded {
@@ -192,7 +179,7 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 		value, valid := m["$self"].(string)
 		u, err := absoluteReference(base, value)
 		if !valid || err != nil {
-			g.add("self", g.childPath(path, "$self"), "$self 必须是合法 URI-reference")
+			g.add("self", g.childPath(path, "$self"), "$self must be a valid URI-reference")
 		} else {
 			base = resourceURI(u)
 			if !g.spend(len(base)) {
@@ -205,7 +192,7 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 		value, valid := m["$id"].(string)
 		u, err := absoluteReference(base, value)
 		if !valid || err != nil || u.Fragment != "" {
-			g.add("schema.id", g.childPath(path, "$id"), "$id 必须是无非空片段的 URI-reference")
+			g.add("schema.id", g.childPath(path, "$id"), "$id must be a URI-reference without a nonempty fragment")
 		} else {
 			base, identified = resourceURI(u), true
 			if !g.spend(len(base)) {
@@ -230,7 +217,7 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 			}
 			name, valid := m[key].(string)
 			if !valid || !validAnchor(name) {
-				g.add("schema.anchor", g.childPath(path, key), "锚点必须以字母或下划线开头，并只包含字母、数字、点、横线或下划线")
+				g.add("schema.anchor", g.childPath(path, key), "anchor must start with a letter or underscore and contain only letters, digits, dots, hyphens, or underscores")
 				continue
 			}
 			if !g.spend(len(base), 1, len(name)) {
@@ -238,7 +225,7 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 			}
 			identity := base + "#" + name
 			if previous := g.anchors[identity]; previous != nil && previous.path != path {
-				g.add("schema.anchor.duplicate", g.childPath(path, key), "锚点与 "+previous.path+" 重复")
+				g.add("schema.anchor.duplicate", g.childPath(path, key), "anchor conflicts with "+previous.path+" is duplicated")
 			} else {
 				g.anchors[identity] = node
 			}
@@ -288,17 +275,16 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 	}
 }
 
-// 同一 URI 只能识别一个资源；同一节点的检索地址与自声明地址可以相同。
 // Require each URI to identify one resource; retrieval and declared identities may match for the same node.
 func (g *referenceGraph) addResource(uri string, node *referenceNode) {
 	if old := g.resources[uri]; old != nil && old.path != node.path {
-		g.add("resource.duplicate", node.path, "资源 URI 与 "+old.path+" 重复："+uri)
+		g.add("resource.duplicate", node.path, "resource URI conflicts with "+old.path+" is duplicated: "+uri)
 		return
 	}
 	if !g.resourceNodes[node.path] {
 		if len(g.resourceNodes) >= g.maxResources {
 			if !g.resourceLimitReported {
-				g.add("budget", node.path, "包含内嵌 $id 的资源数量超过预算")
+				g.add("budget", node.path, "Resource count including embedded $id exceeds the budget")
 				g.resourceLimitReported = true
 			}
 			return
@@ -308,7 +294,6 @@ func (g *referenceGraph) addResource(uri string, node *referenceNode) {
 	g.resources[uri] = node
 }
 
-// 校验标准锚点的字符范围。
 // Validate the character set permitted for standard anchors.
 func validAnchor(name string) bool {
 	if name == "" {
@@ -323,7 +308,6 @@ func validAnchor(name string) bool {
 	return true
 }
 
-// 对引用次数设定硬上限，超限明确失败而不伪装为完整检查。
 // Enforce a hard reference-count limit and report exhaustion instead of claiming a complete check.
 func (g *referenceGraph) addUse(value any, path string, node *referenceNode, role string) {
 	if g.budget.exceeded {
@@ -331,20 +315,19 @@ func (g *referenceGraph) addUse(value any, path string, node *referenceNode, rol
 	}
 	if len(g.uses) >= g.maxReferences {
 		if !g.limitReported {
-			g.add("budget", path, "引用数量超过预算")
+			g.add("budget", path, "reference count exceeds the budget")
 			g.limitReported = true
 		}
 		return
 	}
 	ref, ok := value.(string)
 	if !ok {
-		g.add("ref.uri", path, "引用必须是 URI-reference 字符串")
+		g.add("ref.uri", path, "reference must be a URI-reference string")
 		return
 	}
 	g.uses = append(g.uses, referenceUse{value: ref, path: path, base: node.base, role: role, owner: node.path})
 }
 
-// discriminator 的已知组件名按名称解析，其他字符串保留 URI 语义。
 // Resolve known discriminator component names directly while preserving URI semantics for other strings.
 func (g *referenceGraph) addMapping(value any, path string, node *referenceNode) {
 	if g.budget.exceeded {
@@ -352,10 +335,9 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 	}
 	ref, ok := value.(string)
 	if !ok {
-		g.add("ref.uri", path, "映射必须是组件名或 URI-reference 字符串")
+		g.add("ref.uri", path, "mapping must be a component name or URI-reference string")
 		return
 	}
-	// 组件名称是否存在由完整文档查询，不依赖遍历时机。
 	// Look up component names in the complete document independently of traversal order.
 	doc := g.nodes[node.document]
 	if doc != nil {
@@ -366,7 +348,6 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 			copy := *node
 			copy.base = doc.base
 			target := "#/components/schemas/" + escape(ref)
-			// 名称映射直接识别组件；组件有 $id 时使用该资源身份。
 			// Resolve name mappings directly to components, using their $id resource identity when present.
 			schema, _ := schemas[ref].(map[string]any)
 			if id, ok := schema["$id"].(string); ok {
@@ -384,7 +365,6 @@ func (g *referenceGraph) addMapping(value any, path string, node *referenceNode)
 	g.addUse(value, path, node, "schema")
 }
 
-// 检查所有引用的初始目标，不递归展开循环，也不执行实例验证。
 // Check initial reference targets without recursively expanding cycles or validating instances.
 func (g *referenceGraph) checkReferences() {
 	for _, use := range g.uses {
@@ -398,19 +378,18 @@ func (g *referenceGraph) checkReferences() {
 	}
 }
 
-// 解析目标资源后严格检查 JSON Pointer 或锚点以及对象种类。
 // Resolve target resources, then strictly validate JSON Pointers, anchors, and object kinds.
 func (g *referenceGraph) target(use referenceUse) (*referenceNode, string, string) {
 	if !g.spend(len(use.base), len(use.value)) {
-		return nil, "budget", "引用解析超过索引预算"
+		return nil, "budget", "reference resolution exceeds the index budget"
 	}
 	u, err := absoluteReference(use.base, use.value)
 	if err != nil {
-		return nil, "ref.uri", "引用不是合法 URI-reference：" + use.value
+		return nil, "ref.uri", "reference is not a valid URI-reference: " + use.value
 	}
 	uri := resourceURI(u)
 	if !g.spend(len(uri)) {
-		return nil, "budget", "引用解析超过索引预算"
+		return nil, "budget", "reference resolution exceeds the index budget"
 	}
 	resource := g.resources[uri]
 	if use.role == "externalValue" {
@@ -422,7 +401,7 @@ func (g *referenceGraph) target(use referenceUse) (*referenceNode, string, strin
 		}
 	}
 	if resource == nil {
-		return nil, "external.denied", "未提供引用所需的离线资源：" + uri
+		return nil, "external.denied", "required offline reference resource was not provided: " + uri
 	}
 	var target *referenceNode
 	if u.Fragment == "" {
@@ -430,31 +409,30 @@ func (g *referenceGraph) target(use referenceUse) (*referenceNode, string, strin
 	} else if strings.HasPrefix(u.Fragment, "/") {
 		path, code := g.pointerPath(resource, u.Fragment)
 		if code != "" {
-			return nil, code, "JSON Pointer 无效或目标不存在：" + use.value
+			return nil, code, "JSON Pointer is invalid or its target does not exist: " + use.value
 		}
 		target = g.nodes[path]
 		if target != nil && target.role == "schema" && target.base != resource.base {
-			return nil, "ref.scope", "JSON Pointer 跨越了目标 Schema 的 $id；请使用最近的 $id 作为引用基准"
+			return nil, "ref.scope", "JSON Pointer crosses the target Schema's $id; use the nearest $id as the reference base"
 		}
 		if target == nil {
-			return nil, "ref.type", "引用指向数据或未知规范对象：" + use.value
+			return nil, "ref.type", "reference targets data or an unknown specification object: " + use.value
 		}
 	} else {
 		if !g.spend(len(resource.base), 1, len(u.Fragment)) {
-			return nil, "budget", "锚点解析超过索引预算"
+			return nil, "budget", "anchor resolution exceeds the index budget"
 		}
 		target = g.anchors[resource.base+"#"+u.Fragment]
 	}
 	if target == nil {
-		return nil, "ref.missing", "引用目标不存在：" + use.value
+		return nil, "ref.missing", "reference target does not exist: " + use.value
 	}
 	if target.role != use.role {
-		return nil, "ref.type", "引用目标需要 " + use.role + "，实际为 " + target.role
+		return nil, "ref.type", "reference target requires " + use.role + ", got " + target.role
 	}
 	return target, "", ""
 }
 
-// 将 URI 解码后的 JSON Pointer 转换为物理路径，严格遵守转义与数组索引语法。
 // Convert URI-decoded JSON Pointers to physical paths using strict escape and array-index syntax.
 func pointerPath(resource *referenceNode, fragment string) (string, string) {
 	cur := resource.value

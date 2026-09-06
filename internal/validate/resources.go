@@ -10,10 +10,8 @@ import (
 	"strings"
 )
 
-// 保存显式离线输入及预算，所有零值使用有界默认值。
 // Store explicit offline inputs and budgets with bounded defaults for zero values.
 type Options struct {
-	// 独立 Schema 不把 OpenAPI 专有注解解释为结构或引用指令。
 	// Standalone schemas do not interpret OpenAPI-specific annotations as structures or references.
 	schemaOnly                            bool
 	BaseURI                               string
@@ -23,21 +21,18 @@ type Options struct {
 	MaxIndexBytes, MaxNormalizedBytes     int
 }
 
-// 保存已解码文档的检索地址和标准对象上下文。
 // Store decoded documents with their retrieval addresses and standard object contexts.
 type parsedResource struct {
 	value            any
 	path, base, role string
 }
 
-// 保存本次调用的独立资源集合，不共享调用方的可变 JSON 数据。
 // Keep a per-call resource set without sharing mutable JSON data with the caller.
 type resourceSet struct {
 	documents []parsedResource
 	graph     *referenceGraph
 }
 
-// 验证显式资源配置，并应用默认预算。
 // Validate explicit resource options and apply default budgets.
 func normalizeOptions(options Options) (Options, error) {
 	if options.MaxBytes == 0 {
@@ -56,7 +51,7 @@ func normalizeOptions(options Options) (Options, error) {
 		options.MaxNormalizedBytes = 16 << 20
 	}
 	if options.MaxBytes < 1 || options.MaxResources < 1 || options.MaxReferences < 1 || options.MaxIndexBytes < 1 || options.MaxNormalizedBytes < 1 {
-		return options, fmt.Errorf("预算必须大于零")
+		return options, fmt.Errorf("budget must be greater than zero")
 	}
 	if options.BaseURI == "" {
 		options.BaseURI = "https://openapi.invalid/document.json"
@@ -72,17 +67,15 @@ func normalizeOptions(options Options) (Options, error) {
 	return options, nil
 }
 
-// 检索地址必须是无片段的绝对 URI，但不会据此读取地址内容。
 // Require absolute, fragment-free retrieval URIs without loading their contents.
 func retrievalURI(value string) (string, error) {
 	u, err := parseURIReference(value)
 	if err != nil || !u.IsAbs() || strings.Contains(value, "#") {
-		return "", fmt.Errorf("检索地址必须是无片段的绝对 URI：%s", value)
+		return "", fmt.Errorf("retrieval URI must be absolute and fragment-free: %s", value)
 	}
 	return resourceURI(u), nil
 }
 
-// 用稳定次序读取资源键，确保诊断可复现。
 // Read resource keys in stable order for reproducible diagnostics.
 func resourceKeys(values map[string][]byte) []string {
 	keys := make([]string, 0, len(values))
@@ -93,13 +86,11 @@ func resourceKeys(values map[string][]byte) []string {
 	return keys
 }
 
-// 在任何解析前限制累计字节数和显式输入数量。
 // Limit aggregate bytes and explicit input counts before parsing anything.
 func prepareResources(raw []byte, options Options) (*resourceSet, []Issue) {
 	return prepareSchemaResources(raw, options, true)
 }
 
-// 共享离线索引支持规范检查和独立 Schema 消费，两者保留各自的根类型要求。
 // Shared offline indexing supports document checks and standalone schema consumers with distinct root requirements.
 func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*resourceSet, []Issue) {
 	graph := newReferenceGraph()
@@ -113,7 +104,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 		return nil, graph.issues
 	}
 	if len(options.Resources) >= options.MaxResources || len(options.ExampleResources) > options.MaxResources-1-len(options.Resources) {
-		graph.add("budget", "#", "主文档与预载资源数量超过预算")
+		graph.add("budget", "#", "Main document and preloaded resources exceed the count budget")
 		return nil, graph.issues
 	}
 	graph.budget = byteBudget{remaining: options.MaxIndexBytes}
@@ -138,13 +129,13 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 		return true
 	}
 	if !consume(len(raw)) {
-		graph.add("budget", "#", "主文档超过总字节预算")
+		graph.add("budget", "#", "Main document exceeds the total byte budget")
 		return nil, graph.issues
 	}
 	for _, values := range []map[string][]byte{options.Resources, options.ExampleResources} {
 		for _, key := range resourceKeys(values) {
 			if !consume(len(values[key])) {
-				graph.add("budget", key, "预载内容超过累计字节预算")
+				graph.add("budget", key, "preloaded content exceeds the cumulative byte budget")
 				return nil, graph.issues
 			}
 		}
@@ -166,7 +157,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 			return
 		}
 		if _, err = decoder.Token(); err != io.EOF {
-			graph.add("json", path, "文档末尾有额外内容")
+			graph.add("json", path, "document has trailing content")
 			return
 		}
 		object, isObject := value.(map[string]any)
@@ -176,11 +167,11 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 			role = "root"
 		}
 		if primary && requireOpenAPI && !isObject {
-			graph.add("root", path, "主文档根必须是对象")
+			graph.add("root", path, "Main document root must be an object")
 			return
 		}
 		if !isObject && !isBoolean {
-			graph.add("resource.type", path, "预载规范必须是完整 OpenAPI 对象或 JSON Schema 对象/布尔值")
+			graph.add("resource.type", path, "preloaded specification must be a complete OpenAPI object or a JSON Schema object/boolean")
 			return
 		}
 		set.documents = append(set.documents, parsedResource{value: value, path: path, base: base, role: role})
@@ -194,7 +185,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 			continue
 		}
 		if seenBases[base] {
-			graph.add("resource.duplicate", base, "检索地址归一化后重复")
+			graph.add("resource.duplicate", base, "duplicate normalized retrieval URI")
 			continue
 		}
 		if !graph.spend(len(base)) {
@@ -219,7 +210,7 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 			continue
 		}
 		if graph.resources[base] != nil || graph.exampleResources[base] {
-			graph.add("resource.duplicate", key, "示例检索地址与已提供资源重复")
+			graph.add("resource.duplicate", key, "example retrieval URI duplicates a provided resource")
 			continue
 		}
 		if !graph.spend(len(base)) {
@@ -233,7 +224,6 @@ func prepareSchemaResources(raw []byte, options Options, requireOpenAPI bool) (*
 	return set, nil
 }
 
-// 检查全部明确提供的规范资源；示例原始字节仅用于证明已离线提供。
 // Check all explicitly supplied specification resources; raw examples only establish offline availability.
 func CheckWithOptions(raw []byte, options Options) []Issue {
 	set, issues := prepareResources(raw, options)
@@ -243,7 +233,6 @@ func CheckWithOptions(raw []byte, options Options) []Issue {
 	return set.check()
 }
 
-// 独立 Schema 复用同一离线资源与引用检查，只改变主文档的根类型要求。
 // Standalone schemas reuse offline resource and reference checks with a schema root requirement.
 func CheckSchemaWithOptions(raw []byte, options Options) []Issue {
 	options.schemaOnly = true
@@ -252,13 +241,12 @@ func CheckSchemaWithOptions(raw []byte, options Options) []Issue {
 		return issues
 	}
 	if set.documents[0].role != "schema" {
-		set.graph.add("resource.type", "#", "独立 Schema 入口不能接受 OpenAPI 文档")
+		set.graph.add("resource.type", "#", "standalone Schema entry point cannot accept an OpenAPI document")
 		return set.graph.issues
 	}
 	return set.check()
 }
 
-// 检查已索引文档的结构与引用，所有入口共享确定性诊断与预算。
 // Check indexed structures and references with shared deterministic diagnostics and budgets.
 func (set *resourceSet) check() []Issue {
 	var issues []Issue
@@ -272,7 +260,6 @@ func (set *resourceSet) check() []Issue {
 		if entry.role == "root" {
 			c.checkTags()
 		}
-		// 外部文档内标签诊断需要带上资源位置。
 		// Include resource locations in tag diagnostics from external documents.
 		for _, issue := range c.issues {
 			if entry.path != "#" && strings.HasPrefix(issue.Path, "#") {
@@ -289,7 +276,6 @@ func (set *resourceSet) check() []Issue {
 	return sortedIssues(issues)
 }
 
-// 对同位置的错误继续按编码及消息排序，避免映射遍历造成差异。
 // Sort diagnostics sharing a location by code and message to remove map-order differences.
 func sortedIssues(issues []Issue) []Issue {
 	sort.Slice(issues, func(i, j int) bool {
@@ -304,7 +290,6 @@ func sortedIssues(issues []Issue) []Issue {
 	return issues
 }
 
-// 识别主文档顶层组件名，目标指向组件内部时仍保留整个组件。
 // Identify root component names and retain the entire component when a reference targets its interior.
 func mainSchemaName(path string) string {
 	const prefix = "#/components/schemas/"
@@ -315,7 +300,6 @@ func mainSchemaName(path string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(encoded, "~1", "/"), "~0", "~")
 }
 
-// 基于与 Check 相同的资源图计算闭包，不解释示例或扩展中的数据引用。
 // Compute reachability using the same resource graph as Check, excluding references inside examples and extensions.
 func ReachableSchemas(raw []byte, options Options) ([]string, []Issue) {
 	set, issues := prepareResources(raw, options)

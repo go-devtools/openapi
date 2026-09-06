@@ -1,4 +1,3 @@
-// 公开静态加载、源码视图与前端扩展能力；运行时包不导入本包。
 // Expose static loading and frontend extensions separately from runtime packages.
 package compiler
 
@@ -18,7 +17,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// 配置只读包加载和资源预算，不执行项目生成脚本。
 // Configure read-only package loading without running generation scripts.
 type LoadOptions struct {
 	Dir            string
@@ -30,10 +28,8 @@ type LoadOptions struct {
 	MaxSourceBytes int64
 }
 
-// 暴露标准库类型和 AST；调用方须将这些视图视为只读。
 // Expose standard-library types and AST as read-only views.
 type Package struct {
-	// 实际加载目标的 Go 类型尺寸，视图只读。
 	// Go type sizes for the actual loaded target; this view is read-only.
 	Sizes       types.Sizes
 	Path        string
@@ -44,7 +40,6 @@ type Package struct {
 	SourceFiles []string
 }
 
-// 保存可组合的静态项目视图，加载后可并发读取。
 // Store a composable project view that supports concurrent reads after loading.
 type Project struct {
 	Dir         string
@@ -56,7 +51,6 @@ type Project struct {
 	Diagnostics []openapi.Diagnostic
 }
 
-// 用标准库视图表示任何函数形态，不预设 context 参数或返回值模式。
 // Describe functions without assuming context parameters or return conventions.
 type Function struct {
 	Object      *types.Func
@@ -67,7 +61,6 @@ type Function struct {
 	Source      openapi.Source
 }
 
-// 按实际构建条件加载源码与类型，默认禁止修改模块文件。
 // Load actual build-selected source and types without changing module files.
 func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	dir, err := filepath.Abs(options.Dir)
@@ -102,7 +95,7 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 		}
 	})
 	if count > max {
-		return nil, fmt.Errorf("openapi.load.budget: 包数量 %d 超过 %d", count, max)
+		return nil, fmt.Errorf("openapi.load.budget: package count %d exceeds %d", count, max)
 	}
 	if len(loadErrors) > 0 {
 		sort.Strings(loadErrors)
@@ -127,7 +120,6 @@ func Load(ctx context.Context, options LoadOptions) (*Project, error) {
 	return p, nil
 }
 
-// 为函数、类型、字段及常量建立共享语义注释索引。
 // Index semantic comments for functions, types, fields, and constants.
 func (p *Project) indexFile(pkg *Package, file *ast.File) {
 	attach := func(obj types.Object, groups ...*ast.CommentGroup) {
@@ -142,7 +134,7 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 		}
 		d, err := comment.Parse(strings.Join(parts, "\n"))
 		if err != nil {
-			p.Diagnostics = append(p.Diagnostics, openapi.Diagnostic{Code: "openapi.comment.invalid", Severity: openapi.Error, Message: err.Error(), Source: p.Source(obj.Pos()), Fix: "修正统一 @openapi 指令"})
+			p.Diagnostics = append(p.Diagnostics, openapi.Diagnostic{Code: "openapi.comment.invalid", Severity: openapi.Error, Message: err.Error(), Source: p.Source(obj.Pos()), Fix: "Fix the unified @openapi directive"})
 			return
 		}
 		p.comments[obj] = d
@@ -180,7 +172,6 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 					})
 				case *ast.ValueSpec:
 					groups := []*ast.CommentGroup{s.Doc, s.Comment}
-					// 单独声明的常量注释位于 GenDecl；分组标题不冒充单个枚举的含义。
 					// Read standalone constant comments from GenDecl; group headings do not describe individual enum values.
 					if s.Doc == nil && !d.Lparen.IsValid() {
 						groups = append([]*ast.CommentGroup{d.Doc}, groups...)
@@ -194,7 +185,6 @@ func (p *Project) indexFile(pkg *Package, file *ast.File) {
 	}
 }
 
-// 将源码位置转换为项目相对路径。
 // Convert positions into project-relative source paths.
 func (p *Project) Source(pos token.Pos) openapi.Source {
 	v := p.Fset.Position(pos)
@@ -205,7 +195,6 @@ func (p *Project) Source(pos token.Pos) openapi.Source {
 	return openapi.Source{File: filepath.ToSlash(file), Line: v.Line, Column: v.Column}
 }
 
-// 解析当前包或已加载模块限定的真实类型及泛型实例。
 // Resolve real types and generic instances from already loaded packages.
 func (p *Project) Type(name string) (types.Type, error) {
 	for _, pkg := range p.Packages {
@@ -220,10 +209,9 @@ func (p *Project) Type(name string) (types.Type, error) {
 			return value.Type, nil
 		}
 	}
-	return nil, fmt.Errorf("openapi.type.unresolved: 无法在已加载项目解析 %s", name)
+	return nil, fmt.Errorf("openapi.type.unresolved: cannot resolve %s in the loaded project", name)
 }
 
-// 返回按稳定符号排序的只读函数视图。
 // Return function views sorted by stable source symbols.
 func (p *Project) Functions() []Function {
 	out := make([]Function, 0, len(p.functions))

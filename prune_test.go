@@ -9,7 +9,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 根据实际引用闭包保留完整组件，示例数据不能让无关模型变成可达。
 // Retain complete reachable components without allowing example data to make unrelated models reachable.
 func TestBuildPrunesWithSchemaResourceSemantics(t *testing.T) {
 	cases := []struct {
@@ -49,7 +48,7 @@ func TestBuildPrunesWithSchemaResourceSemantics(t *testing.T) {
 			}
 			sort.Strings(names)
 			if !reflect.DeepEqual(names, tc.want) {
-				t.Fatalf("组件闭包错误：%v，预期 %v", names, tc.want)
+				t.Fatalf("component closure differs: %v, expected %v", names, tc.want)
 			}
 			if report := Check(doc.JSON()); report.HasErrors() {
 				t.Fatal(report)
@@ -58,7 +57,6 @@ func TestBuildPrunesWithSchemaResourceSemantics(t *testing.T) {
 	}
 }
 
-// 外部 Schema 回指本地模型时，构建和裁剪必须使用同一组离线配置。
 // Use identical offline options for building and pruning external schemas that refer back to local models.
 func TestBuildOfflineResourceBackReference(t *testing.T) {
 	data := testBundle(t).Snapshot()
@@ -81,22 +79,21 @@ func TestBuildOfflineResourceBackReference(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(parsed.Components.Schemas) != 1 || parsed.Components.Schemas["User"] == nil {
-		t.Fatal("外部回指模型被误删")
+		t.Fatal("externally referenced model was incorrectly pruned")
 	}
 	if report := CheckWithOptions(doc.JSON(), options); report.HasErrors() {
 		t.Fatal(report)
 	}
 	cfg.Validation.MaxReferences = 1
 	if _, err = Build(bundle, routes, cfg); err == nil {
-		t.Fatal("构建忽略引用预算")
+		t.Fatal("build ignored the reference budget")
 	}
 	cfg.Validation = CheckOptions{}
 	if _, err = Build(bundle, routes, cfg); err == nil {
-		t.Fatal("构建在缺少显式资源时仍成功")
+		t.Fatal("build succeeded without explicit resources")
 	}
 }
 
-// 作为 externalValue 内容的已识别 Schema 资源也必须在裁剪后存在。
 // Retain recognized schema resources used as externalValue contents after pruning.
 func TestBuildKeepsSchemaUsedAsExampleResource(t *testing.T) {
 	data := testBundle(t).Snapshot()
@@ -116,6 +113,6 @@ func TestBuildKeepsSchemaUsedAsExampleResource(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(parsed.Components.Schemas) != 1 || parsed.Components.Schemas["User"] == nil {
-		t.Fatal("示例资源在裁剪时丢失")
+		t.Fatal("example resource was lost during pruning")
 	}
 }

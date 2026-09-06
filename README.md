@@ -1,14 +1,14 @@
 # openapi
 
-[简体中文](README.zh-cn.md)
+[Simplified Chinese](README.zh-cn.md)
 
 Framework-independent Go source contract compilation and native OpenAPI 3.2 tooling.
 
-This repository is under active implementation. The full acceptance target is recorded in [GOAL.md](GOAL.md); current evidence and remaining work are tracked in [status](docs/status.md) and [verification](docs/verification.md). It is not yet a completed or released product.
+This pre-1.0 SDK evolves between pinned versions. Use the public APIs and check the documented capability boundaries before depending on advanced behavior.
 
 ## Requirements
 
-- Exactly Go 1.27.1 for minimum-version acceptance.
+- Go 1.27.1 for development and verification.
 - No Gin, Fiber, or Echo dependency in the core or its tests.
 
 ## Architecture
@@ -50,7 +50,7 @@ The public compiler SDK supports commit-time response headers and explicit non-J
 
 New project code is licensed under [MIT](LICENSE). Third-party assets retain their original licenses and notices.
 
-Project-owned source comments are bilingual (Simplified Chinese and English). Compiler directives and upstream assets retain their original form. In examples and schema fixtures, companion translations are separated from attached Go documentation by a blank line so generated descriptions keep their intended language. Commit messages use English.
+Project-owned code comments, diagnostics, CLI help, and example text use English. Multilingual encoding tests retain their input values through escaped literals. Upstream assets retain their original form. Commit messages use English; [README.zh-cn.md](README.zh-cn.md) provides corresponding Chinese documentation.
 
 The public compiler supports [parameter object and wire-type codec extensions](docs/parameter-codec.md) without framework dependencies.
 
@@ -69,3 +69,7 @@ The public response SDK also supports sequential `ResponseItem` effects, indepen
 The public value and response snapshots preserve boxed payload identity and committed headers. Independent stream validation covers protocol-specific line endings, UTF-8 replacement, and bounded input; see the [contract guide](docs/contracttest.md).
 
 Known function values and synchronous callback conventions are analyzed through the public [callback SDK](docs/callbacks.md), with isolated captured cells and bounded repetition. Framework-specific callback behavior remains in adapters.
+
+## AI-assisted integration
+
+Start with [llms.txt](llms.txt) for a compact documentation index and the [AI integration guide](docs/ai-integration.md) for actual commands, structured diagnostics, and public API boundaries. Generated JSON and provenance provide evidence for integration decisions.

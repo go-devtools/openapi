@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// 使用同一组标准关键字样例，与独立官方元 Schema 校验交叉核对。
 // Cross-check the shared keyword examples against independent official meta-schema validation.
 func TestSchemaKeywordMatrix(t *testing.T) {
 	raw, err := os.ReadFile("../../testdata/golden/schema-keywords.json")
@@ -26,13 +25,12 @@ func TestSchemaKeywordMatrix(t *testing.T) {
 			doc := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{},"components":{"schemas":{"X":` + string(tc.Schema) + `}}}`)
 			issues := Check(doc)
 			if (len(issues) == 0) != tc.Valid {
-				t.Fatalf("valid=%v，diagnostics=%+v", tc.Valid, issues)
+				t.Fatalf("valid=%v, diagnostics=%+v", tc.Valid, issues)
 			}
 		})
 	}
 }
 
-// 极端指数不按位数展开，整数判定仍保持十进制精度。
 // Classify integers with decimal precision without expanding extreme exponents.
 func TestSchemaNumberTraits(t *testing.T) {
 	for _, tc := range []struct {
@@ -49,21 +47,20 @@ func TestSchemaNumberTraits(t *testing.T) {
 		t.Run(tc.keyword+tc.number, func(t *testing.T) {
 			raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{},"components":{"schemas":{"X":{"` + tc.keyword + `":` + tc.number + `}}}}`)
 			if issues := Check(raw); (len(issues) == 0) != tc.valid {
-				t.Fatalf("valid=%v，issues=%+v", tc.valid, issues)
+				t.Fatalf("valid=%v, issues=%+v", tc.valid, issues)
 			}
 		})
 	}
 }
 
-// 组合成员仍是独立 Schema 位置，其相对引用和资源身份必须参与解析。
 // Resolve relative references and identities within composition members as independent schema locations.
 func TestSchemaArrayResourceReferences(t *testing.T) {
 	good := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{},"components":{"schemas":{"X":{"allOf":[{"$id":"https://example.test/a","$anchor":"item","type":"string"},{"$ref":"https://example.test/a#item"}]}}}}`)
 	if issues := Check(good); len(issues) != 0 {
-		t.Fatalf("组合资源引用失效：%+v", issues)
+		t.Fatalf("composed resource reference failed: %+v", issues)
 	}
 	bad := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{},"components":{"schemas":{"X":{"anyOf":[{"$ref":"file:///denied"}]}}}}`)
 	if issues := Check(bad); len(issues) == 0 {
-		t.Fatal("组合中的外部引用被忽略")
+		t.Fatal("external reference inside composition was ignored")
 	}
 }

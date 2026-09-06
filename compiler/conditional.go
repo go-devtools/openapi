@@ -7,7 +7,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 将具有相同请求条件的完整分析路径合并，保持其他条件的诊断独立。
 // Merge complete analysis paths with identical request conditions while isolating diagnostics for other conditions.
 func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	conditional := false
@@ -39,7 +38,6 @@ func (p *Project) mergeConditionalPaths(template *openapi.Template, paths []flow
 	}
 }
 
-// 复用共同投影与来源规则，条件路径不携带运行时回调或 Go 类型对象。
 // Reuse shared projection and provenance rules without putting callbacks or Go types into runtime paths.
 func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Diagnostic, facts *[]openapi.Source, path flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	*diagnostics = append(*diagnostics, path.diagnostics...)
@@ -52,7 +50,7 @@ func (p *Project) mergePath(operation *spec.Operation, diagnostics *[]openapi.Di
 			continue
 		}
 		if err := p.mergeEffect(operation, effect, components, mappers); err != nil {
-			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "注册集中前端规则或 TypeMapper", Source: effect.Source})
+			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "Register a centralized frontend rule or TypeMapper", Source: effect.Source})
 		}
 	}
 }

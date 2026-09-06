@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// 长前缀不能通过大量短子字段放大索引；放宽预算后同一规范应可检查。
 // Long prefixes must not amplify indexes through many short children; a larger budget accepts the same document.
 func TestReferenceIndexTextBudget(t *testing.T) {
 	properties := map[string]any{}
@@ -19,14 +18,13 @@ func TestReferenceIndexTextBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	if issues := CheckWithOptions(raw, Options{MaxIndexBytes: 64 << 10}); len(issues) == 0 {
-		t.Fatal("索引文本未受预算限制")
+		t.Fatal("index text was not bounded by the budget")
 	}
 	if issues := CheckWithOptions(raw, Options{MaxIndexBytes: 256 << 10}); len(issues) != 0 {
 		t.Fatal(issues)
 	}
 }
 
-// 规范化的绝对引用不能无限复制长资源 URI。
 // Normalized absolute references must not duplicate long resource URIs without a bound.
 func TestNormalizedReferenceBudget(t *testing.T) {
 	refs := make([]any, 100)
@@ -38,7 +36,7 @@ func TestNormalizedReferenceBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, issues := BundleSchemas(raw, "", Options{MaxNormalizedBytes: 64 << 10}); len(issues) == 0 {
-		t.Fatal("引用规范化结果未受预算限制")
+		t.Fatal("normalized references were not bounded by the budget")
 	}
 	if _, issues := BundleSchemas(raw, "", Options{MaxNormalizedBytes: 512 << 10}); len(issues) != 0 {
 		t.Fatal(issues)

@@ -12,7 +12,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 验证连续调用的互斥请求条件在源码分析阶段求交，而不是在运行时重跑分析器。
 // Verify mutually exclusive conditions on consecutive calls intersect during compilation rather than runtime analysis.
 func TestCompileRequestConditions(t *testing.T) {
 	dir := t.TempDir()

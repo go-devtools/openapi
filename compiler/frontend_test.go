@@ -10,20 +10,19 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 从标准库函数返回值复用同一编译管线，证明 SDK 不预设框架 context。
 // Verify return-value frontends reuse the pipeline without a framework context.
 func TestReturnValueFrontend(t *testing.T) {
 	dir := t.TempDir()
-	source := `// 测试期前端的真实业务输入。
+	source := `// Real business input for the test frontend.
 package sample
 
-// 创建信息。
+// Describe creation input.
 type Request struct { Name string }
-// 响应信息。
+// Describe response data.
 type Response struct { Name string }
-// 创建用户
+// Create a user
 //
-// 返回创建结果。
+// Return the created result.
 func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil }
 `
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/sample\n\ngo 1.27.1\n"), 0600); err != nil {
@@ -46,14 +45,14 @@ func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil
 	}
 	index := result.Bundle.Index()
 	if len(index) != 1 {
-		t.Fatalf("候选数量错误：%+v", index)
+		t.Fatalf("unexpected candidate count: %+v", index)
 	}
-	doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "POST", Path: "/users", OperationKey: index[0].Key}}, openapi.Config{Title: "用户", Version: "1"})
+	doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "POST", Path: "/users", OperationKey: index[0].Key}}, openapi.Config{Title: "Users", Version: "1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(doc.JSON()), "创建用户") || !strings.Contains(string(doc.JSON()), `"201"`) {
-		t.Fatalf("未复用注释与返回值：%s", doc.JSON())
+	if !strings.Contains(string(doc.JSON()), "Create a user") || !strings.Contains(string(doc.JSON()), `"201"`) {
+		t.Fatalf("comments and return values were not reused: %s", doc.JSON())
 	}
 	output := filepath.Join(dir, "internal", "apidoc")
 	if err = result.Write(WriteOptions{Dir: output, Package: "apidoc"}); err != nil {
@@ -64,12 +63,12 @@ func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil
 		t.Fatal(err)
 	}
 	if strings.Contains(string(first), "example.com/sample\"") || strings.Contains(string(first), "openapi/compiler\"") {
-		t.Fatal("生成文件依赖业务或编译器")
+		t.Fatal("generated file depends on business code or the compiler")
 	}
 	if err = result.Check(WriteOptions{Dir: output, Package: "apidoc"}); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(filepath.Join(dir, "sample.go"), []byte(strings.Replace(source, "创建用户", "登记用户", 1)), 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(dir, "sample.go"), []byte(strings.Replace(source, "Create a user", "Register user", 1)), 0600); err != nil {
 		t.Fatal(err)
 	}
 	changed, err := Compile(context.Background(), Options{Load: LoadOptions{Dir: dir, Env: []string{"GOWORK=off"}}, Frontends: []Frontend{frontend}})
@@ -77,6 +76,6 @@ func Create(req Request) (Response, error) { return Response{Name:req.Name}, nil
 		t.Fatal(err)
 	}
 	if changed.Check(WriteOptions{Dir: output, Package: "apidoc"}) == nil {
-		t.Fatal("源码变更未使生成物过期")
+		t.Fatal("source changes did not make the generated output stale")
 	}
 }

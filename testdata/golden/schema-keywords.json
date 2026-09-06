@@ -1,6 +1,6 @@
 [
   {
-    "name": "忽略不适用关键字",
+    "name": "Ignore inapplicable keywords",
     "schema": {
       "type": "string",
       "minimum": 1
@@ -8,7 +8,7 @@
     "valid": true
   },
   {
-    "name": "不可满足长度",
+    "name": "Unsatisfiable length",
     "schema": {
       "type": "string",
       "minLength": 10,
@@ -17,7 +17,7 @@
     "valid": true
   },
   {
-    "name": "不可满足数值",
+    "name": "Unsatisfiable numeric bounds",
     "schema": {
       "type": "number",
       "minimum": 10,
@@ -26,14 +26,14 @@
     "valid": true
   },
   {
-    "name": "空枚举",
+    "name": "Empty enum",
     "schema": {
       "enum": []
     },
     "valid": true
   },
   {
-    "name": "重复枚举建议不作为错误",
+    "name": "Duplicate enum values are advisory",
     "schema": {
       "enum": [
         1,
@@ -43,7 +43,7 @@
     "valid": true
   },
   {
-    "name": "任意示例数据",
+    "name": "Arbitrary example data",
     "schema": {
       "examples": [
         {
@@ -56,17 +56,17 @@
     "valid": true
   },
   {
-    "name": "布尔拒绝",
+    "name": "Boolean rejection",
     "schema": false,
     "valid": true
   },
   {
-    "name": "任意值",
+    "name": "Any value",
     "schema": true,
     "valid": true
   },
   {
-    "name": "非负整数表示",
+    "name": "Nonnegative integer representation",
     "schema": {
       "minLength": 1.0,
       "maxItems": 1000.0
@@ -74,14 +74,14 @@
     "valid": true
   },
   {
-    "name": "负零",
+    "name": "Negative zero",
     "schema": {
       "minLength": -0.0
     },
     "valid": true
   },
   {
-    "name": "组合布尔",
+    "name": "Boolean composition",
     "schema": {
       "allOf": [
         true,
@@ -91,7 +91,7 @@
     "valid": true
   },
   {
-    "name": "属性名称类似关键字",
+    "name": "Property names resemble keywords",
     "schema": {
       "properties": {
         "x-type": {
@@ -103,7 +103,7 @@
     "valid": true
   },
   {
-    "name": "非断言默认值",
+    "name": "Nonasserting default",
     "schema": {
       "type": "string",
       "default": 12
@@ -111,7 +111,7 @@
     "valid": true
   },
   {
-    "name": "可为空联合",
+    "name": "Nullable union",
     "schema": {
       "type": [
         "string",
@@ -121,7 +121,7 @@
     "valid": true
   },
   {
-    "name": "未知扩展数据",
+    "name": "Unknown extension data",
     "schema": {
       "x-data": {
         "items": []
@@ -130,7 +130,7 @@
     "valid": true
   },
   {
-    "name": "空必需和依赖",
+    "name": "Empty required and dependencies",
     "schema": {
       "required": [],
       "dependentRequired": {
@@ -140,21 +140,21 @@
     "valid": true
   },
   {
-    "name": "未知类型",
+    "name": "Unknown type",
     "schema": {
       "type": "unknown"
     },
     "valid": false
   },
   {
-    "name": "空类型数组",
+    "name": "Empty type array",
     "schema": {
       "type": []
     },
     "valid": false
   },
   {
-    "name": "重复类型",
+    "name": "Duplicate type",
     "schema": {
       "type": [
         "string",
@@ -164,7 +164,7 @@
     "valid": false
   },
   {
-    "name": "类型数组包含对象",
+    "name": "Type array contains an object",
     "schema": {
       "type": [
         "string",
@@ -174,105 +174,105 @@
     "valid": false
   },
   {
-    "name": "空值类型",
+    "name": "Null type value",
     "schema": {
       "type": null
     },
     "valid": false
   },
   {
-    "name": "数字类型",
+    "name": "Numeric type value",
     "schema": {
       "type": 1
     },
     "valid": false
   },
   {
-    "name": "错误枚举",
+    "name": "Invalid enum",
     "schema": {
       "enum": true
     },
     "valid": false
   },
   {
-    "name": "空值枚举",
+    "name": "Null enum",
     "schema": {
       "enum": null
     },
     "valid": false
   },
   {
-    "name": "错误示例",
+    "name": "Invalid examples",
     "schema": {
       "examples": {}
     },
     "valid": false
   },
   {
-    "name": "负长度",
+    "name": "Negative length",
     "schema": {
       "minLength": -1
     },
     "valid": false
   },
   {
-    "name": "小数长度",
+    "name": "Fractional length",
     "schema": {
       "maxLength": 1.25
     },
     "valid": false
   },
   {
-    "name": "小数数组长度",
+    "name": "Fractional array length",
     "schema": {
       "maxItems": 1.25
     },
     "valid": false
   },
   {
-    "name": "字符串最小值",
+    "name": "String minimum",
     "schema": {
       "minimum": "0"
     },
     "valid": false
   },
   {
-    "name": "布尔排除值",
+    "name": "Boolean exclusive bound",
     "schema": {
       "exclusiveMinimum": true
     },
     "valid": false
   },
   {
-    "name": "零倍数",
+    "name": "Zero multiple",
     "schema": {
       "multipleOf": 0
     },
     "valid": false
   },
   {
-    "name": "负倍数",
+    "name": "Negative multiple",
     "schema": {
       "multipleOf": -1
     },
     "valid": false
   },
   {
-    "name": "空组合",
+    "name": "Empty composition",
     "schema": {
       "anyOf": []
     },
     "valid": false
   },
   {
-    "name": "错误组合",
+    "name": "Invalid composition",
     "schema": {
       "allOf": {}
     },
     "valid": false
   },
   {
-    "name": "错误组合成员",
+    "name": "Invalid composition member",
     "schema": {
       "oneOf": [
         true,
@@ -282,7 +282,7 @@
     "valid": false
   },
   {
-    "name": "旧数组形式",
+    "name": "Legacy array form",
     "schema": {
       "items": [
         true
@@ -291,35 +291,35 @@
     "valid": false
   },
   {
-    "name": "空元组",
+    "name": "Empty tuple",
     "schema": {
       "prefixItems": []
     },
     "valid": false
   },
   {
-    "name": "元组不是数组",
+    "name": "Tuple is not an array",
     "schema": {
       "prefixItems": true
     },
     "valid": false
   },
   {
-    "name": "数组属性字典",
+    "name": "Array property dictionary",
     "schema": {
       "properties": []
     },
     "valid": false
   },
   {
-    "name": "布尔定义字典",
+    "name": "Boolean definition dictionary",
     "schema": {
       "$defs": true
     },
     "valid": false
   },
   {
-    "name": "错误子属性",
+    "name": "Invalid child property",
     "schema": {
       "properties": {
         "x-invalid": {
@@ -330,19 +330,19 @@
     "valid": false
   },
   {
-    "name": "顶层数组",
+    "name": "Root array",
     "schema": [],
     "valid": false
   },
   {
-    "name": "字符串必需",
+    "name": "String required",
     "schema": {
       "required": "a"
     },
     "valid": false
   },
   {
-    "name": "重复必需",
+    "name": "Duplicate required",
     "schema": {
       "required": [
         "a",
@@ -352,7 +352,7 @@
     "valid": false
   },
   {
-    "name": "数字必需",
+    "name": "Numeric required",
     "schema": {
       "required": [
         1
@@ -361,7 +361,7 @@
     "valid": false
   },
   {
-    "name": "错误依赖",
+    "name": "Invalid dependency",
     "schema": {
       "dependentRequired": {
         "a": [
@@ -372,42 +372,42 @@
     "valid": false
   },
   {
-    "name": "依赖不是对象",
+    "name": "Dependencies are not an object",
     "schema": {
       "dependentRequired": []
     },
     "valid": false
   },
   {
-    "name": "错误布尔",
+    "name": "Invalid boolean",
     "schema": {
       "uniqueItems": 1
     },
     "valid": false
   },
   {
-    "name": "空值只读",
+    "name": "Null readOnly",
     "schema": {
       "readOnly": null
     },
     "valid": false
   },
   {
-    "name": "错误说明",
+    "name": "Invalid description",
     "schema": {
       "description": []
     },
     "valid": false
   },
   {
-    "name": "错误内容类型",
+    "name": "Invalid content type",
     "schema": {
       "contentMediaType": false
     },
     "valid": false
   },
   {
-    "name": "错误模式",
+    "name": "Invalid pattern",
     "schema": {
       "pattern": 5
     },

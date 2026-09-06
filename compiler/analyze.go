@@ -11,7 +11,6 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 保存单条可达路径的值状态、效果和函数结束标志。
 // Track values, effects, and termination for one reachable path.
 type flow struct {
 	when            openapi.RequestCondition
@@ -32,7 +31,6 @@ type flow struct {
 	branch          token.Token
 }
 
-// 保存有界分析调度器，每个 handler 使用独立状态。
 // Keep a bounded analyzer with independent state for each handler.
 type analyzer struct {
 	ctx         context.Context
@@ -44,7 +42,6 @@ type analyzer struct {
 	diagnostics []openapi.Diagnostic
 }
 
-// 复制路径状态，分支不会修改另一条路径的值或效果。
 // Copy path state so branches cannot mutate each other.
 func (s flow) clone() flow {
 	out := s
@@ -60,18 +57,16 @@ func (s flow) clone() flow {
 	return out
 }
 
-// 对无法可靠继续的路径保留明确诊断。
 // Record a diagnostic when reliable analysis cannot continue.
 func (a *analyzer) unknown(s *flow, source openapi.Source, message string) {
-	s.diagnostics = append(s.diagnostics, openapi.Diagnostic{Code: "openapi.analysis.unresolved", Severity: openapi.Error, Message: message, Fix: "提供一次性集中前端规则，或收敛到预算内可分析的控制流", Source: source})
+	s.diagnostics = append(s.diagnostics, openapi.Diagnostic{Code: "openapi.analysis.unresolved", Severity: openapi.Error, Message: message, Fix: "Provide a centralized frontend rule or simplify control flow to fit the analysis budget", Source: source})
 }
 
-// 按 Go 控制流顺序传播值，已返回路径不再分析后续语句。
 // Propagate values in Go execution order and stop after return.
 func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, depth int, handler bool) []flow {
 	if depth > a.options.MaxDepth {
 		for i := range paths {
-			a.unknown(&paths[i], fn.Source, "跨函数深度超过预算")
+			a.unknown(&paths[i], fn.Source, "cross-function depth exceeds the budget")
 		}
 		return paths
 	}
@@ -94,7 +89,7 @@ func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, 
 		if len(paths) > a.options.MaxPaths {
 			paths = paths[:a.options.MaxPaths]
 			for i := range paths {
-				a.unknown(&paths[i], a.project.Source(statement.Pos()), "控制流路径超过预算")
+				a.unknown(&paths[i], a.project.Source(statement.Pos()), "control-flow paths exceed the budget")
 			}
 			break
 		}
@@ -102,7 +97,6 @@ func (a *analyzer) statements(fn Function, statements []ast.Stmt, paths []flow, 
 	return paths
 }
 
-// 处理单条语句，表达式备选保持独立直到下一条语句。
 // Handle each statement while keeping expression alternatives independent through subsequent statements.
 func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth int, handler bool) []flow {
 	source := a.project.Source(statement.Pos())
@@ -122,7 +116,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 					value = e.values[i]
 				}
 				if s.Tok != token.ASSIGN && s.Tok != token.DEFINE {
-					a.unknown(&e.state, source, "复合赋值需要明确运算传播")
+					a.unknown(&e.state, source, "compound assignment requires explicit operator propagation")
 					value = Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
 				}
 				a.assign(fn, lhs, value, &e.state)
@@ -207,9 +201,9 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	case *ast.SwitchStmt:
 		return a.switchStatement(fn, s, state, depth, handler)
 	case *ast.RangeStmt, *ast.ForStmt:
-		a.unknown(&state, source, "循环中的效果需要有界摘要或集中适配")
+		a.unknown(&state, source, "effects inside a loop require a bounded summary or centralized adaptation")
 	case *ast.GoStmt, *ast.DeferStmt:
-		a.unknown(&state, source, "异步或延迟调用的响应效果需要集中适配")
+		a.unknown(&state, source, "response effects of asynchronous or deferred calls require centralized adaptation")
 	case *ast.IncDecStmt:
 		var result []flow
 		for _, path := range a.evaluate(fn, s.X, state, depth) {
@@ -220,18 +214,17 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 		return result
 	case *ast.BranchStmt:
 		if s.Tok != token.BREAK || s.Label != nil {
-			a.unknown(&state, source, "未支持的控制流跳转")
+			a.unknown(&state, source, "unsupported control-flow jump")
 		}
 		state.ended = true
 		state.branch = s.Tok
 	case *ast.EmptyStmt:
 	default:
-		a.unknown(&state, source, fmt.Sprintf("未解决语句 %T", statement))
+		a.unknown(&state, source, fmt.Sprintf("unresolved statement %T", statement))
 	}
 	return []flow{state}
 }
 
-// 按 Go 顺序检查 switch 标签，只将尚未匹配的路径传给下一分支。
 // Check switch cases in Go order and pass only unmatched paths to the next case.
 func (a *analyzer) switchStatement(fn Function, s *ast.SwitchStmt, state flow, depth int, handler bool) []flow {
 	initial := []flow{state}
@@ -285,7 +278,6 @@ func (a *analyzer) switchStatement(fn Function, s *ast.SwitchStmt, state flow, d
 	return result
 }
 
-// 将声明和赋值关联到标准库 types 对象，不按变量名猜测身份。
 // Bind assignments to types objects instead of variable-name guesses.
 func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 	if id, ok := lhs.(*ast.Ident); ok {
@@ -307,7 +299,7 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 				return
 			}
 		}
-		a.unknown(state, a.project.Source(lhs.Pos()), "指针写入的目标身份未解决")
+		a.unknown(state, a.project.Source(lhs.Pos()), "pointer assignment target identity is unresolved")
 		return
 	}
 
@@ -334,7 +326,7 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 				return
 			}
 		}
-		a.unknown(state, a.project.Source(lhs.Pos()), "字段写入的目标身份或嵌套路径未解决")
+		a.unknown(state, a.project.Source(lhs.Pos()), "field assignment target identity or nested path is unresolved")
 		return
 	}
 
@@ -359,7 +351,6 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 	}
 }
 
-// 处理写入顺序；Abort 本身不等于 Go return。
 // Track write order; Abort does not imply a Go return.
 func (a *analyzer) effects(state *flow, effects []Effect) {
 	for _, e := range effects {
@@ -409,7 +400,7 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 			}
 			state.writes++
 			if state.writes > 1 && (e.Kind != ResponseItem || state.bodyKind != ResponseItem || state.bodyMedia != e.MediaType) {
-				a.unknown(state, e.Source, "同一路径连续写入多个 body，不能表示为响应备选；只有同媒体类型的逐项响应可连续写入")
+				a.unknown(state, e.Source, "multiple bodies are written sequentially on one path and cannot be represented as response alternatives; only item-wise responses with the same media type can be written sequentially")
 			}
 			state.bodyKind, state.bodyMedia = e.Kind, e.MediaType
 			state.effects = append(state.effects, e)
@@ -420,7 +411,6 @@ func (a *analyzer) effects(state *flow, effects []Effect) {
 	}
 }
 
-// 解析完整符号与方法选择，包括显式泛型实例。
 // Resolve complete function and method identities, including generic instances.
 func callObject(info *types.Info, expr ast.Expr) *types.Func {
 	switch x := expr.(type) {

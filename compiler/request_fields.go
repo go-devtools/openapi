@@ -8,7 +8,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 收集同一执行路径中共同成立的请求约束，框架负责说明字段和编码来源。
 // Collect request constraints that hold together on one execution path, with fields and codecs supplied by frontends.
 type requestMedia struct {
 	schemas  []*spec.Schema
@@ -16,7 +15,6 @@ type requestMedia struct {
 	encoding map[string]spec.Encoding
 }
 
-// 明确网络表示优先于类型投影，所有返回结果与前端对象隔离。
 // Prefer explicit wire representations over type projection and detach frontend-owned schemas.
 func (p *Project) requestSchema(effect Effect, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.Schema, error) {
 	if effect.WireSchema != nil {
@@ -25,7 +23,6 @@ func (p *Project) requestSchema(effect Effect, components map[string]*spec.Schem
 	return p.valueSchema(effect.Payload, Input, effect.MediaType, effect.Codec, mappers, components)
 }
 
-// 合并逐字段读取和完整对象读取；同一路径使用交集而不是备选。
 // Merge individual field reads and whole-object reads by intersection within a path rather than alternatives.
 func (p *Project) requestPath(path flow, components map[string]*spec.Schema, mappers []TypeMapper) (*spec.RequestBody, openapi.Source, error) {
 	groups := map[string]*requestMedia{}
@@ -37,7 +34,7 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 		}
 		source = effect.Source
 		if effect.MediaType == "" {
-			return nil, source, fmt.Errorf("请求媒体类型未解决")
+			return nil, source, fmt.Errorf("request media type is unresolved")
 		}
 		schema, err := p.requestSchema(effect, components, mappers)
 		if err != nil {
@@ -45,7 +42,7 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 		}
 		if effect.AlternativeLocations {
 			if effect.Required {
-				return nil, source, fmt.Errorf("多个输入位置之间的 required 关系需要集中契约")
+				return nil, source, fmt.Errorf("required relationships across input locations need a centralized contract")
 			}
 			if err := alternativeLocationRequirements(schema, components); err != nil {
 				return nil, source, err
@@ -62,14 +59,14 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 			continue
 		}
 		if effect.Name == "" {
-			return nil, source, fmt.Errorf("请求字段名称不是明确的非空常量")
+			return nil, source, fmt.Errorf("request field name is not an explicit nonempty constant")
 		}
 		if group.fields == nil {
 			group.fields = spec.Typed("object")
 			group.fields.Properties = map[string]*spec.Schema{}
 		}
 		if previous := group.fields.Properties[effect.Name]; previous != nil && !sameRequestJSON(previous, schema) {
-			return nil, source, fmt.Errorf("同名请求字段 %s 的网络表示不一致", effect.Name)
+			return nil, source, fmt.Errorf("request field %s has inconsistent wire representation", effect.Name)
 		}
 		group.fields.Properties[effect.Name] = schema
 		if effect.Required {
@@ -90,7 +87,7 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 				return nil, source, err
 			}
 			if old, ok := group.encoding[effect.Name]; ok && !sameRequestJSON(old, encoding) {
-				return nil, source, fmt.Errorf("同名请求字段 %s 的编码不一致", effect.Name)
+				return nil, source, fmt.Errorf("request field %s has inconsistent encoding", effect.Name)
 			}
 			group.encoding[effect.Name] = encoding
 		}
@@ -113,7 +110,6 @@ func (p *Project) requestPath(path flow, components map[string]*spec.Schema, map
 	return body, source, nil
 }
 
-// 同一路径重复观察相同约束不增加组合层级。
 // Deduplicate repeated constraints within a path without introducing extra composition layers.
 func appendUniqueSchema(schemas []*spec.Schema, schema *spec.Schema) []*spec.Schema {
 	for _, existing := range schemas {
@@ -124,7 +120,6 @@ func appendUniqueSchema(schemas []*spec.Schema, schema *spec.Schema) []*spec.Sch
 	return append(schemas, schema)
 }
 
-// 比较已序列化的规范值，不依赖指针或 map 遍历顺序。
 // Compare serialized specification values independently of pointers and map traversal order.
 func sameRequestJSON(left, right any) bool {
 	a, ea := json.Marshal(left)
@@ -132,7 +127,6 @@ func sameRequestJSON(left, right any) bool {
 	return ea == nil && eb == nil && string(a) == string(b)
 }
 
-// 不同执行路径使用备选；只有所有路径都要求请求体时才标为必填。
 // Combine different paths as alternatives, requiring a body only when every path requires one.
 func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]openapi.Diagnostic, paths []flow, components map[string]*spec.Schema, mappers []TypeMapper) {
 	required := len(paths) > 0
@@ -140,7 +134,7 @@ func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]op
 	for _, path := range paths {
 		body, source, err := p.requestPath(path, components, mappers)
 		if err != nil {
-			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "提供一致的集中请求字段或编码规则", Source: source})
+			*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: err.Error(), Fix: "Provide consistent centralized request-field or encoding rules", Source: source})
 			continue
 		}
 		required = required && body != nil && body.Required
@@ -161,7 +155,7 @@ func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]op
 			for _, field := range sortedKeys(incoming.Encoding) {
 				encoding := incoming.Encoding[field]
 				if previous, ok := old.Value.Encoding[field]; ok && !sameRequestJSON(previous, encoding) {
-					*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: "请求字段备选编码不一致：" + field, Fix: "提供一致的集中编码规则", Source: source})
+					*diagnostics = append(*diagnostics, openapi.Diagnostic{Code: "openapi.effect.unresolved", Severity: openapi.Error, Message: "request field alternatives have inconsistent encodings: " + field, Fix: "Provide consistent centralized encoding rules", Source: source})
 				} else {
 					if old.Value.Encoding == nil {
 						old.Value.Encoding = map[string]spec.Encoding{}

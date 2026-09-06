@@ -5,7 +5,6 @@ import (
 	"go/types"
 )
 
-// 函数值绑定实现和捕获单元身份；这些只读元数据可由分支共享。
 // A function value binds implementation and capture-cell identities; branches may share this immutable metadata.
 type functionValue struct {
 	object           *types.Func
@@ -15,7 +14,6 @@ type functionValue struct {
 	methodExpression bool
 }
 
-// 复制词法绑定；每条分析路径只修改自己的映射与单元值。
 // Copy lexical bindings so each analysis path mutates only its own map and cell values.
 func copyBindings(bindings map[types.Object]uint64) map[types.Object]uint64 {
 	result := map[types.Object]uint64{}
@@ -25,7 +23,6 @@ func copyBindings(bindings map[types.Object]uint64) map[types.Object]uint64 {
 	return result
 }
 
-// 新声明和调用帧分配独立单元，闭包别名仍保留同一个单元编号。
 // Allocate independent cells for declarations and call frames while closure aliases retain the same cell identifier.
 func (a *analyzer) bind(state *flow, object types.Object, value Value) {
 	a.nextCell++
@@ -33,7 +30,6 @@ func (a *analyzer) bind(state *flow, object types.Object, value Value) {
 	state.values[a.nextCell] = value
 }
 
-// 按当前词法帧读取值，未建立的外部变量保留类型但不假定其内容。
 // Read a value through the current lexical frame, retaining only the type of unbound external variables.
 func (s flow) read(object types.Object) Value {
 	if id := s.bindings[object]; id != 0 {
@@ -45,7 +41,6 @@ func (s flow) read(object types.Object) Value {
 	return Value{Unknown: true}
 }
 
-// 方法值按 Go 规则捕获值副本或可寻址变量的指针身份。
 // Method values capture a value copy or an addressable variable's pointer identity according to Go rules.
 func (a *analyzer) methodReceiver(fn Function, expression ast.Expr, object *types.Func, receiver Value, state *flow) Value {
 	signature, _ := object.Type().(*types.Signature)
@@ -69,7 +64,6 @@ func (a *analyzer) methodReceiver(fn Function, expression ast.Expr, object *type
 	return receiver
 }
 
-// 区分未知函数值与转换或内建函数，后两者不被误诊为丢失回调。
 // Distinguish unknown function values from conversions and builtins so the latter are not diagnosed as lost callbacks.
 func isFunctionExpression(info *types.Info, expression ast.Expr) bool {
 	if info.Types[expression].IsType() {
@@ -88,7 +82,6 @@ func isFunctionExpression(info *types.Info, expression ast.Expr) bool {
 	return function
 }
 
-// 在已加载源码中解析命名函数或字面闭包，不执行业务代码。
 // Resolve a named function or literal closure in loaded source without executing business code.
 func (a *analyzer) resolveFunction(value *functionValue, object *types.Func) (Function, bool) {
 	if value != nil && value.implementation != nil {
@@ -98,11 +91,10 @@ func (a *analyzer) resolveFunction(value *functionValue, object *types.Func) (Fu
 	return fn, ok && fn.Declaration != nil && fn.Declaration.Body != nil
 }
 
-// 进入独立词法帧，保留捕获单元的路径状态，并在返回时恢复调用方绑定。
 // Enter an independent lexical frame, retain path-local capture cells, and restore caller bindings on return.
 func (a *analyzer) invokeFunction(call CallContext, helper Function, state flow, depth int, fallback []Value) []evaluation {
 	if depth >= a.options.MaxDepth {
-		a.unknown(&state, call.Source, "helper 或递归超过深度预算")
+		a.unknown(&state, call.Source, "helper calls or recursion exceed the depth budget")
 		return []evaluation{{state: state, values: fallback}}
 	}
 	child := state.clone()
@@ -128,7 +120,7 @@ func (a *analyzer) invokeFunction(call CallContext, helper Function, state flow,
 	for _, path := range a.statements(helper, helper.Declaration.Body.List, []flow{child}, depth+1, false) {
 		returned := path.returned
 		if len(returned) != len(fallback) {
-			a.unknown(&path, call.Source, "helper 返回值尚未解决")
+			a.unknown(&path, call.Source, "helper return value is unresolved")
 			returned = fallback
 		}
 		path.returned, path.ended, path.branch = state.returned, state.ended, state.branch

@@ -1,10 +1,10 @@
-# 离线引用与资源预算
+# Offline references and resource budgets
 
-核心支持 OpenAPI 3.2 文档基准 `$self`、Schema 资源 `$id`、`$anchor`、`$dynamicAnchor`、`$ref` 和 `$dynamicRef` 的初始目标解析。规则依据 [OpenAPI 3.2 的基准 URI 与引用说明](https://spec.openapis.org/oas/v3.2.0.html#appendix-f-examples-of-base-uri-determination-and-reference-resolution)及 [JSON Schema 2020-12 Core](https://json-schema.org/draft/2020-12/json-schema-core)。
+The core supports OpenAPI 3.2 document bases through `$self`, Schema resources through `$id`, anchors, and initial target resolution for `$ref` and `$dynamicRef`. The rules follow [OpenAPI base URI and reference resolution](https://spec.openapis.org/oas/v3.2.0.html#appendix-f-examples-of-base-uri-determination-and-reference-resolution) and [JSON Schema 2020-12 Core](https://json-schema.org/draft/2020-12/json-schema-core).
 
-## Go 入口
+## Go API
 
-`openapi.Check(data)` 采用默认配置。`openapi.CheckWithOptions(data, options)` 接收显式离线内容，返回同一种 `Report`。检查器不调用文件、HTTP、DNS 或重定向加载器。
+`openapi.Check(data)` uses defaults. `CheckWithOptions(data, options)` accepts explicit offline content and returns the same `Report` type. The checker does not invoke file, HTTP, DNS, or redirect loaders.
 
 ```go
 package main
@@ -15,8 +15,7 @@ import (
     "github.com/openapi-golang/openapi"
 )
 
-// 用内存中明确提供的文档和 Schema 进行离线检查。
-// Checks only documents and schemas explicitly provided in memory.
+// Check only documents and schemas explicitly provided in memory.
 func main() {
     document := []byte(`{
       "openapi":"3.2.0",
@@ -40,43 +39,43 @@ func main() {
 }
 ```
 
-| 字段 | 行为 |
+| Field | Behavior |
 | --- | --- |
-| `BaseURI` | 主文档的绝对检索 URI；不能含片段。省略时采用仅在本次检查内使用的内部默认地址。 |
-| `Resources` | 绝对检索 URI 到完整 JSON 文档字节的映射。根含 `openapi` 时按 OpenAPI 文档检查；其他对象或布尔值按 JSON Schema 检查。 |
-| `ExampleResources` | `externalValue` 对应的原始示例字节。仅证明内容已明确提供，不把其中的 `$ref` 当作加载指令。 |
-| `MaxBytes` | 主文档和全部预载内容的累计字节上限，默认 8 MiB。 |
-| `MaxResources` | 主文档、预载内容和内嵌 `$id` 创建的资源总数，默认 64。同一资源的检索 URI 与规范自声明 URI 只计一次。 |
-| `MaxReferences` | 规范中的引用次数上限，默认 10000；重复文本的引用仍逐处计数和报告。 |
-| `MaxIndexBytes` | 索引路径、资源 URI、引用解析和诊断的累计文本处理量，默认 16 MiB；这不是堆分配字节的精确测量。 |
+| `BaseURI` | Absolute fragment-free retrieval URI for the main document. Omission selects an internal base for this check only. |
+| `Resources` | Absolute retrieval URIs mapped to complete JSON bytes. A root containing openapi is checked as OpenAPI; other objects and booleans are checked as JSON Schema. |
+| `ExampleResources` | Raw bytes for externalValue. Their presence proves that content was provided; embedded `$ref` text is not a loading instruction. |
+| `MaxBytes` | Aggregate main document and preloaded bytes; default 8 MiB. |
+| `MaxResources` | Main, preloaded, and embedded `$id` resources; default 64. A retrieval URI and the same resource's declared URI count once. |
+| `MaxReferences` | Reference occurrences; default 10,000. Repeated references are counted and reported at each location. |
+| `MaxIndexBytes` | Cumulative text processing for index paths, resource URIs, resolution, and diagnostics; default 16 MiB. This is not an exact heap allocation measurement. |
 
-预算零值采用默认值，负值返回 `openapi.spec.options`。全部 JSON 内容共用 200000 个节点预算，每份 JSON 深度不超过 128；重复键和尾随第二个 JSON 值会被拒绝。超出资源、引用或输入预算时返回 `openapi.spec.budget`，不会将截断结果标为完整。
+Zero budgets select defaults; negative budgets produce `openapi.spec.options`. All JSON shares a 200,000-node budget, with at most 128 levels per document. Duplicate keys and trailing JSON values are rejected. Exceeding a resource, reference, or input limit produces `openapi.spec.budget`; truncated results are not complete.
 
-输入字节和映射在调用期间只读使用，调用方不得并发修改。检查返回后不保留这些输入；独立调用之间没有共享的可变资源图。
+Input maps and bytes are read-only during a call and must not be mutated concurrently. They are not retained afterward. Independent checks do not share a mutable resource graph.
 
-## 引用规则
+## Resolution rules
 
-相对 `$self` 相对于调用方提供的检索 URI 解析。Schema 中的相对 `$id` 相对于最近的基准解析；它定义新的资源边界，其子节点继承这个基准。`$id` 不允许非空片段。锚点属于所在资源，不能借用另一个资源的同名锚点。
+Relative `$self` resolves against the retrieval URI. Relative `$id` resolves against the nearest base and creates a resource boundary inherited by descendants. `$id` cannot have a nonempty fragment. Anchors belong to their resource and cannot borrow a same-named anchor elsewhere.
 
-JSON Pointer 会先进行 URI 片段解码，再严格处理 `~0`、`~1` 和数组索引。引用必须指向对应的标准对象种类；指向 `info` 的 Schema 引用不会仅因目标存在而通过。指针跨过目标 Schema 的 `$id` 时，返回 `openapi.spec.ref.scope`，应改用最近 `$id` 对应的 URI。
+JSON Pointer resolution decodes the URI fragment, then strictly processes `~0`, `~1`, and array indices. Targets must have the expected specification object kind. An existing info object is not a valid Schema target. A pointer crossing the target Schema's `$id` produces `openapi.spec.ref.scope`; reference the nearest resource URI instead.
 
-discriminator 的组件名称映射会直接识别该组件；目标有 `$id` 时使用它的资源身份，不把名称映射误判为跨资源的 JSON Pointer。
+Discriminator component-name mappings identify the named component directly, using its `$id` when present. They are not misclassified as cross-resource JSON Pointers.
 
-循环引用按有限的边检查，不展开递归 Schema。`$dynamicRef` 的检查只证明初始目标存在且种类正确；实例验证时的动态作用域仍由 JSON Schema 验证器执行。此入口不是实例验证器，也不证明业务 handler 实施了声明约束。
+Cycles are checked as finite edges without expanding recursive schemas. Checking `$dynamicRef` establishes only that its initial target exists and has the right kind; instance-time dynamic scope belongs to a JSON Schema validator. This API does not validate instances or prove that handlers enforce declarations.
 
-所有明确预载的规范文档都会接受结构与引用检查，包括未被主文档引用的预载条目。检索地址、自声明 URI 或锚点冲突都会报告错误。外部示例仅检查资源提供性；示例是否符合媒体类型及实例 Schema 需要另行验证。
+All explicitly preloaded specification documents undergo structure and reference checking, including unreferenced entries. Conflicting retrieval URIs, declared identities, and anchors produce errors. External examples are checked for resource availability; media compatibility and instance validity require separate validation.
 
-资源根目前支持完整 OpenAPI 对象和 JSON Schema 对象/布尔值。单独的 Response Object 等碎片不能被猜成完整规范；应把它们保留在完整 OpenAPI 文档内，通过 JSON Pointer 引用。
+Resource roots support complete OpenAPI objects and JSON Schema objects or booleans. Keep a Response Object inside a complete OpenAPI resource and reference it with a JSON Pointer; a fragment is not guessed to be a complete document.
 
-## 构建与裁剪
+## Build and pruning
 
-`openapi.Config.Validation` 接收同一个 `CheckOptions`。`Build` 在裁剪和最终检查中使用同一份配置。裁剪按 `$id`、锚点、普通引用、`$dynamicRef` 初始目标及 discriminator 映射计算模型闭包；引用组件内部任意子节点时保留整个组件。扩展、默认值和示例数据里的 `$ref` 不会保留无关组件。
+`openapi.Config.Validation` passes the same options to pruning and final validation. The closure follows `$id`, anchors, ordinary references, initial dynamic-reference targets, and discriminator mappings. Referencing a node inside a component preserves the whole component. `$ref` text in extensions, defaults, or examples does not preserve unrelated components.
 
-外部预载文档回指本地组件时，该组件会进入闭包。只被未选中本地模型引用的缺失资源不会污染最终文档；资源身份冲突和解析预算等全局问题仍会阻断构建。
+An external resource referencing a local component brings that component into the closure. Missing resources reachable only from unselected local models do not contaminate the final document. Global identity conflicts and budget failures still block construction.
 
-这些选项只配置检查，不修改或内嵌外部资源，不自动把预载内容写入 `Document.JSON()`，也不会发布任何 URL。当前 Gin Mount 尚未把预载资源映射为本地 UI 资源；不能把此处的离线解析通过当作外部引用的 Swagger UI 展示已经验收。
+These options configure checking. They do not inline resources into `Document.JSON()` or publish URLs. Gin Mount does not currently map preloaded resources to UI endpoints, so offline resolution does not establish browser availability of external references.
 
-## 命令行
+## CLI
 
 ```sh
 openapi check --spec openapi.json \
@@ -86,22 +85,15 @@ openapi check --spec openapi.json \
   --max-index-bytes 16777216
 ```
 
-清单内容：
+Example manifest:
 
 ```json
 [
-  {
-    "uri": "https://example.test/api/schemas/item",
-    "file": "schemas/item.json"
-  },
-  {
-    "uri": "https://example.test/api/examples/message.txt",
-    "file": "examples/message.txt",
-    "kind": "example"
-  }
+  {"uri":"https://example.test/api/schemas/item","file":"schemas/item.json"},
+  {"uri":"https://example.test/api/examples/message.txt","file":"examples/message.txt","kind":"example"}
 ]
 ```
 
-`kind` 省略或为 `document` 时对应 `Resources`；`example` 对应 `ExampleResources`。相对文件路径以清单所在目录为基准。命令只读取显式指定的普通文件；不会把规范里的 URI 转换为本地路径。清单自身最多 1 MiB，主文档与预载文件共用 `--max-bytes` 预算。
+An omitted kind or document selects Resources; example selects ExampleResources. Relative file paths resolve from the manifest directory. Only explicitly named regular files are read. Document URIs are never converted into file paths. The manifest is limited to 1 MiB; main and preloaded files share the byte budget.
 
-命令拒绝缺失文件、重复 URI、未知字段或种类和尾随 JSON 值。读取前与分块读取间检查取消状态。检查成功退出 0，规范或资源错误退出非零，并输出 JSON 诊断；`check --help` 正常退出 0。
+Missing files, duplicate URIs, unknown fields or kinds, and trailing JSON are rejected. Cancellation is checked before and between reads. Successful checking and `check --help` exit 0. Document or resource errors exit nonzero with JSON diagnostics.

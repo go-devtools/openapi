@@ -8,7 +8,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 根值和示例中的大整数保持精确；示例内名为 $ref 的业务字段不得被重写。
 // Preserve large integers in roots and examples; never rewrite business fields named $ref inside examples.
 func TestStandalonePreservesValuesAndDataReferences(t *testing.T) {
 	root := spec.Typed("object")
@@ -27,21 +26,20 @@ func TestStandalonePreservesValuesAndDataReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	if output.Properties["ID"].Ref != "#/$defs/ID" || output.Defs["ID"].Minimum.Value != json.Number("9007199254740993") {
-		t.Fatal("Schema 引用或组件数值错误")
+		t.Fatal("Schema reference or component numeric value is incorrect")
 	}
 	if output.Defs["local"] == nil || output.Defs["local"].Bool == nil || *output.Defs["local"].Bool {
-		t.Fatal("根上的自有 $defs 被覆盖")
+		t.Fatal("root-owned $defs were overwritten")
 	}
 	example := output.Examples.Value[0].(map[string]any)
 	if example["ID"] != json.Number("9007199254740993") || example["$ref"] != "#/components/schemas/ID" {
-		t.Fatalf("示例值被篡改：%v", example)
+		t.Fatalf("example value was changed: %v", example)
 	}
 	if root.Properties["ID"].Ref != "#/components/schemas/ID" {
-		t.Fatal("导出修改了原始投影")
+		t.Fatal("export changed the original projection")
 	}
 }
 
-// 导出不能静默覆盖自有定义，也不能通过浮点数中转根级边界。
 // Reject conflicting definitions and preserve root bounds without floating-point conversion.
 func TestStandaloneRootNumberAndDefinitionConflict(t *testing.T) {
 	root := spec.Typed("integer")
@@ -49,11 +47,11 @@ func TestStandaloneRootNumberAndDefinitionConflict(t *testing.T) {
 	projection := &Projection{Root: root}
 	raw, err := projection.Standalone()
 	if err != nil || !strings.Contains(string(raw), `"maximum":9007199254740993`) {
-		t.Fatalf("根级边界精度丢失：%s %v", raw, err)
+		t.Fatalf("root numeric bound lost precision: %s %v", raw, err)
 	}
 	root.Defs = map[string]*spec.Schema{"same": spec.Typed("string")}
 	projection.Components = map[string]*spec.Schema{"same": spec.Typed("integer")}
 	if _, err = projection.Standalone(); err == nil {
-		t.Fatal("冲突的 $defs 被静默覆盖")
+		t.Fatal("conflicting $defs were silently overwritten")
 	}
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 真实加载源码并构建独立程序，证明校验依据二进制元数据而非运行环境变量。
 // Load real source and build an independent executable to verify binary metadata rather than runtime environment variables.
 func TestRuntimeBuildFromExecutable(t *testing.T) {
 	dir := t.TempDir()
@@ -27,10 +26,9 @@ func TestRuntimeBuildFromExecutable(t *testing.T) {
 	}
 	fingerprintFile(t, dir, "main.go", `package main
 import("encoding/json";"os";"github.com/openapi-golang/openapi")
-// 返回可静态分析的载荷。
 // Return a statically analyzable payload.
 func H() int { return 1 }
-// 输出当前程序的公开构建诊断，不执行分析器。
+// Output public build diagnostics for this program without executing the analyzer.
 // Emit public build diagnostics for this executable without invoking an analyzer.
 func main() {
  var profile openapi.BuildProfile

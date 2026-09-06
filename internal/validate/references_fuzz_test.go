@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// 模糊测试直接进入真实引用图，限制输入体积并检查诊断确定性。
 // Fuzz the actual reference graph with bounded inputs and deterministic-diagnostic checks.
 func FuzzReferenceGraph(f *testing.F) {
 	f.Add("#node", "https://example.test/openapi.json", "node")
@@ -31,7 +30,7 @@ func FuzzReferenceGraph(f *testing.F) {
 		options := Options{BaseURI: base, MaxBytes: 64 << 10, MaxResources: 8, MaxReferences: 8}
 		first, second := CheckWithOptions(raw, options), CheckWithOptions(raw, options)
 		if !reflect.DeepEqual(first, second) {
-			t.Fatalf("同一输入的引用诊断不稳定：%+v != %+v", first, second)
+			t.Fatalf("reference diagnostics for identical input are unstable: %+v != %+v", first, second)
 		}
 	})
 }

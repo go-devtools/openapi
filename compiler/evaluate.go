@@ -7,14 +7,12 @@ import (
 	"go/types"
 )
 
-// 保留一次表达式求值的路径及其单值或返回元组。
 // Preserve one expression path and its single value or result tuple.
 type evaluation struct {
 	state  flow
 	values []Value
 }
 
-// 在表达式内部同样执行路径预算，截断必须留下阻止发布的诊断。
 // Enforce path budgets inside expressions and diagnose every truncated result.
 func (a *analyzer) limitEvaluations(fn Function, expr ast.Node, paths []evaluation) []evaluation {
 	if len(paths) <= a.options.MaxPaths {
@@ -22,12 +20,11 @@ func (a *analyzer) limitEvaluations(fn Function, expr ast.Node, paths []evaluati
 	}
 	paths = paths[:a.options.MaxPaths]
 	for i := range paths {
-		a.unknown(&paths[i].state, a.project.Source(expr.Pos()), "表达式路径超过预算")
+		a.unknown(&paths[i].state, a.project.Source(expr.Pos()), "expression paths exceed the budget")
 	}
 	return paths
 }
 
-// 根据实际表达式类型保留未知返回元组的每一项。
 // Preserve each unknown result using the expression's actual tuple type.
 func expressionValues(t types.Type) []Value {
 	if tuple, ok := t.(*types.Tuple); ok {
@@ -43,7 +40,6 @@ func expressionValues(t types.Type) []Value {
 	return []Value{{Type: t}}
 }
 
-// 只在单值上下文取值，异常元组不能伪装成一个 payload。
 // Extract a scalar only in a single-value context without disguising an invalid tuple.
 func scalar(e evaluation) Value {
 	if len(e.values) == 1 {
@@ -52,7 +48,6 @@ func scalar(e evaluation) Value {
 	return Value{Unknown: true}
 }
 
-// 按从左到右顺序求值表达式列表，保留每条调用分支的值关联。
 // Evaluate expression lists from left to right while preserving path-value correlation.
 func (a *analyzer) expressions(fn Function, exprs []ast.Expr, state flow, depth int) []evaluation {
 	paths := []evaluation{{state: state}}
@@ -69,7 +64,6 @@ func (a *analyzer) expressions(fn Function, exprs []ast.Expr, state flow, depth 
 	return paths
 }
 
-// 将已知空值与非空值转换为布尔比较；未知接口仍保留两个分支。
 // Compare known nil and non-nil values while keeping unknown interfaces undecided.
 func compareValues(left Value, op token.Token, right Value) Value {
 	value := Value{Type: types.Typ[types.Bool]}
@@ -93,7 +87,6 @@ func compareValues(left Value, op token.Token, right Value) Value {
 	return value
 }
 
-// 返回确定的布尔结果；未知条件由调用者分裂路径。
 // Return a known boolean result and let callers split unknown conditions.
 func knownBool(v Value) (bool, bool) {
 	if v.Constant != nil && v.Constant.Kind() == constant.Bool {
@@ -102,7 +95,6 @@ func knownBool(v Value) (bool, bool) {
 	return false, false
 }
 
-// 求值常量、对象、短路表达式与调用，每条结果携带独立状态。
 // Evaluate constants, objects, short-circuit expressions, and calls with independent result states.
 func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) []evaluation {
 	info := fn.Package.Info
@@ -218,7 +210,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 					case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
 						if lv.Constant != nil && rv.Constant != nil {
 							if (x.Op == token.QUO || x.Op == token.REM) && constant.Sign(rv.Constant) == 0 {
-								a.unknown(&right.state, a.project.Source(x.Pos()), "可达的除零运算")
+								a.unknown(&right.state, a.project.Source(x.Pos()), "reachable division by zero")
 							} else {
 								v.Constant = constant.BinaryOp(lv.Constant, x.Op, rv.Constant)
 							}
@@ -256,7 +248,6 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 	return single(value)
 }
 
-// 顺序求值字面量的键和值；不能投影的集合仍保留其中调用的效果。
 // Evaluate literal keys and values in order, retaining call effects even for opaque collections.
 func (a *analyzer) composite(fn Function, x *ast.CompositeLit, state flow, depth int) []evaluation {
 	value := Value{Type: fn.Package.Info.TypeOf(x), Fields: map[string]Value{}}
@@ -309,7 +300,6 @@ func (a *analyzer) composite(fn Function, x *ast.CompositeLit, state flow, depth
 	return paths
 }
 
-// 在实参之前求值方法接收者，并将调用结果与副作用保持在同一路径。
 // Evaluate method receivers before arguments and keep call results correlated with effects.
 func (a *analyzer) call(fn Function, x *ast.CallExpr, state flow, depth int) []evaluation {
 	var results []evaluation
@@ -330,7 +320,6 @@ func (a *analyzer) call(fn Function, x *ast.CallExpr, state flow, depth int) []e
 	return a.limitEvaluations(fn, x, results)
 }
 
-// 分派已注册规则或真实 helper，有限返回备选在核心中统一传播。
 // Dispatch registered rules or real helpers and propagate finite result alternatives centrally.
 func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation {
 	values := expressionValues(call.Function.Package.Info.TypeOf(call.Call))
@@ -344,7 +333,7 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 	fallback := func() []evaluation { return []evaluation{{state: state, values: values}} }
 	a.calls++
 	if a.calls > a.options.MaxCalls {
-		a.unknown(&state, call.Source, "调用分析超过预算")
+		a.unknown(&state, call.Source, "call analysis exceeds the budget")
 		return fallback()
 	}
 	if a.frontend.Callback != nil {
@@ -367,7 +356,7 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 			invalidateAddresses(&state, call.Arguments)
 			if len(outcomes) > a.options.MaxPaths {
 				outcomes = outcomes[:a.options.MaxPaths]
-				a.unknown(&state, call.Source, "调用返回备选超过路径预算")
+				a.unknown(&state, call.Source, "call return alternatives exceed the path budget")
 			}
 			var results []evaluation
 			for _, outcome := range outcomes {
@@ -383,7 +372,7 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 				}
 				branch.when = when
 				if len(outcome.Results) != len(values) {
-					a.unknown(&branch, call.Source, "前端返回备选的结果数量与 Go 签名不一致")
+					a.unknown(&branch, call.Source, "frontend return alternative count differs from the Go signature")
 					results = append(results, evaluation{state: branch, values: values})
 					continue
 				}
@@ -393,7 +382,7 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 						returned[i].Type = values[i].Type
 					}
 					if returned[i].Nil && returned[i].NonNil {
-						a.unknown(&branch, call.Source, "前端返回备选同时声明 nil 和非 nil")
+						a.unknown(&branch, call.Source, "frontend return alternative declares both nil and non-nil")
 					}
 				}
 				a.effects(&branch, outcome.Effects)
@@ -417,13 +406,13 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 		return a.invokeFunction(call, helper, state, depth, values)
 	}
 	if call.Object == nil && isFunctionExpression(call.Function.Package.Info, call.Call.Fun) {
-		a.unknown(&state, call.Source, "函数值为 nil 或实际实现未解决，不能忽略其调用效果")
+		a.unknown(&state, call.Source, "function value is nil or its actual implementation is unresolved; call effects cannot be ignored")
 	}
 	invalidateAddresses(&state, call.Arguments)
 	if a.frontend.CarriesEffects != nil {
 		for _, arg := range append(append([]Value(nil), call.Arguments...), call.Receiver) {
 			if arg.Type != nil && a.frontend.CarriesEffects(arg.Type) {
-				a.unknown(&state, call.Source, "外部调用携带效果对象但没有已注册规则")
+				a.unknown(&state, call.Source, "external call carries an effect object but has no registered rule")
 			}
 		}
 	}
@@ -435,7 +424,6 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 	return fallback()
 }
 
-// 初始化 Go 零值，用于无初始化表达式的声明和具名返回值。
 // Initialize Go zero values for declarations without expressions and named results.
 func zeroValue(t types.Type) Value {
 	value := Value{Type: t}
@@ -461,7 +449,6 @@ func zeroValue(t types.Type) Value {
 	return value
 }
 
-// 接口装箱不能把有动态类型的 nil 指针误认为 nil 接口。
 // Interface boxing must not confuse a typed nil pointer with a nil interface.
 func coerceValue(value Value, target types.Type) Value {
 	if target == nil {
@@ -484,7 +471,6 @@ func coerceValue(value Value, target types.Type) Value {
 	return value
 }
 
-// 外部调用可能修改传入地址，旧常量和 nil 事实不能继续用于分支裁剪。
 // External calls may mutate passed addresses, invalidating old constants and nil facts used for pruning.
 func invalidateAddresses(state *flow, arguments []Value) {
 	for _, arg := range arguments {

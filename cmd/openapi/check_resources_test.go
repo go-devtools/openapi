@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// 命令通过用户指定清单读取资源；清单相对路径相对于清单目录解析。
 // Read resources from the explicit manifest and resolve relative paths against its directory.
 func TestCheckResourceManifest(t *testing.T) {
 	dir := t.TempDir()
@@ -28,7 +27,7 @@ func TestCheckResourceManifest(t *testing.T) {
 	args := []string{"check", "--spec", filepath.Join(dir, "openapi.json"), "--base-uri", "https://example.test/openapi.json", "--resources", filepath.Join(dir, "resources.json")}
 	var stdout, stderr bytes.Buffer
 	if code := run(context.Background(), args, &stdout, &stderr); code != 0 {
-		t.Fatalf("显式资源检查失败 %d：%s %s", code, stdout.String(), stderr.String())
+		t.Fatalf("explicit resource check failed %d: %s %s", code, stdout.String(), stderr.String())
 	}
 	var report map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
@@ -41,7 +40,7 @@ func TestCheckResourceManifest(t *testing.T) {
 		stdout.Reset()
 		stderr.Reset()
 		if run(context.Background(), append(append([]string{}, args...), extra...), &stdout, &stderr) == 0 {
-			t.Fatalf("命令忽略预算 %v", extra)
+			t.Fatalf("command ignored budget %v", extra)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -49,11 +48,10 @@ func TestCheckResourceManifest(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 	if run(ctx, args, &stdout, &stderr) == 0 || !strings.Contains(stderr.String(), "canceled") {
-		t.Fatal("已取消的命令仍执行", stderr.String())
+		t.Fatal("canceled command still executed", stderr.String())
 	}
 }
 
-// 错误清单和未提供的资源必须明确失败，help 应正常退出。
 // Reject invalid manifests and missing resources while allowing help to exit successfully.
 func TestCheckManifestErrorsAndHelp(t *testing.T) {
 	dir := t.TempDir()
@@ -72,11 +70,11 @@ func TestCheckManifestErrorsAndHelp(t *testing.T) {
 		}
 		var out, errout bytes.Buffer
 		if run(context.Background(), []string{"check", "--spec", file, "--resources", manifest}, &out, &errout) == 0 {
-			t.Fatal("错误接受清单", data)
+			t.Fatal("invalid manifest was accepted", data)
 		}
 	}
 	var out, errout bytes.Buffer
 	if run(context.Background(), []string{"check", "--help"}, &out, &errout) != 0 || !strings.Contains(errout.String(), "resources") {
-		t.Fatal("check help 不准确", errout.String())
+		t.Fatal("check help is inaccurate", errout.String())
 	}
 }

@@ -1,0 +1,34 @@
+# openapi
+
+> Framework-neutral Go source contract compilation, native OpenAPI 3.2 models, offline checks, and optional Swagger UI.
+
+The module is github.com/openapi-golang/openapi. Use Go 1.27.1 and pin a module version. Source types and actual codecs determine structure; ordinary comments add meaning. Runtime linking does not read application source. Framework behavior belongs in adapters through the public SDK. English diagnostics retain stable codes and source provenance.
+
+## Integration
+
+- [AI integration guide](docs/ai-integration.md): Commands, output handling, and diagnosis workflow.
+- [Public adapter SDK](docs/adapter-sdk.md): Ownership, budgets, generation, and runtime boundaries.
+- [OpenAPI 3.2 support matrix](docs/openapi32-matrix.md): Tested capabilities and coverage limits.
+- [Build inputs](docs/build-inputs.md): Build profiles, deterministic freshness, and custom configuration inputs.
+
+## Contracts
+
+- [Standalone Schema](docs/standalone-schema.md): Go projection and offline Schema export.
+- [Annotations](docs/schema-annotations.md): Semantic declarations and conflicts with inferred facts.
+- [Response effects](docs/response-effects.md): Headers, status commitment, payload codecs, and streaming items.
+- [Request fields](docs/request-fields.md): Individual body fields and explicit encoding.
+- [Parameter codecs](docs/parameter-codec.md): Framework-neutral wire representation rules.
+- [Callbacks](docs/callbacks.md): Function values, captured cells, repetition, and limits.
+- [Request conditions](docs/request-conditions.md): Finite method/media decisions.
+- [Call outcomes](docs/call-outcomes.md): Correlated values and effects.
+
+## Validation
+
+- [Offline references](docs/references.md): Explicit resource manifests and URI scopes.
+- [Independent contract validation](docs/contracttest.md): JSON, NDJSON, and SSE samples.
+- [External consumer](internal/verify/testdata/external/consumer_test.go): Public API usage outside the core module.
+
+## Optional
+
+- [README](README.md): Product overview and license.
+- [Chinese README](README.zh-cn.md): Corresponding Chinese documentation.

@@ -14,15 +14,12 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 用中立文本协议模拟非 JSON 指针和字节数组，保留核心注释投影。
 // Model non-JSON pointers and byte arrays with a neutral text protocol while retaining core annotations.
 type textParameterCodec struct{}
 
-// 为组件提供固定、明确的编解码身份。
 // Provide an explicit stable codec identity for components.
 func (textParameterCodec) Name() string { return "test-text-parameters-v1" }
 
-// 使用真实字段对象，让核心独立复用其注释和约束。
 // Return actual field objects so the core can independently reuse their comments and constraints.
 func (textParameterCodec) Fields(s *types.Struct) ([]WireField, error) {
 	var fields []WireField
@@ -34,7 +31,6 @@ func (textParameterCodec) Fields(s *types.Struct) ([]WireField, error) {
 	return fields, nil
 }
 
-// 普通文本参数没有 JSON null 或 Base64 字节序列语义。
 // Ordinary text parameters have neither JSON null nor Base64 byte-sequence semantics.
 func (textParameterCodec) ProjectType(request ProjectionRequest, project func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error) {
 	switch value := types.Unalias(request.Type).(type) {
@@ -50,22 +46,21 @@ func (textParameterCodec) ProjectType(request ProjectionRequest, project func(ty
 	return nil, false, nil
 }
 
-// 非 JSON 编解码器必须控制网络类型，并通过中立效果展开带注释的参数。
 // A non-JSON codec must control wire types and expand annotated parameters through neutral effects.
 func TestParameterCodecAndObjectEffects(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample
-// 中立参数。 Neutral parameters.
+// Neutral parameters.
 type Input struct {
- // 显示名称。 Display name.
+ // Display name.
  // @openapi required minLength=2
  Name string
- // 字节编号。 Byte identifiers.
+ // Byte identifiers.
  IDs []byte
- // 可选数量。 Optional count.
+ // Optional count.
  Count *int
 }
-// 接受参数并返回文本。 Accept parameters and return text.
+// Accept parameters and return text.
 func Handle(input Input) string {return input.Name}
 `
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.test/parameters\n\ngo 1.27.1\n"), 0600); err != nil {
@@ -157,7 +152,6 @@ func Handle(input Input) string {return input.Name}
 
 }
 
-// 模拟扩展提供的递归、错误类型和共享 Schema 返回值。
 // Model extension callbacks returning recursion, invalid types, and shared schemas.
 type boundaryTypeCodec struct {
 	textParameterCodec
@@ -165,7 +159,6 @@ type boundaryTypeCodec struct {
 	shared *spec.Schema
 }
 
-// 通过实际公开回调边界触发资源和所有权检查。
 // Exercise resource and ownership checks through the actual public callback boundary.
 func (c boundaryTypeCodec) ProjectType(request ProjectionRequest, project func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error) {
 	switch c.mode {
@@ -182,7 +175,6 @@ func (c boundaryTypeCodec) ProjectType(request ProjectionRequest, project func(t
 	}
 }
 
-// 错误扩展必须返回诊断，递归有预算，返回的 Schema 不共享可变状态。
 // Invalid extensions must return diagnostics, recursion must be bounded, and returned schemas must not share mutable state.
 func TestWireTypeCodecBoundaries(t *testing.T) {
 	project := &Project{}

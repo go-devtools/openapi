@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// 在真实资源作用域中改写投影组件引用，然后执行共享离线检查。
 // Rewrite projection component references within actual resource scopes, then run shared offline checks.
 func Standalone(raw []byte, componentNames []string, options Options) ([]byte, []Issue) {
 	options.schemaOnly = true
@@ -16,7 +15,7 @@ func Standalone(raw []byte, componentNames []string, options Options) ([]byte, [
 	g := set.graph
 	root := g.nodes["#"]
 	if root == nil || root.role != "schema" {
-		g.add("resource.type", "#", "独立导出需要 Schema 根")
+		g.add("resource.type", "#", "standalone export requires a Schema root")
 		return nil, g.issues
 	}
 	components := map[string]bool{}
@@ -48,18 +47,18 @@ func Standalone(raw []byte, componentNames []string, options Options) ([]byte, [
 		encodedName := strings.SplitN(strings.TrimPrefix(uri.Fragment, prefix), "/", 2)[0]
 		name := strings.ReplaceAll(strings.ReplaceAll(encodedName, "~1", "/"), "~0", "~")
 		if !components[name] {
-			g.add("ref.missing", use.path, "引用的投影组件不存在："+name)
+			g.add("ref.missing", use.path, "referenced projection component does not exist: "+name)
 			continue
 		}
 		pointer := "/$defs/" + strings.TrimPrefix(uri.Fragment, prefix)
 		path, code := g.pointerPath(root, pointer)
 		if code != "" {
-			g.add(code, use.path, "投影组件指针无效")
+			g.add(code, use.path, "invalid projection component pointer")
 			continue
 		}
 		target := g.nodes[path]
 		if target == nil || target.role != "schema" {
-			g.add("ref.type", use.path, "组件引用必须指向 Schema")
+			g.add("ref.type", use.path, "component reference must target a Schema")
 			continue
 		}
 		resource := g.resources[target.base]
@@ -67,7 +66,7 @@ func Standalone(raw []byte, componentNames []string, options Options) ([]byte, [
 		if target.base != owner.base {
 			canonical, err = url.Parse(target.base)
 			if err != nil {
-				g.add("ref.uri", use.path, "组件资源身份无效")
+				g.add("ref.uri", use.path, "invalid component resource identity")
 				continue
 			}
 			canonical.Fragment = strings.TrimPrefix(path, resource.path)

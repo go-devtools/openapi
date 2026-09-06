@@ -13,7 +13,6 @@ Build parameter values and custom configuration may contain deployment details. 
 Frontend names and codec names must identify their rules and configuration stably. Do not derive them from function pointers, addresses, timestamps, or random values. `Options.Configuration` supplies additional named JSON inputs for captured settings and centralized mappings. Compile calls containing TypeMapper functions must provide a nonempty configuration declaration, since arbitrary closures cannot be reconstructed from runtime addresses.
 
 ```go
-// 集中映射配置参与新鲜度，原始值不会进入公开 Bundle。
 // Include centralized mapping settings in freshness without exposing raw values in the public Bundle.
 options := compiler.Options{
     Load: compiler.LoadOptions{Dir: "."},
@@ -41,4 +40,4 @@ Known differences produce `openapi.build.mismatch` errors before document config
 
 Tests run actual Go loading for separate target selectors, overlay changes and new overlay files, same-named files in different packages, inactive source, selected local replacement versions, embedded assets, local workspace mutations, relocation, read-only module files, input exhaustion, custom mapping identity, and linker-value confidentiality. A harmless marker driver demonstrated the old execution path before the driver guard was implemented. Public external SDK consumers repeat the input tests without importing core internal packages.
 
-This stage does not claim every runtime/profile or compiler flag/toolchain combination, arbitrary custom C toolchains and external header graphs, or the full product goal. The complete schema/helper/codec matrices, remaining build-condition matrices, CI, and final independent cold-cache acceptance remain tracked in the product status.
+Arbitrary custom C toolchains, external header graphs, and every compiler flag or target combination are outside the verified build-profile coverage. Use matching build settings and source freshness checks for each supported application target.

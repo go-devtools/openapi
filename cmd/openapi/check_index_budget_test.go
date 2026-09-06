@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-// CLI 必须转发索引预算，超限返回非零并保留稳定诊断编码。
 // The CLI forwards index budgets and returns a nonzero status with the stable diagnostic code.
 func TestCheckIndexBudgetFlag(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "openapi.json")

@@ -7,13 +7,12 @@ import (
 	"strings"
 )
 
-// 保留各资源的身份与方言，在根定义中嵌入显式依赖并规范化检索别名。
 // Preserve resource identities and dialects, embed explicit dependencies, and normalize retrieval aliases.
 func (set *resourceSet) exportStandalone(root *referenceNode, options Options) ([]byte, []Issue) {
 	g := set.graph
 	for _, entry := range set.documents {
 		if entry.role != "schema" {
-			g.add("resource.type", entry.path, "独立导出的预载内容必须是 JSON Schema")
+			g.add("resource.type", entry.path, "preloaded content for standalone export must be JSON Schema")
 			return nil, g.issues
 		}
 	}
@@ -67,7 +66,7 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 	}
 	budget := byteBudget{remaining: g.maxNormalizedBytes}
 	if !budget.jsonValue(object) {
-		g.add("budget", "#", "导出 Schema 超过 MaxNormalizedBytes")
+		g.add("budget", "#", "exported Schema exceeds MaxNormalizedBytes")
 		return nil, g.issues
 	}
 	for _, use := range g.uses {
@@ -85,7 +84,7 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 		}
 		resource := g.resources[resourceURI(uri)]
 		if resource == nil {
-			g.add("external.denied", use.path, "缺少导出依赖资源")
+			g.add("external.denied", use.path, "export dependency resource is missing")
 			return nil, g.issues
 		}
 		if strings.HasPrefix(use.value, "#") && resource.base == owner.base {
@@ -104,7 +103,7 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 			object["$id"] = root.base
 			budget = byteBudget{remaining: g.maxNormalizedBytes}
 			if !budget.jsonValue(object) {
-				g.add("budget", "#", "导出 Schema 超过 MaxNormalizedBytes")
+				g.add("budget", "#", "exported Schema exceeds MaxNormalizedBytes")
 				return nil, g.issues
 			}
 		}
@@ -113,7 +112,7 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 			key = "$dynamicRef"
 		}
 		if !budget.replaceString(owner.value.(map[string]any), key, canonical.String(), g.maxNormalizedBytes) {
-			g.add("budget", "#", "导出 Schema 超过 MaxNormalizedBytes")
+			g.add("budget", "#", "exported Schema exceeds MaxNormalizedBytes")
 			return nil, g.issues
 		}
 	}
@@ -122,7 +121,6 @@ func (set *resourceSet) exportStandalone(root *referenceNode, options Options) (
 		g.add("json", "#", err.Error())
 		return nil, g.issues
 	}
-	// 对最终单文档重新建图，证明它不再依赖调用方另行提供资源。
 	// Re-index the final document to prove it no longer relies on separately supplied resources.
 	outputOptions := options
 	outputOptions.Resources = nil

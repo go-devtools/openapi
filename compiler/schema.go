@@ -15,22 +15,18 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 表示网络输入与输出投影方向。
 // Identify input and output wire projections.
 type Direction string
 
-// 输入约束与输出存在性分别计算。
 // Compute input constraints and output presence independently.
 const (
 	Input  Direction = "request"
 	Output Direction = "response"
 )
 
-// 为自定义类型提供集中映射，不执行用户编解码方法。
 // Map custom types centrally without executing user codecs.
 type TypeMapper func(ProjectionRequest) (*spec.Schema, bool, error)
 
-// 声明一个网络字段及其实际编解码属性。
 // Describe a wire field and its actual encoding properties.
 type WireField struct {
 	Name          string
@@ -40,20 +36,17 @@ type WireField struct {
 	Optional      bool
 }
 
-// 由适配器提供非标准字段选择规则，核心不认识框架 tag。
 // Let adapters select fields without introducing framework tags into the core.
 type WireCodec interface {
 	Name() string
 	Fields(*types.Struct) ([]WireField, error)
 }
 
-// 可选类型投影规则由 codec 显式实现，递归回调共享当前预算和引用缓存。
 // Codecs may explicitly override type projection; recursive callbacks share the current budget and reference cache.
 type WireTypeCodec interface {
 	ProjectType(ProjectionRequest, func(types.Type) (*spec.Schema, error)) (*spec.Schema, bool, error)
 }
 
-// 缓存身份包含类型、方向、媒体类型与 codec，非标准 codec 显式传入。
 // Include type, direction, media type, and codec in projection identity.
 type ProjectionRequest struct {
 	Type      types.Type
@@ -64,7 +57,6 @@ type ProjectionRequest struct {
 	MaxTypes  int
 }
 
-// 返回结构化根 Schema 与完整依赖组件。
 // Return a root Schema and its complete component closure.
 type Projection struct {
 	Root       *spec.Schema
@@ -72,7 +64,6 @@ type Projection struct {
 	Audit      []string
 }
 
-// 保存一次投影的私有递归缓存。
 // Keep a private recursion cache for one projection.
 type projector struct {
 	project     *Project
@@ -83,20 +74,19 @@ type projector struct {
 	annotations []annotationCheck
 }
 
-// 从真实类型与共享注释索引生成 Schema，不执行类型的方法。
 // Project actual types and indexed comments without invoking their methods.
 func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	if request.Type == nil {
-		return nil, fmt.Errorf("openapi.schema.type: 缺少真实 Go 类型")
+		return nil, fmt.Errorf("openapi.schema.type: actual Go type is required")
 	}
 	if request.Direction != Input && request.Direction != Output {
-		return nil, fmt.Errorf("openapi.schema.direction: 需要 request 或 response")
+		return nil, fmt.Errorf("openapi.schema.direction: request or response is required")
 	}
 	if request.MediaType == "" {
 		request.MediaType = "application/json"
 	}
 	if request.Codec == nil && request.MediaType != "application/json" {
-		return nil, fmt.Errorf("openapi.codec.unknown: 媒体类型 %s 需要集中 WireCodec", request.MediaType)
+		return nil, fmt.Errorf("openapi.codec.unknown: media type %s requires a centralized WireCodec", request.MediaType)
 	}
 	if request.MaxTypes == 0 {
 		request.MaxTypes = 4096
@@ -109,46 +99,38 @@ func (p *Project) Schema(request ProjectionRequest) (*Projection, error) {
 	if err = pr.checkAnnotations(); err != nil {
 		return nil, err
 	}
-	audit := []string{"请求 Schema 表达规范契约，不证明业务代码执行所有声明约束。"}
+	audit := []string{"Request Schema describes the declared contract; it does not prove that business code enforces every constraint."}
 	if request.Codec == nil {
-		audit = append(audit, "未穷尽标准 JSON 对 null、大小写和固定数组的宽松接受形式。")
+		audit = append(audit, "The full set of standard JSON decoder allowances for null, case folding, and fixed arrays is not modeled.")
 	} else {
-		audit = append(audit, fmt.Sprintf("使用显式 codec %s；核心不执行实际解码方法。", request.Codec.Name()))
+		audit = append(audit, fmt.Sprintf("Use explicit codec %s; the core does not execute actual decoding methods.", request.Codec.Name()))
 	}
 	return &Projection{Root: root, Components: pr.components, Audit: audit}, nil
 }
 
-// 配置可移植 Schema 的基准、离线依赖与有界导出；输入在调用期间只读。
 // Configure portable schema bases, offline dependencies, and bounded export with read-only inputs.
 type StandaloneOptions struct {
-	// 为根 Schema 提供绝对检索 URI；相对资源身份基于此地址解析。
 	// Set the root schema's absolute retrieval URI for resolving relative resource identities.
 	BaseURI string
-	// 只读取明确提供的 JSON Schema 文档，不按 URI 访问网络或文件。
 	// Read only explicitly supplied JSON Schema documents without loading URIs from networks or files.
 	Resources map[string][]byte
-	// 仅在根未声明方言时采用此值，默认使用 JSON Schema 2020-12。
 	// Use this dialect only when the root has none; default to JSON Schema 2020-12.
 	Dialect string
-	// 零值采用与核心离线检查相同的输入、资源、引用及索引预算。
 	// Zero selects the core offline checker's input, resource, reference, and index budgets.
 	MaxBytes, MaxResources, MaxReferences, MaxIndexBytes int
-	// 零值采用十六 MiB 的规范化输出预算。
 	// Zero selects a sixteen-MiB normalized output budget.
 	MaxNormalizedBytes int
 }
 
-// 使用默认预算导出独立 Schema，未声明方言时采用 JSON Schema 二零二零十二。
 // Export a standalone schema with default budgets, using JSON Schema 2020-12 when no dialect is declared.
 func (p *Projection) Standalone() ([]byte, error) {
 	return p.StandaloneWithOptions(StandaloneOptions{})
 }
 
-// 使用显式基准和离线资源导出独立 Schema，保留已声明的方言。
 // Export a standalone schema using explicit bases and offline resources while preserving declared dialects.
 func (p *Projection) StandaloneWithOptions(options StandaloneOptions) ([]byte, error) {
 	if p == nil || p.Root == nil {
-		return nil, fmt.Errorf("openapi.schema.root: 缺少根 Schema")
+		return nil, fmt.Errorf("openapi.schema.root: root Schema is required")
 	}
 	raw, err := json.Marshal(p.Root)
 	if err != nil {
@@ -183,10 +165,10 @@ func (p *Projection) StandaloneWithOptions(options StandaloneOptions) ([]byte, e
 	for _, name := range names {
 		s := p.Components[name]
 		if s == nil {
-			return nil, fmt.Errorf("openapi.schema.component: 组件不能为 nil：%s", name)
+			return nil, fmt.Errorf("openapi.schema.component: component must not be nil: %s", name)
 		}
 		if _, exists := defs[name]; exists {
-			return nil, fmt.Errorf("openapi.schema.defs.conflict: 已有定义与组件重名：%s", name)
+			return nil, fmt.Errorf("openapi.schema.defs.conflict: existing definition conflicts with component name: %s", name)
 		}
 		b, err := json.Marshal(s)
 		if err != nil {
@@ -212,7 +194,6 @@ func (p *Projection) StandaloneWithOptions(options StandaloneOptions) ([]byte, e
 	return encoded, nil
 }
 
-// 构造允许显式 null 的联合 Schema。
 // Build a union that permits explicit null.
 func nullable(s *spec.Schema) *spec.Schema {
 	if s.SchemaObject != nil && len(s.Type) > 0 {
@@ -227,12 +208,11 @@ func nullable(s *spec.Schema) *spec.Schema {
 	return &spec.Schema{SchemaObject: &spec.SchemaObject{AnyOf: []*spec.Schema{s, spec.Typed("null")}}}
 }
 
-// 按类型身份与实际编码规则递归投影。
 // Project recursively according to type identity and encoding rules.
 func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 	p.count++
 	if p.count > p.request.MaxTypes {
-		return nil, fmt.Errorf("openapi.schema.budget: 类型图超过预算")
+		return nil, fmt.Errorf("openapi.schema.budget: type graph exceeds the budget")
 	}
 	for _, mapper := range p.request.Mappers {
 		request := p.request
@@ -250,7 +230,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		}
 		if handled {
 			if schema == nil {
-				return nil, fmt.Errorf("openapi.codec.invalid: 类型规则声明已处理但没有 Schema")
+				return nil, fmt.Errorf("openapi.codec.invalid: type rule reported the type as handled without a Schema")
 			}
 			return copyWireSchema(schema)
 		}
@@ -292,7 +272,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 				for i := 0; i < set.Len(); i++ {
 					name := set.At(i).Obj().Name()
 					if name == method || name == textMethod {
-						return nil, fmt.Errorf("openapi.codec.custom: %s 定义 %s，需要方向明确的 TypeMapper", identity, name)
+						return nil, fmt.Errorf("openapi.codec.custom: %s defines %s; provide a direction-specific TypeMapper", identity, name)
 					}
 				}
 			}
@@ -320,7 +300,6 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 				return nil, err
 			}
 		}
-		// title 只用于展示，组件键继续保留类型与投影的完整区分身份。
 		// Use title for display while component keys distinguish types and projections.
 		if s.SchemaObject != nil && s.Title == "" {
 			s.Title = types.TypeString(named, func(*types.Package) string { return "" })
@@ -379,7 +358,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		}
 		basic, ok := key.(*types.Basic)
 		if !ok || basic.Info()&(types.IsString|types.IsInteger) == 0 {
-			return nil, fmt.Errorf("openapi.codec.mapkey: 未知 JSON 对象键编码 %s", x.Key())
+			return nil, fmt.Errorf("openapi.codec.mapkey: unknown JSON object key encoding %s", x.Key())
 		}
 		value, err := p.projectType(x.Elem())
 		if err != nil {
@@ -396,7 +375,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		if x.NumMethods() == 0 {
 			return spec.Boolean(true), nil
 		}
-		return nil, fmt.Errorf("openapi.schema.interface: 非空接口需要具体实现或集中映射")
+		return nil, fmt.Errorf("openapi.schema.interface: nonempty interface requires a concrete implementation or centralized mapping")
 	case *types.Struct:
 		var fields []WireField
 		var err error
@@ -423,7 +402,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 				}
 				basic, ok := base.(*types.Basic)
 				if !ok || basic.Info()&(types.IsBoolean|types.IsInteger|types.IsFloat|types.IsString) == 0 {
-					return nil, fmt.Errorf("openapi.codec.string: 不支持此 ,string 类型")
+					return nil, fmt.Errorf("openapi.codec.string: unsupported type for ,string")
 				}
 				field = spec.Typed("string")
 				if _, ok := f.Field.Type().(*types.Pointer); ok {
@@ -445,10 +424,9 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		}
 		return s, nil
 	}
-	return nil, fmt.Errorf("openapi.schema.unsupported: 无法编码类型 %s", t)
+	return nil, fmt.Errorf("openapi.schema.unsupported: cannot encode type %s", t)
 }
 
-// 判断已解析指令中的裸或显式真标志。
 // Recognize bare flags and explicitly true directive values.
 func flag(doc comment.Document, key string) bool {
 	for _, d := range doc.Directives {
@@ -459,11 +437,9 @@ func flag(doc comment.Document, key string) bool {
 	return false
 }
 
-// 只有类型上的裸 enum 才封闭已知常量。
 // Only a type-level enum flag closes the set of declared constants.
 func closedEnum(doc comment.Document) bool { return flag(doc, "enum") }
 
-// 将统一约束应用到 Schema，结构事实与契约声明分别处理。
 // Apply contract annotations without overriding structural facts.
 func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, site string) error {
 	if doc.Summary == "" && len(doc.Directives) == 0 {
@@ -471,7 +447,7 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 	}
 	if s.Bool != nil {
 		if !*s.Bool {
-			return fmt.Errorf("openapi.schema.annotation: 不可满足 Schema 上不能增加结构注解")
+			return fmt.Errorf("openapi.schema.annotation: structural annotations cannot be added to an unsatisfiable Schema")
 		}
 		s.Bool = nil
 		s.SchemaObject = &spec.SchemaObject{}
@@ -494,19 +470,19 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 	}
 	for _, d := range doc.Directives {
 		if d.Kind != "" {
-			return fmt.Errorf("openapi.comment.context: 请求响应声明不能用于字段或类型")
+			return fmt.Errorf("openapi.comment.context: request and response declarations cannot apply to fields or types")
 		}
 		for _, k := range directiveKeys(d.Values) {
 			v := d.Values[k]
 			if k == "required" || k == "nonnull" || k == "nullable" || k == "ignore" {
 				if string(v) != "true" && string(v) != "false" {
-					return fmt.Errorf("openapi.comment.value: %s 必须是布尔值", k)
+					return fmt.Errorf("openapi.comment.value: %s must be a boolean", k)
 				}
 			}
 			switch k {
 			case "required":
 				if !field {
-					return fmt.Errorf("openapi.comment.context: required 仅用于字段")
+					return fmt.Errorf("openapi.comment.context: required only applies to fields")
 				}
 				continue
 			case "nonnull":
@@ -527,33 +503,33 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 			case "nullable":
 				if string(v) == "true" {
 					if flag(doc, "nonnull") {
-						return fmt.Errorf("openapi.comment.conflict: nullable 与 nonnull 冲突")
+						return fmt.Errorf("openapi.comment.conflict: nullable conflicts with nonnull")
 					}
 					if len(s.Type) > 0 {
 						nullable(s)
 						obj["type"], _ = json.Marshal(s.Type)
 					} else {
-						return fmt.Errorf("openapi.schema.nullable: 此引用联合需要集中类型扩展")
+						return fmt.Errorf("openapi.schema.nullable: this reference union requires a centralized type extension")
 					}
 				}
 				continue
 			case "enum":
 				if string(v) == "true" {
 					if field {
-						return fmt.Errorf("openapi.comment.enum: 字段 enum 必须是 JSON 数组")
+						return fmt.Errorf("openapi.comment.enum: field enum must be a JSON array")
 					}
 					continue
 				}
 			case "ignore":
 				if string(v) == "true" {
-					return fmt.Errorf("openapi.schema.ignore: 字段仍会传输，不能隐藏真实字段")
+					return fmt.Errorf("openapi.schema.ignore: field is still transmitted; actual fields cannot be hidden")
 				}
 				continue
 			case "operationId", "tags", "status", "mediaType", "type":
-				return fmt.Errorf("openapi.comment.context: %s 不适用于此位置", k)
+				return fmt.Errorf("openapi.comment.context: %s is not applicable here", k)
 			case "writeOnly":
 				if p.request.Direction == Output && string(v) == "true" {
-					return fmt.Errorf("openapi.schema.writeOnly: 字段实际仍会输出")
+					return fmt.Errorf("openapi.schema.writeOnly: field is still emitted by the actual encoder")
 				}
 			}
 			obj[k] = v
@@ -581,7 +557,6 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 	return nil
 }
 
-// 按标准 JSON 的嵌入深度、tag 优先级和冲突规则选择字段。
 // Select JSON fields by embedding depth, tag priority, and conflict rules.
 func jsonFields(root *types.Struct) ([]WireField, error) {
 	type candidate struct {

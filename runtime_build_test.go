@@ -8,7 +8,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 比较已知条件，保留未知设置诊断并允许仅补丁版本不同。
 // Compare known selectors, report unknown settings, and permit patch-only toolchain differences.
 func TestRuntimeBuildComparison(t *testing.T) {
 	actual := BuildProfile{GoVersion: "go1.27.1", GOOS: "linux", GOARCH: "amd64", CGOEnabled: "0", Settings: map[string]string{"-tags": "beta,alpha", "GOEXPERIMENT": "", "GOAMD64": "v1"}}
@@ -54,7 +53,6 @@ func TestRuntimeBuildComparison(t *testing.T) {
 	}
 }
 
-// 运行时校验由核心调用方选择，跨目标离线导出无需伪造宿主信息。
 // Let core callers select runtime validation while retaining cross-target offline exports.
 func TestBuildRuntimeValidationBeforeConfiguration(t *testing.T) {
 	data := testBundle(t).Snapshot()
@@ -81,7 +79,6 @@ func TestBuildRuntimeValidationBeforeConfiguration(t *testing.T) {
 	}
 }
 
-// 历史 Bundle 缺少构建信息仍可使用，但诊断不能声称已验证代码同源。
 // Keep legacy Bundles usable while reporting that their runtime build inputs are unrecorded.
 func TestBuildRetainsRuntimeWarnings(t *testing.T) {
 	doc, err := Build(testBundle(t), nil, Config{Title: "Legacy", Version: "1", VerifyRuntimeBuild: true})

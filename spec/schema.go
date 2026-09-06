@@ -6,27 +6,23 @@ import (
 	"fmt"
 )
 
-// 表示布尔 Schema 或结构化 Schema，两者不能同时设置。
 // Represent exactly one boolean or object Schema branch.
 type Schema struct {
 	Bool *bool
 	*SchemaObject
 }
 
-// 构造布尔 Schema；false 拒绝任何实例，true 不施加约束。
 // Build a boolean Schema: false rejects every instance and true imposes no constraints.
 func Boolean(v bool) *Schema { return &Schema{Bool: &v} }
 
-// 构造具有给定类型的 Schema。
 // Build a Schema with the specified types.
 func Typed(types ...string) *Schema { return &Schema{SchemaObject: &SchemaObject{Type: Types(types)}} }
 
-// 保留布尔分支及所有 JSON Schema 关键字的存在性。
 // Preserve boolean branches and keyword presence during serialization.
 func (s Schema) MarshalJSON() ([]byte, error) {
 	if s.Bool != nil {
 		if s.SchemaObject != nil {
-			return nil, fmt.Errorf("Schema 分支冲突")
+			return nil, fmt.Errorf("Schema branch conflict")
 		}
 		return json.Marshal(*s.Bool)
 	}
@@ -37,7 +33,6 @@ func (s Schema) MarshalJSON() ([]byte, error) {
 	return marshalExtensions((*plain)(s.SchemaObject), s.Extensions)
 }
 
-// 拒绝 null、数组和数字等非法 Schema 根值。
 // Reject null, arrays, and numbers as Schema roots.
 func (s *Schema) UnmarshalJSON(b []byte) error {
 	b = bytes.TrimSpace(b)
@@ -49,7 +44,7 @@ func (s *Schema) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 	if len(b) == 0 || b[0] != '{' {
-		return fmt.Errorf("Schema 必须是对象或布尔值")
+		return fmt.Errorf("Schema must be an object or boolean")
 	}
 	s.SchemaObject = &SchemaObject{}
 	if err := json.Unmarshal(b, s.SchemaObject); err != nil {
@@ -60,7 +55,6 @@ func (s *Schema) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// 覆盖 JSON Schema 二零二零十二及 OpenAPI 的结构化 Schema 字段。
 // Expose JSON Schema 2020-12 and OpenAPI Schema fields.
 type SchemaObject struct {
 	Schema                string                 `json:"$schema,omitempty"`
@@ -126,7 +120,6 @@ type SchemaObject struct {
 	Extensions            Extensions             `json:"-"`
 }
 
-// 表示多态分派，不将 anyOf 自动升级为 oneOf。
 // Describe polymorphic dispatch without upgrading anyOf to oneOf.
 type Discriminator struct {
 	PropertyName   string            `json:"propertyName,omitempty"`
@@ -135,7 +128,6 @@ type Discriminator struct {
 	Extensions     Extensions        `json:"-"`
 }
 
-// 表示三点二 XML 节点类型及名称空间。
 // Describe OAS 3.2 XML node kinds and namespaces.
 type XML struct {
 	Name       string     `json:"name,omitempty"`

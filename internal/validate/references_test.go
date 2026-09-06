@@ -6,13 +6,11 @@ import (
 	"testing"
 )
 
-// 用最小原生文档隔离引用语义，避免无关业务字段干扰。
 // Isolate reference semantics with minimal native documents and no unrelated business fields.
 func referenceDocument(schemas string, extra string) []byte {
-	return []byte(`{"openapi":"3.2.0","info":{"title":"引用测试","version":"1"},"components":{"schemas":` + schemas + `}` + extra + `}`)
+	return []byte(`{"openapi":"3.2.0","info":{"title":"Reference test","version":"1"},"components":{"schemas":` + schemas + `}` + extra + `}`)
 }
 
-// 验证基准 URI、资源内锚点与递归引用，不展开循环 Schema。
 // Verify base URIs, resource anchors, and recursive references without expanding cyclic schemas.
 func TestLocalReferenceResources(t *testing.T) {
 	cases := []struct{ name, schemas, extra string }{
@@ -31,13 +29,12 @@ func TestLocalReferenceResources(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if issues := Check(referenceDocument(tc.schemas, tc.extra)); len(issues) != 0 {
-				t.Fatalf("合法引用被拒绝：%+v", issues)
+				t.Fatalf("valid reference was rejected: %+v", issues)
 			}
 		})
 	}
 }
 
-// 每个错误引用都必须带独立位置，不能被相同引用文本覆盖。
 // Preserve a separate location for every invalid reference, including repeated reference text.
 func TestInvalidReferenceResources(t *testing.T) {
 	cases := []struct{ name, schemas, extra, code string }{
@@ -67,7 +64,7 @@ func TestInvalidReferenceResources(t *testing.T) {
 					return
 				}
 			}
-			t.Fatalf("未报告 %s：%+v", tc.code, issues)
+			t.Fatalf("%s was not reported: %+v", tc.code, issues)
 		})
 	}
 	issues := Check(referenceDocument(`{"A":{"$ref":"#missing"},"B":{"$ref":"#missing"}}`, ""))
@@ -78,11 +75,10 @@ func TestInvalidReferenceResources(t *testing.T) {
 		}
 	}
 	if !paths["#/components/schemas/A/$ref"] || !paths["#/components/schemas/B/$ref"] {
-		t.Fatalf("重复引用丢失位置：%+v", issues)
+		t.Fatalf("duplicate reference lost its location: %+v", issues)
 	}
 }
 
-// Reference Object 和 Link 必须指向对应种类，而不能仅证明 JSON Pointer 存在。
 // Require Reference Objects and Links to target the correct kind, not merely an existing JSON Pointer.
 func TestReferenceTargetRoles(t *testing.T) {
 	for _, fragment := range []string{
@@ -96,12 +92,11 @@ func TestReferenceTargetRoles(t *testing.T) {
 			found = found || strings.HasPrefix(issue.Code, "openapi.spec.ref.")
 		}
 		if !found {
-			t.Fatalf("错误目标未被拒绝：%s %+v", raw, issues)
+			t.Fatalf("invalid target was not rejected: %s %+v", raw, issues)
 		}
 	}
 }
 
-// 相同输入必须稳定报告重复身份的位置，便于 CI 比对。
 // Report duplicate identities deterministically for reproducible CI comparisons.
 func TestReferenceDiagnosticsDeterministic(t *testing.T) {
 	raw := referenceDocument(`{"B":{"$anchor":"same"},"A":{"$anchor":"same"}}`, "")
@@ -109,16 +104,15 @@ func TestReferenceDiagnosticsDeterministic(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		got, _ := json.Marshal(Check(raw))
 		if string(got) != string(want) {
-			t.Fatalf("引用诊断不稳定：%s != %s", got, want)
+			t.Fatalf("reference diagnostics are unstable: %s != %s", got, want)
 		}
 	}
 }
 
-// 回调对象的扩展是业务数据，不能触发引用检查。
 // Treat callback extensions as business data without triggering reference checks.
 func TestCallbackExtensionReferencesAreData(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"components":{"callbacks":{"Notify":{"x-note":{"$ref":"https://data.invalid/note"},"{$request.body#/callback}":{"post":{"responses":{"200":{"description":"OK"}}}}}}}}`)
 	if issues := Check(raw); len(issues) != 0 {
-		t.Fatalf("扩展数据被误认成引用：%+v", issues)
+		t.Fatalf("extension data was incorrectly treated as a reference: %+v", issues)
 	}
 }

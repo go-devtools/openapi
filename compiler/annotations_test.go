@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// 从真实源码复现注释矛盾，防止把错误推迟到文档生成或运行阶段。
 // Reproduce conflicting annotations from real source before document generation or runtime.
 func TestSourceAnnotationConflicts(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -29,13 +28,12 @@ func TestSourceAnnotationConflicts(t *testing.T) {
 			}
 			_, err = p.Schema(ProjectionRequest{Type: typ, Direction: Output})
 			if err == nil || !strings.Contains(err.Error(), tc.code) {
-				t.Fatalf("需要 %s，实际 %v", tc.code, err)
+				t.Fatalf("expected %s, got %v", tc.code, err)
 			}
 		})
 	}
 }
 
-// 保留合法范围与固定数组事实，nullable 不能产生重复的联合类型。
 // Preserve valid bounds and fixed-array facts without duplicating nullable union members.
 func TestSourceAnnotationValidConstraints(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -55,11 +53,10 @@ func TestSourceAnnotationValidConstraints(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(raw), `"null","null"`) {
-		t.Fatalf("nullable 重复：%s", raw)
+		t.Fatalf("nullable is duplicated: %s", raw)
 	}
 }
 
-// 开放字段不应因为没有固定 type 关键字而误报类型冲突。
 // Do not report type conflicts for open fields merely because they lack a fixed type keyword.
 func TestOpenAnnotationConstraint(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})

@@ -5,7 +5,6 @@
 `RequestCondition.Intersect` returns a detached normalized condition, a reachability boolean, and an error. Mutually exclusive conditions are unreachable; they never turn into an unrestricted condition. Invalid values and excessive set sizes are rejected. `CallOutcome.When` applies the condition to a call's correlated results and effects. The analyzer intersects it with the current path, including through helper calls and subsequent binders.
 
 ```go
-// 为一个有限请求域声明调用效果，网络规则仍由前端定义。
 // Declare call effects for a finite request domain while the frontend defines wire rules.
 outcome := compiler.CallOutcome{
     When: openapi.RequestCondition{
@@ -25,4 +24,4 @@ Multiple selected media are supported when their contracts can be combined witho
 
 Selected facts and diagnostics carry `Source.When`. Explicit route media configuration contributes a `declared` provenance fact. Conditions describe applicability; they do not prove that a server rejects every undeclared input. `Effect.AlternativeLocations` lets a frontend indicate that logical input may come from more than one location. A cross-location field-required declaration is diagnosed when it cannot be expressed as local parameter/body requirements without changing its meaning.
 
-Tests cover serialized capability gating, method/media selection, unknown and excluded codecs, multi-media schema union, condition intersection and ownership, request-body presence ambiguity, two successive calls with incompatible conditions, and independent external SDK consumption. Full build-profile fingerprints, the complete alias/helper matrix, and all conditional schema/framework behaviors remain separate full-goal requirements.
+Tests cover serialized capability gating, method/media selection, unknown and excluded codecs, multi-media schema union, condition intersection and ownership, request-body presence ambiguity, two successive calls with incompatible conditions, and independent external SDK consumption. Build inputs and freshness are described in [build inputs](build-inputs.md). These condition tests do not establish arbitrary alias/helper semantics or every framework codec combination.

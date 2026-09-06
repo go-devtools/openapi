@@ -9,7 +9,6 @@ import (
 	"github.com/openapi-golang/openapi/contracttest"
 )
 
-// 验证序列化决策表只链接实际方法和媒体类型的契约及诊断。
 // Verify serialized decision tables link only contracts and diagnostics for the actual method and media type.
 func TestRequestConditionLinking(t *testing.T) {
 	raw := []byte(`{"formatVersion":1,"specVersion":"3.2.0","capabilities":["oas32","schema2020-12","request-conditions-v1"],"components":{},"profile":{},"templates":[{"key":"handler","operation":{"summary":"Conditional request"},"variants":[

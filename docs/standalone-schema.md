@@ -14,7 +14,6 @@ import (
     "github.com/openapi-golang/openapi/compiler"
 )
 
-// 从真实类型导出请求契约，并显式设置可移植的资源身份。
 // Export a request contract from an actual type with an explicit portable resource identity.
 func main() {
     project, err := compiler.Load(context.Background(), compiler.LoadOptions{Dir: "."})
@@ -109,7 +108,7 @@ Add `--resources resources.json` for an explicit offline manifest. Paths resolve
 ]
 ```
 
-The manifest uses the [check command's resource format](references.md#命令行), but standalone export rejects `kind: "example"`. Only explicitly listed regular files are read; schema URIs are never converted into filesystem paths.
+The manifest uses the [check command's resource format](references.md#cli), but standalone export rejects `kind: "example"`. Only explicitly listed regular files are read; schema URIs are never converted into filesystem paths.
 
 `--dialect` selects the fallback dialect. The five resource budget flags match the SDK options in kebab case. `--max-types` defaults to 4096, `--max-packages` to 2048, and `--timeout` to one minute. Context cancellation applies to file reads and source loading and is checked before output; bounded in-memory projection and export are not interrupted at every operation. In a cold environment, run `GOWORK=off go mod download` first or allow a longer loading timeout.
 

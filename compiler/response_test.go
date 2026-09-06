@@ -15,7 +15,6 @@ import (
 	"github.com/openapi-golang/openapi/spec"
 )
 
-// 使用中立载体验证未知提交、头备选与明确网络 Schema，不依赖任何框架。
 // Verify unknown commits, header alternatives, and explicit wire schemas without a framework dependency.
 func TestResponseStateWithoutFramework(t *testing.T) {
 	dir := t.TempDir()

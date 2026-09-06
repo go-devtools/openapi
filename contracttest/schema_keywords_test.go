@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// 独立引擎和固定官方元 Schema 验证与自有检查器相同的原始 JSON 样例。
 // Validate the same raw JSON examples using the independent engine, official meta-schema, and local checker.
 func TestOfficialSchemaKeywordMatrix(t *testing.T) {
 	validator := official32(t)
@@ -30,7 +29,7 @@ func TestOfficialSchemaKeywordMatrix(t *testing.T) {
 			}
 			err = validator.Validate(doc)
 			if (err == nil) != tc.Valid {
-				t.Fatalf("valid=%v，独立校验=%v", tc.Valid, err)
+				t.Fatalf("valid=%v, independent validation=%v", tc.Valid, err)
 			}
 		})
 	}

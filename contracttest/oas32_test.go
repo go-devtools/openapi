@@ -11,7 +11,6 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-// 固定官方资源并离线编译完整三点二结构与 Schema 方言验证器。
 // Pin official resources and compile full OAS 3.2 structure and dialect validators offline.
 func official32(t *testing.T) *jsonschema.Schema {
 	t.Helper()
@@ -31,7 +30,7 @@ func official32(t *testing.T) *jsonschema.Schema {
 			t.Fatal(err)
 		}
 		if fmt.Sprintf("%x", sha256.Sum256(raw)) != sum {
-			t.Fatalf("上游资源校验和变化：%s", name)
+			t.Fatalf("upstream resource checksum changed: %s", name)
 		}
 		v, err := decode(raw)
 		if err != nil {
@@ -48,7 +47,6 @@ func official32(t *testing.T) *jsonschema.Schema {
 	return v
 }
 
-// 同一完整正例分别破坏关键标准字段，证明独立校验实际拒绝错误。
 // Mutate standard fields in the complete valid example to prove independent validation rejects errors.
 func TestOfficialOpenAPI32Matrix(t *testing.T) {
 	v := official32(t)
@@ -61,7 +59,7 @@ func TestOfficialOpenAPI32Matrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = v.Validate(full); err != nil {
-		t.Fatalf("完整标准样例：%v", err)
+		t.Fatalf("full standard fixture: %v", err)
 	}
 	cases := []struct {
 		name   string
@@ -70,21 +68,21 @@ func TestOfficialOpenAPI32Matrix(t *testing.T) {
 		value  any
 		remove bool
 	}{
-		{"旧规范版本", nil, "openapi", "3.1.0", false},
+		{"Legacy specification version", nil, "openapi", "3.1.0", false},
 
-		{"空安全声明", nil, "security", nil, false},
-		{"许可标识冲突", []string{"info", "license"}, "url", "https://example.test/license", false},
-		{"整段查询缺名", []string{"components"}, "parameters", map[string]any{"Bad": map[string]any{"in": "querystring", "content": map[string]any{"application/json": map[string]any{"schema": true}}}}, false},
-		{"流式 Schema 类型", []string{"components", "mediaTypes", "Events"}, "itemSchema", nil, false},
-		{"媒体示例冲突", []string{"components", "mediaTypes", "Events"}, "example", "event", false},
-		{"设备授权缺端点", []string{"components", "securitySchemes", "device", "flows", "deviceAuthorization"}, "tokenUrl", nil, true},
-		{"错误 XML 节点", []string{"components", "schemas", "XmlItem", "xml"}, "nodeType", "unknown", false},
-		{"XML 新旧表达冲突", []string{"components", "schemas", "XmlItem", "xml"}, "attribute", true, false},
-		{"非法联合类型", []string{"components", "schemas", "Item"}, "type", []any{"object", "unknown"}, false},
-		{"负长度", []string{"components", "schemas", "Constraints"}, "minLength", json.Number("-1"), false},
-		{"空组合", []string{"components", "schemas", "Constraints"}, "anyOf", []any{}, false},
-		{"重复必需属性", []string{"components", "schemas", "Item"}, "required", []any{"id", "id"}, false},
-		{"零倍数", []string{"components", "schemas", "Constraints"}, "multipleOf", json.Number("0"), false},
+		{"Empty security declaration", nil, "security", nil, false},
+		{"license identifier conflict", []string{"info", "license"}, "url", "https://example.test/license", false},
+		{"whole-query parameter is missing a name", []string{"components"}, "parameters", map[string]any{"Bad": map[string]any{"in": "querystring", "content": map[string]any{"application/json": map[string]any{"schema": true}}}}, false},
+		{"Stream Schema type", []string{"components", "mediaTypes", "Events"}, "itemSchema", nil, false},
+		{"media example conflict", []string{"components", "mediaTypes", "Events"}, "example", "event", false},
+		{"device authorization endpoints are missing", []string{"components", "securitySchemes", "device", "flows", "deviceAuthorization"}, "tokenUrl", nil, true},
+		{"Invalid XML node", []string{"components", "schemas", "XmlItem", "xml"}, "nodeType", "unknown", false},
+		{"Legacy and current XML representations conflict", []string{"components", "schemas", "XmlItem", "xml"}, "attribute", true, false},
+		{"invalid union type", []string{"components", "schemas", "Item"}, "type", []any{"object", "unknown"}, false},
+		{"Negative length", []string{"components", "schemas", "Constraints"}, "minLength", json.Number("-1"), false},
+		{"empty composition", []string{"components", "schemas", "Constraints"}, "anyOf", []any{}, false},
+		{"duplicate required property", []string{"components", "schemas", "Item"}, "required", []any{"id", "id"}, false},
+		{"Zero multiple", []string{"components", "schemas", "Constraints"}, "multipleOf", json.Number("0"), false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -96,7 +94,7 @@ func TestOfficialOpenAPI32Matrix(t *testing.T) {
 			for _, key := range tc.path {
 				next, ok := node[key].(map[string]any)
 				if !ok {
-					t.Fatalf("测试路径不存在：%v，%s", tc.path, key)
+					t.Fatalf("test path does not exist: %v, %s", tc.path, key)
 				}
 				node = next
 			}
@@ -106,7 +104,7 @@ func TestOfficialOpenAPI32Matrix(t *testing.T) {
 				node[tc.field] = tc.value
 			}
 			if err = v.Validate(copy); err == nil {
-				t.Fatal("独立校验未拒绝错误样例")
+				t.Fatal("independent validation did not reject an invalid sample")
 			}
 		})
 	}

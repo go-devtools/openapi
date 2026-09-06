@@ -1,4 +1,3 @@
-// 离线检查 OpenAPI 三点二结构、约束与引用，不包含任何框架规则。
 // Validate OAS 3.2 structure and references offline without framework rules.
 package validate
 
@@ -10,7 +9,6 @@ import (
 	"strings"
 )
 
-// 保存规范错误及修复建议。
 // Store specification errors and remediation advice.
 type Issue struct {
 	Code    string
@@ -19,7 +17,6 @@ type Issue struct {
 	Fix     string
 }
 
-// 保存单次验证状态，实例间不共享可变数据。
 // Keep validation state private to each invocation.
 type checker struct {
 	root   map[string]any
@@ -28,17 +25,14 @@ type checker struct {
 	graph  *referenceGraph
 }
 
-// 限制输入体积、深度、对象数量并执行无网络检查。
 // Bound input size, depth, and nodes while validating without network access.
 func Check(raw []byte) []Issue {
 	return CheckWithOptions(raw, Options{})
 }
 
-// 区分输入预算耗尽与普通 JSON 语法错误。
 // Distinguish exhausted input budgets from ordinary JSON syntax errors.
-var errJSONBudget = errors.New("JSON 深度或节点数超过预算")
+var errJSONBudget = errors.New("JSON depth or node count exceeds the budget")
 
-// 用 token 解码检测重复键，并保留所有数值的十进制文本。
 // Decode tokens to detect duplicate keys and preserve decimal number text.
 func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 	*count++
@@ -63,10 +57,10 @@ func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 			}
 			s, ok := key.(string)
 			if !ok {
-				return nil, fmt.Errorf("对象键不是字符串")
+				return nil, fmt.Errorf("object key is not a string")
 			}
 			if _, ok := out[s]; ok {
-				return nil, fmt.Errorf("重复对象键：%s", s)
+				return nil, fmt.Errorf("duplicate object key: %s", s)
 			}
 			v, err := decode(dec, depth+1, count)
 			if err != nil {
@@ -88,45 +82,40 @@ func decode(dec *json.Decoder, depth int, count *int) (any, error) {
 		_, err = dec.Token()
 		return out, err
 	default:
-		return nil, fmt.Errorf("错误的 JSON 分隔符")
+		return nil, fmt.Errorf("invalid JSON delimiter")
 	}
 }
 
-// 聚合稳定命名空间的错误，不隐藏失败位置。
 // Collect namespaced diagnostics without hiding error locations.
 func (c *checker) add(code, path, msg string) {
 	if c.graph != nil && !c.graph.spend(len(code), len(path), len(msg), 128) {
 		return
 	}
-	c.issues = append(c.issues, Issue{Code: "openapi.spec." + code, Path: path, Message: msg, Fix: "修正规范构造或相应源码契约；外部内容请显式离线导入"})
+	c.issues = append(c.issues, Issue{Code: "openapi.spec." + code, Path: path, Message: msg, Fix: "Fix the document construction or source contract; import external content explicitly as offline resources"})
 }
 
-// 以 JSON Pointer 编码路径片段。
 // Escape a JSON Pointer segment.
 func escape(s string) string { return strings.ReplaceAll(strings.ReplaceAll(s, "~", "~0"), "/", "~1") }
 
-// 获取字符串字段；缺失和类型错误由具体规则区分。
 // Read a string field; individual rules handle missing or invalid values.
 func str(m map[string]any, k string) string { v, _ := m[k].(string); return v }
 
-// 检查键是否明确存在。
 // Check whether a key is explicitly present.
 func has(m map[string]any, k string) bool { _, ok := m[k]; return ok }
 
-// 按标准对象上下文遍历，示例值和扩展值作为数据而不是规范关键字。
 // Traverse standard object roles while treating examples and extensions as data.
 func (c *checker) walk(v any, path, role string, depth int) {
 	if c.stopped() {
 		return
 	}
 	if depth > 128 {
-		c.add("budget", path, "规范对象递归超过预算")
+		c.add("budget", path, "specification object recursion exceeds the budget")
 		return
 	}
 	if role == "schemaArray" {
 		items, ok := v.([]any)
 		if !ok || len(items) == 0 {
-			c.add("schema.keyword", path, "此关键字要求至少一个 Schema 的数组")
+			c.add("schema.keyword", path, "keyword requires an array containing at least one Schema")
 			return
 		}
 		for i, item := range items {
@@ -138,7 +127,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		return
 	}
 	if _, ok := v.([]any); ok && (role == "schema" || role == "schemas") {
-		c.add("schema.keyword", path, "Schema 或 Schema 字典不能是数组")
+		c.add("schema.keyword", path, "Schema or Schema dictionary cannot be an array")
 		return
 	}
 	if a, ok := v.([]any); ok {
@@ -157,7 +146,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	}
 	m, ok := v.(map[string]any)
 	if !ok {
-		c.add("object", path, "此处必须是对象")
+		c.add("object", path, "object required here")
 		return
 	}
 	if singular := dictionaryRole(role); singular != "" {
@@ -172,7 +161,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 				c.checkPath(k, path)
 			}
 			if role == "responses" && !validStatus(k) {
-				c.add("response.status", path+"/"+escape(k), "非法响应状态码")
+				c.add("response.status", path+"/"+escape(k), "invalid response status code")
 			}
 			c.walk(m[k], path+"/"+escape(k), singular, depth+1)
 		}
@@ -184,7 +173,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 				return
 			}
 			if k != "$ref" && k != "summary" && k != "description" {
-				c.add("ref.sibling", path, "Reference Object 存在非法兄弟字段："+k)
+				c.add("ref.sibling", path, "Reference Object contains an invalid sibling field: "+k)
 			}
 		}
 		return
@@ -192,7 +181,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	if (role == "root" || role == "operation") && has(m, "security") {
 		requirements, ok := m["security"].([]any)
 		if !ok {
-			c.add("security.requirements", path+"/security", "security 必须是数组，不能是 null")
+			c.add("security.requirements", path+"/security", "security must be an array, not null")
 		} else {
 			for i, requirement := range requirements {
 				if c.stopped() {
@@ -200,7 +189,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 				}
 				entry, ok := requirement.(map[string]any)
 				if !ok {
-					c.add("security.requirements", path+"/security/"+strconv.Itoa(i), "每项安全要求必须是对象")
+					c.add("security.requirements", path+"/security/"+strconv.Itoa(i), "each security requirement must be an object")
 					continue
 				}
 				for _, name := range sortedKeys(entry) {
@@ -210,7 +199,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 					}
 					values, ok := scopes.([]any)
 					if !ok {
-						c.add("security.scopes", path+"/security/"+strconv.Itoa(i), name+" 的作用域必须是数组")
+						c.add("security.scopes", path+"/security/"+strconv.Itoa(i), name+" scopes must be an array")
 						continue
 					}
 					for _, scope := range values {
@@ -218,7 +207,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 							return
 						}
 						if _, ok := scope.(string); !ok {
-							c.add("security.scopes", path+"/security/"+strconv.Itoa(i), "作用域必须是字符串")
+							c.add("security.scopes", path+"/security/"+strconv.Itoa(i), "scope must be a string")
 						}
 					}
 				}
@@ -228,15 +217,15 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	switch role {
 	case "root":
 		if str(m, "openapi") != "3.2.0" {
-			c.add("version", path, "需要原生 openapi 3.2.0")
+			c.add("version", path, "native openapi 3.2.0 is required")
 		}
 		if _, ok := m["info"].(map[string]any); !ok {
-			c.add("info", path, "缺少 info 对象")
+			c.add("info", path, "info object is required")
 		}
 
 	case "info":
 		if str(m, "title") == "" || str(m, "version") == "" {
-			c.add("info", path, "title 和 version 不能为空")
+			c.add("info", path, "title and version must not be empty")
 		}
 	case "schema":
 		c.schema(m, path)
@@ -247,41 +236,41 @@ func (c *checker) walk(v any, path, role string, depth int) {
 					return
 				}
 				if isFixed(strings.ToUpper(method)) {
-					c.add("method.duplicate", path, "固定 HTTP 方法不能出现在 additionalOperations")
+					c.add("method.duplicate", path, "fixed HTTP methods cannot appear in additionalOperations")
 				}
 			}
 		}
 	case "operation":
 		if id := str(m, "operationId"); id != "" {
 			if old, ok := c.ids[id]; ok {
-				c.add("operationId.duplicate", path, "operationId 与 "+old+" 重复")
+				c.add("operationId.duplicate", path, "operationId conflicts with "+old+" is duplicated")
 			}
 			c.ids[id] = path
 		}
 		if responses, ok := m["responses"].(map[string]any); !ok || len(responses) == 0 {
-			c.add("response.missing", path, "接口缺少响应")
+			c.add("response.missing", path, "operation has no response")
 		}
 		c.parameters(m, path)
 	case "parameter":
 		in := str(m, "in")
 		if in != "path" && in != "query" && in != "header" && in != "cookie" && in != "querystring" {
-			c.add("parameter.location", path, "参数位置不合法")
+			c.add("parameter.location", path, "invalid parameter location")
 		}
 		if str(m, "name") == "" {
-			c.add("parameter.name", path, "命名参数缺少 name")
+			c.add("parameter.name", path, "named parameter requires name")
 		}
 		if in == "path" && m["required"] != true {
-			c.add("parameter.required", path, "路径参数必须 required")
+			c.add("parameter.required", path, "path parameter must be required")
 		}
 		if in == "querystring" && !has(m, "content") {
-			c.add("parameter.querystring", path, "querystring 必须使用 content")
+			c.add("parameter.querystring", path, "querystring must use content")
 		}
 		c.parameterContent(m, path)
 	case "response":
 		for _, field := range []string{"summary", "description"} {
 			if value, exists := m[field]; exists {
 				if _, ok := value.(string); !ok {
-					c.add("response."+field, path, "响应 "+field+" 必须是字符串")
+					c.add("response."+field, path, "Response "+field+" must be a string")
 				}
 			}
 		}
@@ -289,44 +278,44 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.parameterContent(m, path)
 	case "requestBody":
 		if content, ok := m["content"].(map[string]any); !ok || len(content) == 0 {
-			c.add("request.content", path, "请求体缺少媒体类型")
+			c.add("request.content", path, "request body requires a media type")
 		}
 	case "media", "encoding":
 		if has(m, "encoding") && (has(m, "prefixEncoding") || has(m, "itemEncoding")) {
-			c.add("encoding.conflict", path, "命名编码不能与位置编码并用")
+			c.add("encoding.conflict", path, "named and positional encoding cannot be combined")
 		}
 		if role == "media" && (has(m, "prefixEncoding") || has(m, "itemEncoding")) && !has(m, "itemSchema") {
 			schema, _ := m["schema"].(map[string]any)
 			if !schemaHasType(schema, "array") {
-				c.add("encoding.array", path, "位置编码要求数组 schema 或 itemSchema")
+				c.add("encoding.array", path, "positional encoding requires an array schema or itemSchema")
 			}
 		}
 		if has(m, "example") && has(m, "examples") {
-			c.add("example.conflict", path, "example 与 examples 互斥")
+			c.add("example.conflict", path, "example and examples are mutually exclusive")
 		}
 	case "example":
 		if has(m, "value") && (has(m, "dataValue") || has(m, "serializedValue") || has(m, "externalValue")) {
-			c.add("example.conflict", path, "value 与三点二示例表达分支互斥")
+			c.add("example.conflict", path, "value is mutually exclusive with OpenAPI 3.2 example representations")
 		}
 		if has(m, "serializedValue") && has(m, "externalValue") {
-			c.add("example.conflict", path, "serializedValue 与 externalValue 互斥")
+			c.add("example.conflict", path, "serializedValue and externalValue are mutually exclusive")
 		}
 	case "tag":
 		if str(m, "name") == "" {
-			c.add("tag.name", path, "标签名称不能为空")
+			c.add("tag.name", path, "tag name must not be empty")
 		}
 	case "link":
 		if has(m, "operationRef") == has(m, "operationId") {
-			c.add("link.target", path, "链接必须且只能选择一个操作目标")
+			c.add("link.target", path, "link must select exactly one operation target")
 		}
 	case "security":
 		c.security(m, path)
 	case "discriminator":
-		if has(m, "defaultMapping") && !has(m, "mapping") { /* 默认映射可以单独表达，不推断业务分派。 A default mapping can stand alone without inferring business dispatch. */
+		if has(m, "defaultMapping") && !has(m, "mapping") { /* A default mapping can stand alone without inferring business dispatch. */
 		}
 	case "xml":
 		if node := str(m, "nodeType"); node != "" && node != "element" && node != "attribute" && node != "text" && node != "cdata" && node != "none" {
-			c.add("xml.nodeType", path, "未知 XML 节点类型")
+			c.add("xml.nodeType", path, "unknown XML node type")
 		}
 	}
 	for _, k := range sortedKeys(m) {
@@ -347,7 +336,6 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	}
 }
 
-// 返回已知结构字段的子对象上下文。
 // Select the child role for a recognized structural field.
 func childRole(role, k string) string {
 	if role == "schema" {
@@ -380,7 +368,6 @@ func childRole(role, k string) string {
 	if role == "path" && isFixed(strings.ToUpper(k)) {
 		return "operation"
 	}
-	// 相同字段名在 Link 等对象中可能是业务数据，不能按名字跨上下文解释。
 	// Interpret fields within their object context; matching names inside Links may be business data.
 	children := map[string]map[string]string{
 		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tag", "servers": "server"},
@@ -398,11 +385,10 @@ func childRole(role, k string) string {
 	return children[role][k]
 }
 
-// 检查中立路径花括号结构，不解释框架专用语法。
 // Validate standard path braces without interpreting framework syntax.
 func (c *checker) checkPath(path, parent string) {
 	if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#\r\n") {
-		c.add("path", parent, "非法 OpenAPI 路径："+path)
+		c.add("path", parent, "invalid OpenAPI path: "+path)
 	}
 	inside := false
 	start := 0
@@ -413,23 +399,22 @@ func (c *checker) checkPath(path, parent string) {
 		switch r {
 		case '{':
 			if inside {
-				c.add("path", parent, "嵌套路径模板")
+				c.add("path", parent, "nested path template")
 			}
 			inside = true
 			start = i
 		case '}':
 			if !inside || i == start+1 {
-				c.add("path", parent, "空或不匹配的路径模板")
+				c.add("path", parent, "empty or mismatched path template")
 			}
 			inside = false
 		}
 	}
 	if inside {
-		c.add("path", parent, "未闭合路径模板")
+		c.add("path", parent, "unterminated path template")
 	}
 }
 
-// 判断 OpenAPI 已定义的固定方法。
 // Recognize the fixed OpenAPI methods.
 func isFixed(method string) bool {
 	switch method {
@@ -439,7 +424,6 @@ func isFixed(method string) bool {
 	return false
 }
 
-// 接受具体状态码、规范范围和显式 default。
 // Accept concrete status codes, status ranges, and explicit default responses.
 func validStatus(status string) bool {
 	if status == "default" {
@@ -455,31 +439,29 @@ func validStatus(status string) bool {
 	return err == nil
 }
 
-// 验证参数 schema/content 与序列化限制。
 // Validate parameter schema/content and serialization constraints.
 func (c *checker) parameterContent(m map[string]any, path string) {
 	if has(m, "schema") == has(m, "content") {
-		c.add("parameter.content", path, "参数必须且只能使用 schema 或 content")
+		c.add("parameter.content", path, "parameter must use exactly one of schema or content")
 	}
 	if content, ok := m["content"].(map[string]any); ok {
 		if len(content) != 1 {
-			c.add("parameter.content", path, "参数 content 必须且只能有一个媒体类型")
+			c.add("parameter.content", path, "parameter content must have exactly one media type")
 		}
 		for _, k := range []string{"style", "explode", "allowReserved"} {
 			if c.stopped() {
 				return
 			}
 			if has(m, k) {
-				c.add("parameter.serialization", path, "content 不与 "+k+" 并用")
+				c.add("parameter.serialization", path, "content cannot be combined with "+k+" and ")
 			}
 		}
 	}
 	if has(m, "example") && has(m, "examples") {
-		c.add("example.conflict", path, "参数 example 与 examples 互斥")
+		c.add("example.conflict", path, "parameter example and examples are mutually exclusive")
 	}
 }
 
-// 检查同一接口的重复参数以及 querystring 与 query 冲突。
 // Check duplicate parameters and querystring/query conflicts.
 func (c *checker) parameters(m map[string]any, path string) {
 	list, _ := m["parameters"].([]any)
@@ -496,18 +478,17 @@ func (c *checker) parameters(m map[string]any, path string) {
 		in := str(p, "in")
 		key := in + ":" + str(p, "name")
 		if seen[key] {
-			c.add("parameter.duplicate", path, "重复参数 "+key)
+			c.add("parameter.duplicate", path, "duplicate parameter "+key)
 		}
 		seen[key] = true
 		query = query || in == "query"
 		querystring = querystring || in == "querystring"
 	}
 	if query && querystring {
-		c.add("parameter.querystring", path, "query 与 querystring 不能并用")
+		c.add("parameter.querystring", path, "query and querystring cannot be combined")
 	}
 }
 
-// 判断显式类型约束是否包含指定类型。
 // Check whether a type constraint contains a specified type.
 func schemaHasType(m map[string]any, want string) bool {
 	if str(m, "type") == want {
@@ -523,7 +504,6 @@ func schemaHasType(m map[string]any, want string) bool {
 	return false
 }
 
-// 验证标签引用存在并检查父级环。
 // Validate tag parents and detect hierarchy cycles.
 func (c *checker) checkTags() {
 	tags, _ := c.root["tags"].([]any)
@@ -535,7 +515,7 @@ func (c *checker) checkTags() {
 		m, _ := v.(map[string]any)
 		name := str(m, "name")
 		if _, ok := parents[name]; ok {
-			c.add("tag.duplicate", "#/tags", "标签重复："+name)
+			c.add("tag.duplicate", "#/tags", "duplicate tag: "+name)
 		}
 		parents[name] = str(m, "parent")
 	}
@@ -553,13 +533,13 @@ func (c *checker) checkTags() {
 				return
 			}
 			if seen[cur] {
-				c.add("tag.cycle", "#/tags", "标签父级成环："+name)
+				c.add("tag.cycle", "#/tags", "tag parent cycle: "+name)
 				break
 			}
 			seen[cur] = true
 			next, ok := parents[cur]
 			if !ok {
-				c.add("tag.parent", "#/tags", "标签父级不存在："+cur)
+				c.add("tag.parent", "#/tags", "tag parent does not exist: "+cur)
 				break
 			}
 			cur = next
@@ -567,22 +547,21 @@ func (c *checker) checkTags() {
 	}
 }
 
-// 校验安全方案的必需字段及设备授权端点。
 // Check required security fields and device authorization endpoints.
 func (c *checker) security(m map[string]any, path string) {
 	switch str(m, "type") {
 	case "apiKey":
 		if str(m, "name") == "" || (str(m, "in") != "header" && str(m, "in") != "query" && str(m, "in") != "cookie") {
-			c.add("security.apiKey", path, "apiKey 缺少合法 name/in")
+			c.add("security.apiKey", path, "apiKey requires valid name/in values")
 		}
 	case "http":
 		if str(m, "scheme") == "" {
-			c.add("security.http", path, "HTTP 认证缺少 scheme")
+			c.add("security.http", path, "HTTP authentication requires a scheme")
 		}
 	case "oauth2":
 		flows, _ := m["flows"].(map[string]any)
 		if len(flows) == 0 && !has(m, "oauth2MetadataUrl") {
-			c.add("security.oauth2", path, "OAuth2 缺少流或元数据地址")
+			c.add("security.oauth2", path, "OAuth2 requires flows or a metadata URL")
 		}
 		for _, kind := range sortedKeys(flows) {
 			v := flows[kind]
@@ -591,18 +570,18 @@ func (c *checker) security(m map[string]any, path string) {
 			}
 			f, _ := v.(map[string]any)
 			if kind == "deviceAuthorization" && (str(f, "deviceAuthorizationUrl") == "" || str(f, "tokenUrl") == "") {
-				c.add("security.device", path, "设备授权缺少 deviceAuthorizationUrl 或 tokenUrl")
+				c.add("security.device", path, "device authorization requires deviceAuthorizationUrl and tokenUrl")
 			}
 			if !has(f, "scopes") {
-				c.add("security.scopes", path, "OAuth 流缺少 scopes")
+				c.add("security.scopes", path, "OAuth flow requires scopes")
 			}
 		}
 	case "openIdConnect":
 		if str(m, "openIdConnectUrl") == "" {
-			c.add("security.openId", path, "缺少发现地址")
+			c.add("security.openId", path, "discovery URL is required")
 		}
 	case "mutualTLS":
 	default:
-		c.add("security.type", path, "未知安全方案类型")
+		c.add("security.type", path, "unknown security scheme type")
 	}
 }

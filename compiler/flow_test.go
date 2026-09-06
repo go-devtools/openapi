@@ -10,14 +10,13 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 用框架中立替身验证嵌套语句、状态提交与多返回值传播。
 // Test nested statements and status commits using a neutral effect carrier.
 func TestFlowWriteOrdering(t *testing.T) {
 	dir := t.TempDir()
 	source := `package sample
-// 效果载体。
+// Carry protocol effects.
 type Context struct{}
-// 静态样本。
+// Provide a static payload sample.
 type Payload struct { Name string }
 func (*Context) Read() error { return nil }
 func (*Context) Key() string { return "" }
@@ -65,22 +64,22 @@ func HCommit(c *Context) {c.Commit(403);c.Write(200,Payload{})}
 	}
 	for _, entry := range result.Bundle.Index() {
 		t.Run(entry.Symbol, func(t *testing.T) {
-			doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "POST", Path: "/sample", OperationKey: entry.Key}}, openapi.Config{Title: "测试", Version: "1"})
+			doc, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "POST", Path: "/sample", OperationKey: entry.Key}}, openapi.Config{Title: "Test", Version: "1"})
 			if err != nil {
 				t.Fatal(err)
 			}
 			switch entry.Symbol {
 			case "example.com/flow.HInline":
 				if !strings.Contains(string(doc.JSON()), `"requestBody"`) {
-					t.Fatal("遗漏 if 条件中的请求读取")
+					t.Fatal("request read in the if condition was omitted")
 				}
 			case "example.com/flow.HPending", "example.com/flow.HSwitch":
 				if len(entry.Operation.Responses) != 2 || entry.Operation.Responses["201"].Value == nil || entry.Operation.Responses["202"].Value == nil {
-					t.Fatalf("错误状态分支：%s", doc.JSON())
+					t.Fatalf("incorrect status branch: %s", doc.JSON())
 				}
 			case "example.com/flow.HCommit":
 				if len(entry.Operation.Responses) != 1 || entry.Operation.Responses["403"].Value == nil {
-					t.Fatal("后续调用覆盖已提交状态")
+					t.Fatal("subsequent call overwrote committed status")
 				}
 			}
 		})

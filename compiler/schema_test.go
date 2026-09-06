@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// 验证真实零 tag 类型、注释、递归、bytes 和 map key 投影。
 // Verify tag-free types, annotations, recursion, bytes, and map-key projections.
 func TestProjectSchemaFromSource(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -28,11 +27,11 @@ func TestProjectSchemaFromSource(t *testing.T) {
 	}
 	for _, want := range []string{`"Name"`, `"minLength":3`, `"required":["Name"]`, `"contentEncoding":"base64"`, `"date-time"`, `"$defs"`} {
 		if !strings.Contains(string(b), want) {
-			t.Errorf("缺少 %s：%s", want, b)
+			t.Errorf("missing %s: %s", want, b)
 		}
 	}
 	if strings.Contains(string(b), "#/components/") || strings.Contains(string(b), `"name"`) {
-		t.Fatal("独立引用或网络字段名错误")
+		t.Fatal("standalone reference or wire field name is incorrect")
 	}
 	var out any
 	if err = json.Unmarshal(b, &out); err != nil {
@@ -40,7 +39,6 @@ func TestProjectSchemaFromSource(t *testing.T) {
 	}
 }
 
-// 验证未知用户序列化返回诊断而不是执行用户函数。
 // Require diagnostics instead of executing unknown user serialization methods.
 func TestCustomCodecRequiresMapper(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -52,11 +50,10 @@ func TestCustomCodecRequiresMapper(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = p.Schema(ProjectionRequest{Type: typ, Direction: Output, MediaType: "application/json"}); err == nil {
-		t.Fatal("未知 MarshalJSON 被静默忽略")
+		t.Fatal("unknown MarshalJSON was silently ignored")
 	}
 }
 
-// 验证泛型具体化与显式枚举能通过同一公共入口使用。
 // Verify generic instances and explicit enums through the public API.
 func TestGenericAndExplicitEnum(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -77,12 +74,11 @@ func TestGenericAndExplicitEnum(t *testing.T) {
 			t.Fatal(err)
 		}
 		if name == "Role" && !strings.Contains(string(b), `"enum":["admin","user"]`) {
-			t.Fatalf("枚举不确定：%s", b)
+			t.Fatalf("uncertain enum: %s", b)
 		}
 	}
 }
 
-// 展示名称与内部组件身份分离；不同投影可区分但页面标题不带标识。
 // Separate clean display titles from distinct internal projection identities.
 func TestReadableSchemaTitles(t *testing.T) {
 	p, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -102,10 +98,10 @@ func TestReadableSchemaTitles(t *testing.T) {
 			}
 			key := strings.TrimPrefix(projection.Root.Ref, "#/components/schemas/")
 			if projection.Components[key].Title != expression {
-				t.Fatalf("展示标题应为 %s，实际为 %q", expression, projection.Components[key].Title)
+				t.Fatalf("display title should be %s, got %q", expression, projection.Components[key].Title)
 			}
 			if refs[key] {
-				t.Fatal("不同方向被错误合并")
+				t.Fatal("different directions were incorrectly merged")
 			}
 			refs[key] = true
 			raw, err := projection.Standalone()
@@ -113,13 +109,12 @@ func TestReadableSchemaTitles(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !strings.Contains(string(raw), "#/$defs/"+key) {
-				t.Fatal("独立引用未同步")
+				t.Fatal("standalone reference was not synchronized")
 			}
 		}
 	}
 }
 
-// 枚举值排序与说明同步，读取分组常量和单独常量的源码注释。
 // Keep sorted enum values aligned with descriptions from grouped and standalone constants.
 func TestEnumDescriptionsFromSource(t *testing.T) {
 	project, err := Load(context.Background(), LoadOptions{Dir: "../testdata/types"})
@@ -127,9 +122,9 @@ func TestEnumDescriptionsFromSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, sample := range []struct{ name, values, descriptions string }{
-		{"Role", `["admin","user"]`, `["管理员","普通用户"]`},
-		{"State", `[0,1,2]`, `["待处理","执行中 / 相同状态的源码别名不重复生成网络枚举。","已完成"]`},
-		{"Fraction", `[0.5,0.6666666666666666]`, `["一半","三分之二"]`},
+		{"Role", `["admin","user"]`, `["Administrator","Regular user"]`},
+		{"State", `[0,1,2]`, `["Pending","Running / Do not duplicate wire enum values for source aliases of the same state.","Completed"]`},
+		{"Fraction", `[0.5,0.6666666666666666]`, `["One half","Two thirds"]`},
 	} {
 		typ, err := project.Type(sample.name)
 		if err != nil {
@@ -145,7 +140,7 @@ func TestEnumDescriptionsFromSource(t *testing.T) {
 			t.Fatal(err)
 		}
 		if string(values) != sample.values || string(schema.Extensions["x-enum-descriptions"]) != sample.descriptions {
-			t.Fatalf("枚举值与说明不对应：%s %s", values, schema.Extensions["x-enum-descriptions"])
+			t.Fatalf("enum values and descriptions are misaligned: %s %s", values, schema.Extensions["x-enum-descriptions"])
 		}
 	}
 }
