@@ -84,4 +84,4 @@ The offline UI displays native body examples and preserves explicit wire text du
 
 See [source explanations](docs/explain.md) for opt-in field, type, handler, and response provenance with explicit enforcement limits.
 
-See [native objects and explicit values](docs/native-objects.md) for Example, Discriminator, XML validation and the optional boolean API migration.
+See [native objects and explicit values](docs/native-objects.md) for Example, Discriminator, XML, Tag and multipart validation, including optional boolean and `Tag.Parent` API migrations.

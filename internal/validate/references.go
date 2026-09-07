@@ -129,6 +129,19 @@ func dictionaryExtension(role, key string) bool {
 	return (role == "paths" || role == "responses") && strings.HasPrefix(key, "x-")
 }
 
+// Distinguish array containers from the objects stored at each array position.
+func arrayRole(role string) string {
+	switch role {
+	case "schemaArray":
+		return "schema"
+	case "tagArray":
+		return "tag"
+	case "encodingArray":
+		return "encoding"
+	}
+	return ""
+}
+
 // Identify standard locations allowing Reference Objects or schema references.
 func referenceRole(role string) bool {
 	switch role {
@@ -144,8 +157,8 @@ func (g *referenceGraph) collect(v any, path, role, base, document string, root 
 		return
 	}
 	if a, ok := v.([]any); ok {
-		if role == "schemaArray" {
-			role = "schema"
+		if element := arrayRole(role); element != "" {
+			role = element
 		}
 		for i, item := range a {
 			if g.budget.exceeded {

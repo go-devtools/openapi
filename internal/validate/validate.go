@@ -112,11 +112,29 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.add("budget", path, "specification object recursion exceeds the budget")
 		return
 	}
-	if role == "security" || role == "example" || role == "examples" || role == "discriminator" || role == "xml" {
+	if role == "security" || role == "example" || role == "examples" || role == "discriminator" || role == "xml" || role == "tag" || role == "media" || role == "mediaTypes" || role == "encoding" || role == "encodings" || role == "externalDocs" {
 		if _, ok := v.(map[string]any); !ok {
 			c.add("object", path, role+" must be an object")
 			return
 		}
+	}
+	if role == "tagArray" || role == "encodingArray" {
+		items, ok := v.([]any)
+		if !ok {
+			code := "tag.array"
+			if role == "encodingArray" {
+				code = "encoding.prefix"
+			}
+			c.add(code, path, "field must be an array of objects")
+			return
+		}
+		for i, item := range items {
+			if c.stopped() {
+				return
+			}
+			c.walk(item, path+"/"+strconv.Itoa(i), arrayRole(role), depth+1)
+		}
+		return
 	}
 	if role == "schemaArray" {
 		items, ok := v.([]any)
@@ -287,12 +305,12 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			c.add("request.content", path, "request body requires a media type")
 		}
 	case "media", "encoding":
+		c.mediaEncoding(m, path, role)
 		if has(m, "encoding") && (has(m, "prefixEncoding") || has(m, "itemEncoding")) {
 			c.add("encoding.conflict", path, "named and positional encoding cannot be combined")
 		}
 		if role == "media" && (has(m, "prefixEncoding") || has(m, "itemEncoding")) && !has(m, "itemSchema") {
-			schema, _ := m["schema"].(map[string]any)
-			if !schemaHasType(schema, "array") {
+			if !c.positionalArray(path + "/schema") {
 				c.add("encoding.array", path, "positional encoding requires an array schema or itemSchema")
 			}
 		}
@@ -302,9 +320,9 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	case "example":
 		c.example(m, path)
 	case "tag":
-		if str(m, "name") == "" {
-			c.add("tag.name", path, "tag name must not be empty")
-		}
+		c.tag(m, path)
+	case "externalDocs":
+		c.externalDocs(m, path)
 	case "link":
 		if has(m, "operationRef") == has(m, "operationId") {
 			c.add("link.target", path, "link must select exactly one operation target")
@@ -368,7 +386,7 @@ func childRole(role, k string) string {
 	}
 	// Interpret fields within their object context; matching names inside Links may be business data.
 	children := map[string]map[string]string{
-		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tag", "servers": "server"},
+		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tagArray", "servers": "server"},
 		"info":        {"license": "license", "contact": "contact"},
 		"path":        {"parameters": "parameter", "additionalOperations": "additionalOperations", "servers": "server"},
 		"operation":   {"parameters": "parameter", "responses": "responses", "requestBody": "requestBody", "callbacks": "callbacks", "servers": "server"},
@@ -376,8 +394,9 @@ func childRole(role, k string) string {
 		"response":    {"headers": "headers", "content": "mediaTypes", "links": "links"},
 		"parameter":   {"schema": "schema", "content": "mediaTypes", "examples": "examples"},
 		"header":      {"schema": "schema", "content": "mediaTypes", "examples": "examples"},
-		"media":       {"schema": "schema", "itemSchema": "schema", "examples": "examples", "encoding": "encodings", "prefixEncoding": "encoding", "itemEncoding": "encoding"},
-		"encoding":    {"headers": "headers", "encoding": "encodings", "prefixEncoding": "encoding", "itemEncoding": "encoding"},
+		"media":       {"schema": "schema", "itemSchema": "schema", "examples": "examples", "encoding": "encodings", "prefixEncoding": "encodingArray", "itemEncoding": "encoding"},
+		"encoding":    {"headers": "headers", "encoding": "encodings", "prefixEncoding": "encodingArray", "itemEncoding": "encoding"},
+		"tag":         {"externalDocs": "externalDocs"},
 		"link":        {"server": "server"},
 	}
 	return children[role][k]
@@ -502,45 +521,68 @@ func schemaHasType(m map[string]any, want string) bool {
 	return false
 }
 
-// Validate tag parents and detect hierarchy cycles.
+// Validate explicit tag parent identities and terminate every hierarchy walk within the shared budget.
 func (c *checker) checkTags() {
 	tags, _ := c.root["tags"].([]any)
-	parents := map[string]string{}
-	for _, v := range tags {
+	type parentLink struct {
+		name    string
+		present bool
+		path    string
+	}
+	parents := map[string]parentLink{}
+	for i, value := range tags {
 		if c.stopped() {
 			return
 		}
-		m, _ := v.(map[string]any)
-		name := str(m, "name")
-		if _, ok := parents[name]; ok {
-			c.add("tag.duplicate", "#/tags", "duplicate tag: "+name)
+		object, ok := value.(map[string]any)
+		if !ok {
+			continue
 		}
-		parents[name] = str(m, "parent")
+		name, ok := object["name"].(string)
+		if !ok {
+			continue
+		}
+		path := "#/tags/" + strconv.Itoa(i)
+		if _, exists := parents[name]; exists {
+			c.add("tag.duplicate", path+"/name", "duplicate tag: "+name)
+			continue
+		}
+		parent, present := object["parent"].(string)
+		parents[name] = parentLink{name: parent, present: present, path: path}
 	}
+	// Mark completed chains so long valid hierarchies do not repeatedly traverse their ancestors.
+	state := map[string]uint8{}
 	for _, name := range sortedKeys(parents) {
 		if c.stopped() {
 			return
 		}
-		seen := map[string]bool{}
-		cur := name
-		for cur != "" {
+		current := name
+		trail := []string{}
+		for state[current] != 2 {
 			if c.stopped() {
 				return
 			}
-			if c.graph != nil && !c.graph.spend(len(cur), 1) {
+			if c.graph != nil && !c.graph.spend(len(current), 1) {
 				return
 			}
-			if seen[cur] {
-				c.add("tag.cycle", "#/tags", "tag parent cycle: "+name)
+			link := parents[current]
+			if state[current] == 1 {
+				c.add("tag.cycle", link.path+"/parent", "tag parent cycle: "+current)
 				break
 			}
-			seen[cur] = true
-			next, ok := parents[cur]
-			if !ok {
-				c.add("tag.parent", "#/tags", "tag parent does not exist: "+cur)
+			state[current] = 1
+			trail = append(trail, current)
+			if !link.present {
 				break
 			}
-			cur = next
+			if _, exists := parents[link.name]; !exists {
+				c.add("tag.parent", link.path+"/parent", "tag parent does not exist: "+link.name)
+				break
+			}
+			current = link.name
+		}
+		for _, visited := range trail {
+			state[visited] = 2
 		}
 	}
 }

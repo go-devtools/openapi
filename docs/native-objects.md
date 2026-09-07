@@ -66,8 +66,36 @@ Static traversal follows ordinary references, named `properties`, `items`, `pref
 
 This is a static naming check, not complete XML annotation evaluation. Dynamic reference scope, pattern/additional/unevaluated property selection, `contains`/unevaluated item selection, encoded `contentSchema`, and nested Encoding content types are not certified here. Boolean schemas and instance-dependent annotation collection do not establish a complete XML tree. XML metadata does not select a serializer or prove application XML behavior. The shared Swagger UI renders the original document with its pinned upstream capabilities; document validity does not imply complete rendering of every native keyword.
 
+## Tags and parent presence
+
+`Tag.Name` is required and may be empty. Names must be unique. Summary, description, parent, and kind must be strings; kind may contain an application-defined classification. Every explicitly supplied parent must name a declared tag, and parent chains must be acyclic. The checker validates the Tag array, individual objects, and external documentation metadata while leaving extension payloads opaque.
+
+`Tag.Parent` now uses `spec.Optional[string]` so an omitted parent differs from a reference to the empty tag name. Migrate earlier string assignments to `spec.Set(value)`, read `.Value`, and use `.Present` to inspect presence. Leave the zero value for a root tag. Null is invalid. The wire format remains a standard string:
+
+```go
+tags := []spec.Tag{
+    {Name: "resources", Summary: "Resources", Kind: "nav"},
+    {Name: "items", Parent: spec.Set("resources")},
+}
+_ = tags
+```
+
+Hierarchy checks visit each chain once within the shared reference budget. Native `summary`, `parent`, and `kind` remain in the exported document; the pinned Swagger UI's ordinary tag grouping does not constitute a native hierarchy presentation.
+
+## Media and multipart encoding
+
+Media and Encoding fields have separate object shapes. `encoding` is a dictionary of Encoding Objects; `prefixEncoding` is an array of Encoding Objects; `itemEncoding` is one Encoding Object. Named and positional fields cannot coexist at the same level. The same container and conflict rules apply to nested encodings. Header references inside positional and nested encodings use the normal explicit offline resource graph.
+
+Encoding contentType must be a string; style accepts form, spaceDelimited, pipeDelimited, or deepObject. Explode and allowReserved must be booleans, including explicit false. Unknown standard fields are rejected. The media description must be a string. Extension contents are not traversed, but an encoding entry whose part name starts with `x-` is still an Encoding Object.
+
+Positional media encoding requires `itemSchema` or structural array evidence in `schema`. The checker recognizes an array type (including a type union), `items` or `prefixItems` without a conflicting explicit type, ordinary references, and positive `allOf`/`anyOf`/`oneOf` branches. It follows local references, anchors, and supplied offline resources with a visited set and the shared budget. Unused definitions, nested properties, and reference cycles without array evidence do not establish the outer shape. Dynamic scope and arbitrary satisfiability are not solved; express an explicit array constraint or use `itemSchema` when the structure is otherwise unproven.
+
+These are document checks, not multipart wire serialization or complete contentType grammar validation. Ignored media-specific fields and Encoding content types do not select a runtime codec. Native positional and nested encoding UI submissions have not been certified. See [Encoding by position](https://spec.openapis.org/oas/v3.2.0.html#encoding-by-position) and [Encoding Object](https://spec.openapis.org/oas/v3.2.0.html#encoding-object).
+
 ## Verification
 
 The native object matrix compares public diagnostics with four checksummed official resources and an independent JSON Schema engine. Separate tests record normative rules that the official resources do not enforce, exercise offline external examples, and verify absent/false/true round trips across every optional boolean field. `contracttest/discriminator_test.go` covers union and inheritance context, offline anchors and back-references, cyclic traversal budgets, independent instance semantics, and actual known/unknown/omitted discriminator payloads from the native fixture.
 
 `contracttest/xml_context_test.go` compares normative XML naming examples with the official structural schema, which accepts the missing-name counterexamples. It covers XML/JSON controls, reusable media, external schema identity, property arrays and tuples, reference wrappers, all content-bearing object roles, and traversal budgets on a cyclic graph. These checks supplement structural validation; they are not independent XML codec conformance tests.
+
+`contracttest/tag_encoding_test.go` compares native Tag, Media, and Encoding shapes with the official structural schema, records the additional hierarchy and positional-array rules, and verifies typed parent presence, long hierarchies, reference aliases/anchors, implicit tuples, composition, and nested offline Header references.

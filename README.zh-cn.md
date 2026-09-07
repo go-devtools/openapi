@@ -84,4 +84,4 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 
 参见[来源解释](docs/explain.md)，了解显式启用的字段、类型、接口和响应来源查询，以及声明与实施证据的边界。
 
-Example、Discriminator、XML 的验证规则和可选布尔字段迁移方式见[原生对象与显式值](docs/native-objects.md)。
+Example、Discriminator、XML、Tag 和 multipart 的验证规则，以及可选布尔字段和 `Tag.Parent` 的 API 迁移方式见[原生对象与显式值](docs/native-objects.md)。

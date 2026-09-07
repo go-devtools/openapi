@@ -225,10 +225,11 @@ type Header struct {
 
 // Describe OAS 3.2 tag hierarchy and classification.
 type Tag struct {
-	Name         string                 `json:"name"`
-	Summary      string                 `json:"summary,omitempty"`
-	Description  string                 `json:"description,omitempty"`
-	Parent       string                 `json:"parent,omitempty"`
+	Name        string `json:"name"`
+	Summary     string `json:"summary,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Preserve an explicit empty parent, which refers to an empty tag name.
+	Parent       Optional[string]       `json:"parent,omitzero"`
 	Kind         string                 `json:"kind,omitempty"`
 	ExternalDocs *ExternalDocumentation `json:"externalDocs,omitempty"`
 	Extensions   Extensions             `json:"-"`
