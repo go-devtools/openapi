@@ -61,14 +61,33 @@ window.OpenAPINativeCompatibility = function () {
       // Visit callback Path Items only through Operation Objects, avoiding lookalike application data.
       const operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query']
         .filter(method => item[method] && typeof item[method] === 'object')
-        .map(method => [item[method], pointer + '/' + method]);
+        .map(method => [item[method], pointer + '/' + method, method.toUpperCase()]);
       if (additional && typeof additional === 'object') {
         for (const method of Object.keys(additional)) {
           if (--remaining < 0) { truncated = true; break; }
-          operations.push([additional[method], pointer + '/additionalOperations/' + token(method)]);
+          operations.push([additional[method], pointer + '/additionalOperations/' + token(method), method]);
         }
       }
-      for (const [operation, location] of operations) {
+      for (const [operation, location, method] of operations) {
+        // Report the exact inherited or operation-level parameter that the renderer cannot serialize.
+        for (const [owner, ownerPointer] of [[item, pointer], [operation, location]]) {
+          if (!owner || !Array.isArray(owner.parameters)) continue;
+          for (let index = 0; index < owner.parameters.length; index++) {
+            if (--remaining < 0) { truncated = true; return; }
+            let parameter = owner.parameters[index];
+            let parameterPointer = ownerPointer + '/parameters/' + index;
+            const references = new Set();
+            while (parameter && typeof parameter.$ref === 'string' && !references.has(parameter) && references.size < 64) {
+              references.add(parameter);
+              parameterPointer = parameter.$ref;
+              parameter = resolve(parameter.$ref);
+            }
+            if (parameter && parameter.in === 'querystring') add('openapi.ui.querystring', parameterPointer,
+              'The whole-query parameter is displayed but this renderer omits its value from requests. Submission for this operation is disabled.',
+              'Read the content media type and encoding in the original document and submit with a compatible client.',
+              method + ' ' + route);
+          }
+        }
         const callbacks = operation && operation.callbacks;
         if (!callbacks || typeof callbacks !== 'object') continue;
         for (const name of Object.keys(callbacks)) {

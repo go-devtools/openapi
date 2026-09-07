@@ -70,3 +70,13 @@ body { margin: 0; background: #fafafa; }
 .swagger-ui .openapi-compatibility li + li { margin-top: 16px; }
 .swagger-ui .openapi-compatibility code, .swagger-ui .openapi-compatibility strong { display: block; }
 .swagger-ui .openapi-compatibility p { margin: 4px 0; }
+
+/* Separate per-item stream contracts from whole-body examples and schemas. */
+.swagger-ui .openapi-stream-item { margin: 12px 0; padding: 14px 16px; border: 1px solid #d5dce4; border-radius: 4px; background: #f8fafc; color: #344054; }
+.swagger-ui .openapi-stream-item h4 { margin: 0 0 8px; }
+.swagger-ui .openapi-stream-item p { font-size: 13px; line-height: 1.5; }
+.swagger-ui .openapi-stream-item > code { font-size: 12px; overflow-wrap: anywhere; }
+.swagger-ui .openapi-stream-row > td { padding-top: 0; }
+
+/* Place a concise serialization limitation beside the affected parameter. */
+.swagger-ui .openapi-wire-note { padding: 10px 12px; border-left: 3px solid #7c91ab; background: #f0f4f8; color: #344054; font-size: 13px; line-height: 1.5; }

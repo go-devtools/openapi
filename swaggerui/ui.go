@@ -39,6 +39,11 @@ var nativeExamples string
 //go:embed native-compatibility.js
 var nativeCompatibility string
 
+// Preserve stream item contracts and reject known lossy parameter submissions.
+//
+//go:embed native-wire.js
+var nativeWire string
+
 // Keep project presentation styles separate from upstream resources.
 //
 //go:embed presentation.css
@@ -174,11 +179,12 @@ func New(cfg Config) (*UI, error) {
 		return nil, err
 	}
 	script := "// Start documentation from fixed local configuration.\nwindow.addEventListener('load', function () { window.OpenAPIStart(" + string(encoded) + "); });\n"
-	page := "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + html.EscapeString(cfg.Title) + "</title><link rel=\"stylesheet\" href=\"./swagger-ui.css\"><link rel=\"stylesheet\" href=\"./presentation.css\"><link rel=\"icon\" href=\"./favicon-32x32.png\"></head><body><div id=\"swagger-ui\"></div><script src=\"./swagger-ui-bundle.js\"></script><script src=\"./swagger-ui-standalone-preset.js\"></script><script src=\"./display-names.js\"></script><script src=\"./native-examples.js\"></script><script src=\"./native-compatibility.js\"></script><script src=\"./startup.js\"></script><script src=\"./config.js\"></script></body></html>"
+	page := "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + html.EscapeString(cfg.Title) + "</title><link rel=\"stylesheet\" href=\"./swagger-ui.css\"><link rel=\"stylesheet\" href=\"./presentation.css\"><link rel=\"icon\" href=\"./favicon-32x32.png\"></head><body><div id=\"swagger-ui\"></div><script src=\"./swagger-ui-bundle.js\"></script><script src=\"./swagger-ui-standalone-preset.js\"></script><script src=\"./display-names.js\"></script><script src=\"./native-examples.js\"></script><script src=\"./native-compatibility.js\"></script><script src=\"./native-wire.js\"></script><script src=\"./startup.js\"></script><script src=\"./config.js\"></script></body></html>"
 	ui.resources["presentation.css"] = resource([]byte(presentationStyles), "text/css; charset=utf-8", "no-cache")
 	ui.resources["display-names.js"] = resource([]byte(displayNames), "text/javascript; charset=utf-8", "no-cache")
 	ui.resources["native-examples.js"] = resource([]byte(nativeExamples), "text/javascript; charset=utf-8", "no-cache")
 	ui.resources["native-compatibility.js"] = resource([]byte(nativeCompatibility), "text/javascript; charset=utf-8", "no-cache")
+	ui.resources["native-wire.js"] = resource([]byte(nativeWire), "text/javascript; charset=utf-8", "no-cache")
 	ui.resources["startup.js"] = resource([]byte(startupScript), "text/javascript; charset=utf-8", "no-cache")
 	ui.resources["config.js"] = resource([]byte(script), "text/javascript; charset=utf-8", "no-cache")
 	ui.resources["index.html"] = resource([]byte(page), "text/html; charset=utf-8", "no-cache")

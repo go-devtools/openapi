@@ -54,3 +54,12 @@ test('tag presence and compatibility budgets cannot imply full coverage', () => 
  for (let i = 0; i < 100; i++) document.components.pathItems['p' + i] = { $ref: '#/components/pathItems/p' + (i + 1) };
  assert.equal(inspect(document).diagnostics.at(-1).code, 'openapi.ui.inspect.limit');
 });
+
+// Preserve actual route identities and the source pointer of inherited whole-query parameters.
+test('whole-query diagnostics keep inherited references and custom method case', () => {
+ const document = { openapi: '3.2.0', paths: { '/items': { parameters: [{ $ref: '#/components/parameters/Whole' }],
+  get: {}, additionalOperations: { search: {} } } }, components: { parameters: { Whole: { in: 'querystring', name: 'all' } } } };
+ const diagnostics = inspect(document).diagnostics.filter(d => d.code === 'openapi.ui.querystring');
+ assert.deepEqual(diagnostics.map(d => d.route), ['GET /items', 'search /items']);
+ assert.ok(diagnostics.every(d => d.message.startsWith('#/components/parameters/Whole:')));
+});

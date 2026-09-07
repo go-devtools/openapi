@@ -1,0 +1,176 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native wire API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/querystring-submit": {
+      "get": {
+        "summary": "Search with an entire query string",
+        "operationId": "wholeQuery",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "querystring",
+            "required": true,
+            "description": "An entire URL-encoded query value.",
+            "content": {
+              "application/x-www-form-urlencoded": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "examples": {
+                  "spaces": {
+                    "dataValue": {
+                      "term": "a + b",
+                      "active": false
+                    },
+                    "serializedValue": "term=a+%2B+b&active=false"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raw query received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/native-stream": {
+      "get": {
+        "summary": "Read individual stream events",
+        "operationId": "readStream",
+        "responses": {
+          "200": {
+            "description": "A sequence of typed items",
+            "content": {
+              "application/x-ndjson": {
+                "$ref": "#/components/mediaTypes/Entries"
+              },
+              "text/event-stream": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string",
+                      "contentMediaType": "application/json",
+                      "contentSchema": {
+                        "$ref": "#/components/schemas/Entry"
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "one": {
+                    "serializedValue": "event: update\ndata: {\"message\":\"first\"}\n\n"
+                  }
+                }
+              },
+              "application/jsonl": {
+                "itemSchema": false
+              },
+              "application/json-seq": {
+                "itemSchema": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stream-submit": {
+      "post": {
+        "summary": "Submit individual stream records",
+        "operationId": "writeStream",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-ndjson": {
+              "itemSchema": {
+                "$ref": "#/components/schemas/Entry"
+              },
+              "examples": {
+                "two": {
+                  "serializedValue": "{\"message\":\"first\"}\n{\"message\":\"second\"}\n"
+                }
+              },
+              "schema": {
+                "type": "array",
+                "maxItems": 2,
+                "items": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raw body accepted"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Entry": {
+        "title": "Entry",
+        "type": "object",
+        "description": "One record in the stream.",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message for this record."
+          }
+        }
+      }
+    },
+    "mediaTypes": {
+      "Entries": {
+        "itemSchema": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "examples": {
+          "two": {
+            "serializedValue": "{\"message\":\"first\"}\n{\"message\":\"second\"}\n"
+          }
+        }
+      }
+    }
+  }
+}
