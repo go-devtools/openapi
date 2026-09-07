@@ -118,6 +118,8 @@ func dictionaryRole(role string) string {
 		return "encoding"
 	case "requestBodies":
 		return "requestBody"
+	case "serverVariables":
+		return "serverVariable"
 	case "additionalOperations":
 		return "operation"
 	}
@@ -138,6 +140,10 @@ func arrayRole(role string) string {
 		return "tag"
 	case "encodingArray":
 		return "encoding"
+	case "serverArray":
+		return "server"
+	case "parameterArray":
+		return "parameter"
 	}
 	return ""
 }

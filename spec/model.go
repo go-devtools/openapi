@@ -123,7 +123,7 @@ type ExternalDocumentation struct {
 
 // Describe a named parameter or whole-querystring media contract.
 type Parameter struct {
-	Name            string                      `json:"name,omitempty"`
+	Name            string                      `json:"name"`
 	In              string                      `json:"in"`
 	Description     string                      `json:"description,omitempty"`
 	Required        Optional[bool]              `json:"required,omitzero"`

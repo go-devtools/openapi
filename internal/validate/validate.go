@@ -21,7 +21,6 @@ type Issue struct {
 type checker struct {
 	root   map[string]any
 	issues []Issue
-	ids    map[string]string
 	graph  *referenceGraph
 }
 
@@ -118,12 +117,16 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			return
 		}
 	}
-	if role == "tagArray" || role == "encodingArray" {
+	if role == "tagArray" || role == "encodingArray" || role == "serverArray" || role == "parameterArray" {
 		items, ok := v.([]any)
 		if !ok {
 			code := "tag.array"
 			if role == "encodingArray" {
 				code = "encoding.prefix"
+			} else if role == "serverArray" {
+				code = "server.array"
+			} else if role == "parameterArray" {
+				code = "parameter.array"
 			}
 			c.add(code, path, "field must be an array of objects")
 			return
@@ -154,13 +157,8 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.add("schema.keyword", path, "Schema or Schema dictionary cannot be an array")
 		return
 	}
-	if a, ok := v.([]any); ok {
-		for i, item := range a {
-			if c.stopped() {
-				return
-			}
-			c.walk(item, path+"/"+strconv.Itoa(i), role, depth+1)
-		}
+	if _, ok := v.([]any); ok {
+		c.add("object", path, role+" must be an object")
 		return
 	}
 	if role == "schema" {
@@ -174,6 +172,15 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		return
 	}
 	if singular := dictionaryRole(role); singular != "" {
+		if role == "responses" {
+			response := false
+			for key := range m {
+				response = response || validStatus(key)
+			}
+			if !response {
+				c.add("response.missing", path, "responses must contain a status code or default response")
+			}
+		}
 		for _, k := range sortedKeys(m) {
 			if c.stopped() {
 				return
@@ -192,6 +199,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		return
 	}
 	if has(m, "$ref") && referenceRole(role) && role != "schema" && role != "path" {
+		c.nativeStrings(m, path, "ref", "$ref", "summary", "description")
 		for _, k := range sortedKeys(m) {
 			if c.stopped() {
 				return
@@ -254,34 +262,32 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	case "schema":
 		c.schema(m, path)
 	case "path":
+		c.nativeFields(m, path, "path", "$ref", "summary", "description", "get", "put", "post", "delete", "options", "head", "patch", "trace", "query", "additionalOperations", "servers", "parameters")
+		c.nativeStrings(m, path, "path", "$ref", "summary", "description")
 		if extra, ok := m["additionalOperations"].(map[string]any); ok {
 			for _, method := range sortedKeys(extra) {
 				if c.stopped() {
 					return
 				}
-				if isFixed(strings.ToUpper(method)) {
+				if !httpToken(method) {
+					c.add("method.token", path+"/additionalOperations/"+escape(method), "HTTP method must be a nonempty RFC 9110 token")
+				}
+				if isFixed(method) {
 					c.add("method.duplicate", path, "fixed HTTP methods cannot appear in additionalOperations")
 				}
 			}
 		}
 	case "operation":
-		if id := str(m, "operationId"); id != "" {
-			if old, ok := c.ids[id]; ok {
-				c.add("operationId.duplicate", path, "operationId conflicts with "+old+" is duplicated")
-			}
-			c.ids[id] = path
-		}
-		if responses, ok := m["responses"].(map[string]any); !ok || len(responses) == 0 {
-			c.add("response.missing", path, "operation has no response")
-		}
-		c.parameters(m, path)
+		c.operationFields(m, path)
 	case "parameter":
+		c.parameterFields(m, path, role)
 		in := str(m, "in")
 		if in != "path" && in != "query" && in != "header" && in != "cookie" && in != "querystring" {
 			c.add("parameter.location", path, "invalid parameter location")
 		}
-		if str(m, "name") == "" {
-			c.add("parameter.name", path, "named parameter requires name")
+		name, named := m["name"].(string)
+		if !named || (in == "path" && (name == "" || strings.ContainsAny(name, "{}"))) {
+			c.add("parameter.name", path+"/name", "parameter name is required; a path name must name one nonempty template expression without braces")
 		}
 		if in == "path" && m["required"] != true {
 			c.add("parameter.required", path, "path parameter must be required")
@@ -299,6 +305,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			}
 		}
 	case "header":
+		c.parameterFields(m, path, role)
 		c.parameterContent(m, path)
 	case "requestBody":
 		if content, ok := m["content"].(map[string]any); !ok || len(content) == 0 {
@@ -324,9 +331,14 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	case "externalDocs":
 		c.externalDocs(m, path)
 	case "link":
+		c.linkFields(m, path)
 		if has(m, "operationRef") == has(m, "operationId") {
 			c.add("link.target", path, "link must select exactly one operation target")
 		}
+	case "server":
+		c.server(m, path)
+	case "serverVariable":
+		c.serverVariable(m, path)
 	case "security":
 		c.security(m, path)
 	case "discriminator":
@@ -386,10 +398,10 @@ func childRole(role, k string) string {
 	}
 	// Interpret fields within their object context; matching names inside Links may be business data.
 	children := map[string]map[string]string{
-		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tagArray", "servers": "server"},
+		"root":        {"info": "info", "paths": "paths", "webhooks": "webhooks", "components": "components", "tags": "tagArray", "servers": "serverArray", "externalDocs": "externalDocs"},
 		"info":        {"license": "license", "contact": "contact"},
-		"path":        {"parameters": "parameter", "additionalOperations": "additionalOperations", "servers": "server"},
-		"operation":   {"parameters": "parameter", "responses": "responses", "requestBody": "requestBody", "callbacks": "callbacks", "servers": "server"},
+		"path":        {"parameters": "parameterArray", "additionalOperations": "additionalOperations", "servers": "serverArray"},
+		"operation":   {"parameters": "parameterArray", "responses": "responses", "requestBody": "requestBody", "callbacks": "callbacks", "servers": "serverArray", "externalDocs": "externalDocs"},
 		"requestBody": {"content": "mediaTypes"},
 		"response":    {"headers": "headers", "content": "mediaTypes", "links": "links"},
 		"parameter":   {"schema": "schema", "content": "mediaTypes", "examples": "examples"},
@@ -398,6 +410,7 @@ func childRole(role, k string) string {
 		"encoding":    {"headers": "headers", "encoding": "encodings", "prefixEncoding": "encodingArray", "itemEncoding": "encoding"},
 		"tag":         {"externalDocs": "externalDocs"},
 		"link":        {"server": "server"},
+		"server":      {"variables": "serverVariables"},
 	}
 	return children[role][k]
 }
@@ -470,39 +483,12 @@ func (c *checker) parameterContent(m map[string]any, path string) {
 				return
 			}
 			if has(m, k) {
-				c.add("parameter.serialization", path, "content cannot be combined with "+k+" and ")
+				c.add("parameter.serialization", path+"/"+k, "content cannot be combined with "+k)
 			}
 		}
 	}
 	if has(m, "example") && has(m, "examples") {
 		c.add("example.conflict", path, "parameter example and examples are mutually exclusive")
-	}
-}
-
-// Check duplicate parameters and querystring/query conflicts.
-func (c *checker) parameters(m map[string]any, path string) {
-	list, _ := m["parameters"].([]any)
-	seen := map[string]bool{}
-	query, querystring := false, false
-	for _, v := range list {
-		if c.stopped() {
-			return
-		}
-		p, _ := v.(map[string]any)
-		if has(p, "$ref") {
-			continue
-		}
-		in := str(p, "in")
-		key := in + ":" + str(p, "name")
-		if seen[key] {
-			c.add("parameter.duplicate", path, "duplicate parameter "+key)
-		}
-		seen[key] = true
-		query = query || in == "query"
-		querystring = querystring || in == "querystring"
-	}
-	if query && querystring {
-		c.add("parameter.querystring", path, "query and querystring cannot be combined")
 	}
 }
 

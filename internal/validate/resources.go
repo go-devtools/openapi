@@ -255,7 +255,7 @@ func (set *resourceSet) check() []Issue {
 		if set.graph.budget.exceeded {
 			break
 		}
-		c := checker{root: object, ids: map[string]string{}, graph: set.graph}
+		c := checker{root: object, graph: set.graph}
 		c.walk(entry.value, entry.path, entry.role, 0)
 		if entry.role == "root" {
 			c.checkTags()
@@ -273,6 +273,7 @@ func (set *resourceSet) check() []Issue {
 	}
 	set.graph.checkReferences()
 	context := checker{graph: set.graph}
+	context.checkHTTPContexts()
 	context.checkDiscriminators()
 	context.checkXMLContexts()
 	issues = append(issues, context.issues...)
