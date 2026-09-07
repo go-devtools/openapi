@@ -97,3 +97,11 @@ Example manifest:
 An omitted kind or document selects Resources; example selects ExampleResources. Relative file paths resolve from the manifest directory. Only explicitly named regular files are read. Document URIs are never converted into file paths. The manifest is limited to 1 MiB; main and preloaded files share the byte budget.
 
 Missing files, duplicate URIs, unknown fields or kinds, and trailing JSON are rejected. Cancellation is checked before and between reads. Successful checking and `check --help` exit 0. Document or resource errors exit nonzero with JSON diagnostics.
+
+## Explicit local input reads
+
+The optional `github.com/openapi-golang/openapi/checkio` package exposes `ReadFile(ctx, filename, maxBytes)`. Both product CLIs use it for caller-selected regular files. It never derives filenames from `$ref` or `externalValue`, opens a remote URL, or imports a framework. The root `openapi` package does not depend on it.
+
+`ReadFile` accepts an exact byte boundary and permits an empty file when its limit is zero. Negative limits, known oversized files and growth beyond the limit return an error matching `checkio.ErrByteLimit`. Directories and devices return `checkio.ErrNotRegular`; Unix tests also verify that existing FIFOs are rejected before opening. A caller-selected symlink to a regular file is allowed. Checkers still validate the file contents separately.
+
+Cancellation is checked before and between filesystem operations, around reads, and before returning bytes. It does not preempt an individual kernel filesystem operation or guarantee a hard wall-clock deadline. The read limit bounds input bytes, not total process memory. The core CLI also shares its total budget across explicitly preloaded document and example resources.

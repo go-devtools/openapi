@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/openapi-golang/openapi"
+	"github.com/openapi-golang/openapi/checkio"
 )
 
 // Explicitly map retrieval URIs to local files; never load files from URIs found in the specification.
@@ -19,65 +19,12 @@ type resourceFile struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// Honor cancellation between regular-file reads without executing file contents.
-type contextReader struct {
-	ctx    context.Context
-	reader io.Reader
-}
-
-// Check cancellation before each underlying read.
-func (r contextReader) Read(p []byte) (int, error) {
-	if err := r.ctx.Err(); err != nil {
-		return 0, err
-	}
-	return r.reader.Read(p)
-}
-
-// Read a user-selected regular file and stop before allocating beyond the budget.
-func readBoundedFile(ctx context.Context, path string, limit int) ([]byte, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if limit < 0 {
-		return nil, fmt.Errorf("openapi.cli.budget: insufficient file read budget")
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("openapi.cli.file: only regular files are accepted: %s", path)
-	}
-	if info.Size() > int64(limit) {
-		return nil, fmt.Errorf("openapi.cli.budget: file exceeds the remaining byte budget: %s", path)
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	reader := contextReader{ctx: ctx, reader: file}
-	data, err := io.ReadAll(io.LimitReader(reader, int64(limit)))
-	if err != nil {
-		return nil, err
-	}
-	var extra [1]byte
-	n, err := reader.Read(extra[:])
-	if n > 0 {
-		return nil, fmt.Errorf("openapi.cli.budget: file exceeded the budget while being read: %s", path)
-	}
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-	return data, nil
-}
-
 // Share the byte budget across the root and manifest entries; limit the manifest itself to one MiB.
 func readCheckInputs(ctx context.Context, specFile, manifestFile string, options openapi.CheckOptions) ([]byte, openapi.CheckOptions, error) {
 	if options.MaxBytes < 1 || options.MaxResources < 1 || options.MaxReferences < 1 || options.MaxIndexBytes < 0 {
 		return nil, options, fmt.Errorf("openapi.cli.budget: all budgets must be greater than zero")
 	}
-	raw, err := readBoundedFile(ctx, specFile, options.MaxBytes)
+	raw, err := checkio.ReadFile(ctx, specFile, options.MaxBytes)
 	if err != nil {
 		return nil, options, err
 	}
@@ -92,7 +39,7 @@ func readResourceManifest(ctx context.Context, raw []byte, manifestFile string, 
 	if manifestFile == "" {
 		return raw, options, nil
 	}
-	manifest, err := readBoundedFile(ctx, manifestFile, 1<<20)
+	manifest, err := checkio.ReadFile(ctx, manifestFile, 1<<20)
 	if err != nil {
 		return nil, options, err
 	}
@@ -128,7 +75,7 @@ func readResourceManifest(ctx context.Context, raw []byte, manifestFile string, 
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(filepath.Dir(manifestFile), path)
 		}
-		data, err := readBoundedFile(ctx, path, remaining)
+		data, err := checkio.ReadFile(ctx, path, remaining)
 		if err != nil {
 			return nil, options, err
 		}

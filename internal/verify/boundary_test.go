@@ -50,7 +50,7 @@ func TestNoFrameworkDependencies(t *testing.T) {
 // Keep compiler, independent validation engine, and UI assets out of the root package's dependencies.
 func TestRuntimeDependencyBoundary(t *testing.T) {
 	out := runGo(t, rootDir(t), "list", "-deps", "-f", "{{.ImportPath}}", ".")
-	for _, forbidden := range []string{"golang.org/x/tools", "github.com/openapi-golang/openapi/compiler", "github.com/openapi-golang/openapi/swaggerui", "github.com/openapi-golang/openapi/contracttest", "github.com/santhosh-tekuri/jsonschema"} {
+	for _, forbidden := range []string{"golang.org/x/tools", "github.com/openapi-golang/openapi/compiler", "github.com/openapi-golang/openapi/checkio", "github.com/openapi-golang/openapi/swaggerui", "github.com/openapi-golang/openapi/contracttest", "github.com/santhosh-tekuri/jsonschema"} {
 		if strings.Contains(out, forbidden) {
 			t.Fatalf("runtime contains optional dependency %s", forbidden)
 		}
