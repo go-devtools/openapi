@@ -66,14 +66,33 @@ func TestExternalFrontend(t *testing.T) {
 		// Use this existing initial version only for temporary development replacement, not final remote acceptance.
 		version = "v0.0.0-20260905054024-c28ea4b52b58"
 	}
-	for _, name := range []string{"types.go", "consumer_test.go", "call_flow_test.go", "call_outcome_test.go", "runtime_conditions_test.go", "compiler_conditions_test.go", "build_inputs_test.go", "build_inputs_boundary_test.go", "runtime_build_test.go", "runtime_inputs_test.go", "request_fields_test.go", "request_encoding_test.go", "http_response_test.go", "response_state_test.go", "response_items_test.go", "response_item_projection_test.go", "boxed_nil_test.go", "stream_boundary_test.go", "function_values_test.go", "callback_test.go", "declarations_test.go", "imported_metadata_test.go"} {
-		raw, err := os.ReadFile(filepath.Join("testdata", "external", name))
+	// Keep local and published consumers aligned by copying every owned fixture, including nested packages.
+	fixture := filepath.Join("testdata", "external")
+	if err := filepath.WalkDir(fixture, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
-		if err = os.WriteFile(filepath.Join(dir, name), raw, 0600); err != nil {
-			t.Fatal(err)
+		if entry.IsDir() {
+			return nil
 		}
+		if !entry.Type().IsRegular() {
+			t.Fatalf("consumer fixture must contain regular files: %s", path)
+		}
+		name, err := filepath.Rel(fixture, path)
+		if err != nil {
+			return err
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dir, name)
+		if err = os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+			return err
+		}
+		return os.WriteFile(target, raw, 0600)
+	}); err != nil {
+		t.Fatal(err)
 	}
 	mod := "module example.test/consumer\n\ngo 1.27.1\n\nrequire github.com/openapi-golang/openapi " + version + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0600); err != nil {

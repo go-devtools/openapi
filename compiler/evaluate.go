@@ -427,6 +427,11 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 // Initialize Go zero values for declarations without expressions and named results.
 func zeroValue(t types.Type) Value {
 	value := Value{Type: t}
+	// The underlying constraint interface says nothing about an uninstantiated parameter's zero value.
+	if _, parameter := types.Unalias(t).(*types.TypeParam); parameter {
+		value.Unknown = true
+		return value
+	}
 	switch typ := t.Underlying().(type) {
 	case *types.Struct:
 		value.Fields = map[string]Value{}
@@ -452,6 +457,10 @@ func zeroValue(t types.Type) Value {
 // Interface boxing must not confuse a typed nil pointer with a nil interface.
 func coerceValue(value Value, target types.Type) Value {
 	if target == nil {
+		return value
+	}
+	// Passing a concrete argument to a generic parameter does not box it into the constraint interface.
+	if _, parameter := types.Unalias(target).(*types.TypeParam); parameter {
 		return value
 	}
 	if value.Type == nil || types.Identical(value.Type, types.Typ[types.UntypedNil]) {
