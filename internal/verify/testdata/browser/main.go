@@ -108,6 +108,11 @@ const documentJSON = `{
 //go:embed native-examples.json
 var nativeDocumentJSON string
 
+// Keep QUERY, case-sensitive extension methods, and tag metadata intact for browser verification.
+//
+//go:embed native-methods.json
+var methodsDocumentJSON string
+
 // Start an owned ephemeral listener and stop it when the test process requests shutdown.
 func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -118,6 +123,9 @@ func main() {
 		panic(report)
 	}
 	if report := openapi.Check([]byte(nativeDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(methodsDocumentJSON)); report.HasErrors() {
 		panic(report)
 	}
 	var guard sync.Mutex
@@ -154,16 +162,29 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"body": string(body), "contentType": r.Header.Get("Content-Type")})
 	})
+	// Echo the received method and bytes without performing any business action.
+	mux.HandleFunc("/query-submit", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, "Invalid body", 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"method": r.Method, "body": string(body)})
+	})
 	mux.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
 		guard.Lock()
 		defer guard.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(state)
 	})
-	for _, mode := range []string{"safe", "enabled", "native", "native-enabled"} {
+	for _, mode := range []string{"safe", "enabled", "native", "native-enabled", "methods", "methods-enabled"} {
 		cfg := swaggerui.Config{Title: "Browser contract", DocExpansion: "full", Definitions: []swaggerui.Definition{{Name: "All endpoints", URL: "./openapi.json"}, {Name: "Reference", URL: "./reference.json"}}}
 		if strings.HasSuffix(mode, "enabled") {
 			cfg.SubmitMethods = []string{"post"}
+		}
+		if mode == "methods-enabled" {
+			cfg.SubmitMethods = []string{"query"}
 		}
 		ui, err := swaggerui.New(cfg)
 		if err != nil {
@@ -177,7 +198,13 @@ func main() {
 				if strings.HasPrefix(mode, "native") {
 					data = nativeDocumentJSON
 				}
+				if strings.HasPrefix(mode, "methods") {
+					data = methodsDocumentJSON
+				}
 				if name == "reference.json" {
+					if strings.HasPrefix(mode, "methods") {
+						data = documentJSON
+					}
 					data = strings.Replace(data, "Browser API", "Reference API", 1)
 				}
 				w.Header().Set("Content-Type", "application/json")

@@ -1,0 +1,215 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native methods API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Platform",
+      "summary": "Platform services",
+      "kind": "nav"
+    },
+    {
+      "name": "Search",
+      "summary": "Catalog search",
+      "description": "Find entries in the catalog.",
+      "parent": "Platform",
+      "kind": "nav"
+    }
+  ],
+  "paths": {
+    "/query-submit": {
+      "query": {
+        "operationId": "queryCatalog",
+        "summary": "Query the catalog",
+        "tags": [
+          "Search"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "term": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "term": "galaxy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact method and request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/native-methods": {
+      "get": {
+        "operationId": "listNative",
+        "summary": "List methods",
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact method and request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "additionalOperations": {
+        "SEARCH": {
+          "operationId": "searchUpper",
+          "summary": "Search with uppercase method",
+          "tags": [
+            "Search"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "term": "galaxy"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Exact method and request body",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "method": {
+                        "type": "string"
+                      },
+                      "body": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "search": {
+          "operationId": "searchLower",
+          "summary": "Search with lowercase method",
+          "tags": [
+            "Search"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "term": "galaxy"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Exact method and request body",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "method": {
+                        "type": "string"
+                      },
+                      "body": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/linked-method": {
+      "$ref": "#/components/pathItems/LinkedMethods"
+    }
+  },
+  "components": {
+    "pathItems": {
+      "LinkedMethods": {
+        "additionalOperations": {
+          "REPORT": {
+            "summary": "<img src=x onerror=alert(1)>",
+            "responses": {
+              "200": {
+                "description": "Linked extension method"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

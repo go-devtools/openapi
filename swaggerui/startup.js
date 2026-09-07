@@ -1,6 +1,6 @@
 /* Start the offline UI with explicit configuration; query parameters may restore only registered document groups. */
 window.OpenAPIStart = function (options) {
-  options.plugins = [window.OpenAPIDisplayNames, window.OpenAPINativeExamples];
+  options.plugins = [window.OpenAPIDisplayNames, window.OpenAPINativeExamples, window.OpenAPINativeCompatibility];
   if (options.urls) {
     options.presets = [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset];
     const selected = new URL(window.location.href).searchParams.get("urls.primaryName");

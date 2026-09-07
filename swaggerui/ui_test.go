@@ -68,7 +68,7 @@ func TestRejectsRemoteAndTraversal(t *testing.T) {
 
 // Permit submission methods only through explicit configuration.
 func TestExplicitSubmitMethods(t *testing.T) {
-	ui, err := New(Config{SubmitMethods: []string{"get", "post"}})
+	ui, err := New(Config{SubmitMethods: []string{"get", "post", "query"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,8 +76,17 @@ func TestExplicitSubmitMethods(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(js.Bytes()), `"supportedSubmitMethods":["get","post"]`) {
+	if !strings.Contains(string(js.Bytes()), `"supportedSubmitMethods":["get","post","query"]`) {
 		t.Fatal("explicit submit configuration was lost")
+	}
+}
+
+// Reject extension methods instead of promising submission through an unsupported upstream operation list.
+func TestExtensionSubmitMethodsRejected(t *testing.T) {
+	for _, method := range []string{"SEARCH", "search", "QUERY", "CONNECT"} {
+		if _, err := New(Config{SubmitMethods: []string{method}}); err == nil || !strings.Contains(err.Error(), "openapi.ui.method") {
+			t.Fatalf("unsupported submit method %q: %v", method, err)
+		}
 	}
 }
 

@@ -85,3 +85,5 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 参见[来源解释](docs/explain.md)，了解显式启用的字段、类型、接口和响应来源查询，以及声明与实施证据的边界。
 
 Example、Discriminator、XML、Tag 和 multipart 的验证规则，以及可选布尔字段和 `Tag.Parent` 的 API 迁移方式见[原生对象与显式值](docs/native-objects.md)。
+
+参见[离线 UI 兼容性](docs/swaggerui-compatibility.md)，了解已实测的 QUERY 提交、被省略的扩展方法与标签元数据的浏览器端诊断，以及剩余原生展示限制。

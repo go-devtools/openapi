@@ -44,3 +44,5 @@ The module is github.com/openapi-golang/openapi. Use Go 1.27.1 and pin a module 
 - [Source explanations](docs/explain.md): Field and response origins, actual rules, unproven declarations, and centralized remediation.
 
 - [Native objects and explicit values](docs/native-objects.md): Example, Discriminator, XML checks and optional boolean API migration.
+
+- [Offline UI compatibility](docs/swaggerui-compatibility.md): Actual QUERY bytes, browser-side native display diagnostics, and explicitly unverified rendering combinations.

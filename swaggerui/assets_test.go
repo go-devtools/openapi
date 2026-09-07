@@ -26,6 +26,9 @@ func TestBundledAssetLicenses(t *testing.T) {
 	if manifest.Version != Version {
 		t.Fatal("asset manifest version differs from the public UI version")
 	}
+	if !strings.Contains(nativeCompatibility, "swaggerui/"+Version) {
+		t.Fatal("compatibility diagnostics do not identify the pinned UI version")
+	}
 	entries, err := fs.ReadDir(assets, "assets")
 	if err != nil {
 		t.Fatal(err)
