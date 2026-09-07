@@ -12,7 +12,7 @@ import (
 // The CLI forwards index budgets and returns a nonzero status with the stable diagnostic code.
 func TestCheckIndexBudgetFlag(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "openapi.json")
-	if err := os.WriteFile(file, []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"}}`), 0600); err != nil {
+	if err := os.WriteFile(file, []byte(`{"openapi":"3.2.0","info":{"title":"a","version":"1"},"paths":{}}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, size := range []string{"1", "4096"} {

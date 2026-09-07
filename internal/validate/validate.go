@@ -248,6 +248,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 	}
 	switch role {
 	case "root":
+		c.rootMetadata(m, path)
 		if str(m, "openapi") != "3.2.0" {
 			c.add("version", path, "native openapi 3.2.0 is required")
 		}
@@ -256,9 +257,13 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		}
 
 	case "info":
-		if str(m, "title") == "" || str(m, "version") == "" {
-			c.add("info", path, "title and version must not be empty")
-		}
+		c.info(m, path)
+	case "contact":
+		c.contact(m, path)
+	case "license":
+		c.license(m, path)
+	case "components":
+		c.components(m, path)
 	case "schema":
 		c.schema(m, path)
 	case "path":
@@ -297,6 +302,7 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		}
 		c.parameterContent(m, path)
 	case "response":
+		c.nativeFields(m, path, "response", "summary", "description", "headers", "content", "links")
 		for _, field := range []string{"summary", "description"} {
 			if value, exists := m[field]; exists {
 				if _, ok := value.(string); !ok {
@@ -308,6 +314,9 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		c.parameterFields(m, path, role)
 		c.parameterContent(m, path)
 	case "requestBody":
+		c.nativeFields(m, path, role, "description", "content", "required")
+		c.nativeStrings(m, path, role, "description")
+		c.nativeBooleans(m, path, role, "required")
 		if content, ok := m["content"].(map[string]any); !ok || len(content) == 0 {
 			c.add("request.content", path, "request body requires a media type")
 		}

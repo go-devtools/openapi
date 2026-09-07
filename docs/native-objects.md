@@ -115,3 +115,16 @@ When a Path Item and its referenced Path Item both define the same field, the sp
 Link parameter and requestBody values remain opaque literal data, including objects, false and null. The official pinned structural Schema rejects some non-string Link parameter values that the normative `Any` definition permits; the contract tests record that difference explicitly. `operationRef` uses the existing typed offline reference resolver. `operationId` must identify exactly one physical Operation Object across the explicitly supplied OpenAPI documents, preserving case and empty IDs. Duplicate operation IDs are rejected across those documents. Referencing one Path Item from several URLs does not duplicate its physical Operation Object; selecting its runtime URL remains an application concern.
 
 See the normative [Parameter](https://spec.openapis.org/oas/v3.2.0.html#parameter-object), [Link](https://spec.openapis.org/oas/v3.2.0.html#link-object), and [Server](https://spec.openapis.org/oas/v3.2.0.html#server-object) contracts. A green structural schema result alone does not prove inherited parameter semantics or target identity resolution.
+
+
+## Document metadata and component names
+
+The native checker distinguishes a missing field from an explicitly empty string. `info.title`, `info.version` and `license.name` are required strings, but may be empty. The root must include at least one of `paths`, `webhooks` or `components`; an empty object satisfies that presence requirement. Unknown fixed fields, incorrect descriptive types and invalid Request Body flags produce located diagnostics. Extensions remain opaque data.
+
+All eleven component dictionaries require names matching `^[a-zA-Z0-9.\-_]+$`. This restriction does not apply to nested Schema properties or `$defs` names. JSON Pointer escaping continues to work for arbitrary names in those locations. References retain the same validation when their complete documents are supplied as offline resources.
+
+Contact email checks accept standalone ASCII mailboxes, quoted local parts and IPv4/IPv6 address literals. They do not test delivery or perform DNS queries. Metadata URI fields allow relative references and are checked without fetching targets. The independent backend accepts raw spaces and malformed query escapes in some URI references; the core rejects these using its own rules. The pinned official base schema also constrains the default dialect to a particular URI, whereas the native model permits syntactically valid custom dialect references; validating that dialect's semantics requires an explicit compatible Schema backend.
+
+`license.identifier` and `license.url` are mutually exclusive by presence, even when empty. This layer checks their types and exclusivity; it does not certify SPDX expression grammar, identifier registration or legal applicability. Request Body `content` remains required and must contain at least one media entry in this implementation. OpenAPI 3.2 defines an empty content map's behavior as implementation-defined; rejection is the current explicit policy. Response descriptions remain optional.
+
+The public tests in `contracttest/metadata_test.go` cross-check these cases against the checksum-pinned official schema and record backend differences separately from normative rules.

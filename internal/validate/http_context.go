@@ -2,10 +2,10 @@ package validate
 
 import "strconv"
 
-// 使用名称和位置识别参数，避免覆盖规则依赖串联字符串。
+// Identify parameters by name and location without ambiguous concatenated keys.
 type parameterIdentity struct{ location, name string }
 
-// 缓存离线引用和参数列表，共享检查器的资源预算。
+// Cache offline references and parameter lists within the shared validation budget.
 type httpContext struct {
 	checker    *checker
 	targets    map[string]*referenceNode
@@ -13,7 +13,7 @@ type httpContext struct {
 	parameters map[string]map[parameterIdentity]bool
 }
 
-// 在全部对象完成索引后检查参数继承与跨文档操作身份。
+// Check inherited parameters and cross-document operation identities after indexing all objects.
 func (c *checker) checkHTTPContexts() {
 	g := c.graph
 	if g == nil || g.schemaOnly || c.stopped() {
@@ -72,7 +72,7 @@ func (c *checker) checkHTTPContexts() {
 	}
 }
 
-// 迭代解析参数别名，缓存结果并报告没有具体参数的纯引用循环。
+// Resolve parameter aliases iteratively and diagnose cycles without a concrete parameter.
 func (h *httpContext) parameter(node *referenceNode) *referenceNode {
 	if node == nil {
 		return nil
@@ -111,7 +111,7 @@ func (h *httpContext) parameter(node *referenceNode) *referenceNode {
 	return result
 }
 
-// 验证单个参数列表；操作级覆盖不允许掩盖列表内部的重复项。
+// Reject duplicates within each parameter list before applying operation overrides.
 func (h *httpContext) list(owner *referenceNode) map[parameterIdentity]bool {
 	if owner == nil {
 		return nil
@@ -160,7 +160,7 @@ func (h *httpContext) list(owner *referenceNode) map[parameterIdentity]bool {
 	return result
 }
 
-// 路径引用采用就近字段优先，迭代访问每个别名以终止循环。
+// Prefer the nearest explicit Path Item field and terminate alias cycles iteratively.
 func (h *httpContext) path(node *referenceNode) {
 	c, g := h.checker, h.checker.graph
 	fields := map[string]*referenceNode{}
@@ -201,7 +201,7 @@ func (h *httpContext) path(node *referenceNode) {
 	}
 }
 
-// 同名同位置的操作参数覆盖继承参数，其余路径参数仍然生效。
+// Override inherited parameters with matching identities while preserving all other entries.
 func (h *httpContext) operation(node *referenceNode, inherited map[parameterIdentity]bool, path string) {
 	if node == nil {
 		return
@@ -231,7 +231,7 @@ func (h *httpContext) operation(node *referenceNode, inherited map[parameterIden
 	h.conflict(queries, whole, path+"/parameters")
 }
 
-// Querystring 最多一个，并且不能与任何单独的 Query 参数共存。
+// Allow at most one querystring parameter and forbid combining it with query parameters.
 func (h *httpContext) conflict(queries, whole int, path string) {
 	if whole > 1 || queries > 0 && whole > 0 {
 		h.checker.add("parameter.querystring", path, "at most one querystring parameter is allowed, without query parameters, after path inheritance and operation overrides")

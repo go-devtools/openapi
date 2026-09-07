@@ -8,7 +8,7 @@ import (
 	"github.com/openapi-golang/openapi"
 )
 
-// 通过公开检查器验证引用后的参数身份及操作级覆盖规则。
+// Verify resolved parameter identities and operation overrides through the public checker.
 func TestNativeHTTPParameterContext(t *testing.T) {
 	query := `{"name":"filter","in":"query","schema":true}`
 	whole := `{"name":"all","in":"querystring","content":{"application/json":{}}}`
@@ -29,7 +29,7 @@ func TestNativeHTTPParameterContext(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := []byte(fmt.Sprintf(`{"openapi":"3.2.0","info":{"title":"Context","version":"1"},"paths":{"/items":{"parameters":[%s],"get":{"parameters":[%s]}}},"components":{"parameters":{"Query":%s}}}`, tc.item, tc.operation, query))
-			// 结构 Schema 的通过结果不足以证明参数唯一性与继承语义。
+			// Structural schema validation alone cannot establish uniqueness or inheritance semantics.
 			value, err := decode(raw)
 			if err != nil {
 				t.Fatal(err)
@@ -43,7 +43,7 @@ func TestNativeHTTPParameterContext(t *testing.T) {
 	}
 }
 
-// 外部 Path Item、引用别名及自定义方法应保留参数上下文。
+// Preserve parameter context across external Path Items, aliases and custom methods.
 func TestNativeHTTPReferencedPathContext(t *testing.T) {
 	external := []byte(`{"openapi":"3.2.0","$self":"https://contracts.test/shared.json","info":{"title":"Shared","version":"1"},"components":{"parameters":{"Query":{"name":"filter","in":"query","schema":true},"Alias":{"$ref":"#/components/parameters/Query"}},"pathItems":{"Base":{"parameters":[{"$ref":"#/components/parameters/Alias"}]},"Alias":{"$ref":"#/components/pathItems/Base"}}}}`)
 	for _, method := range []string{"get", "query", "additionalOperations"} {
@@ -59,13 +59,13 @@ func TestNativeHTTPReferencedPathContext(t *testing.T) {
 	}
 }
 
-// 拒绝无法解析到具体参数的纯引用循环。
+// Reject reference-only cycles that cannot resolve to a concrete parameter.
 func TestNativeHTTPParameterReferenceCycle(t *testing.T) {
 	raw := []byte(`{"openapi":"3.2.0","info":{"title":"Cycle","version":"1"},"paths":{"/items":{"get":{"parameters":[{"$ref":"#/components/parameters/A"}]}}},"components":{"parameters":{"A":{"$ref":"#/components/parameters/B"},"B":{"$ref":"#/components/parameters/A"}}}}`)
 	assertHTTPObjectReport(t, openapi.Check(raw), "parameter.reference.cycle")
 }
 
-// 在显式提供的全部 OpenAPI 文档中解析 Link 操作标识，保留空字符串身份。
+// Resolve Link operation IDs across supplied documents, preserving empty string identities.
 func TestNativeHTTPOperationIdentity(t *testing.T) {
 	for _, tc := range []struct{ name, id, target, code string }{
 		{"matching", "next", "next", ""}, {"unknown", "next", "missing", "link.operationId"},
@@ -87,7 +87,7 @@ func TestNativeHTTPOperationIdentity(t *testing.T) {
 	})
 }
 
-// 长别名链在默认预算下有效，受限预算必须报告耗尽而非无限遍历。
+// Accept bounded alias chains and report budget exhaustion instead of unbounded traversal.
 func TestNativeHTTPContextBudget(t *testing.T) {
 	items := map[string]any{}
 	for i := 0; i < 64; i++ {
