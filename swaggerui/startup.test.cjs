@@ -8,7 +8,7 @@ function start(query, definitions = true) {
   let captured;
   const bundle = (options) => { captured = options; return {}; };
   bundle.presets = { apis: {} };
-  const window = { location: { href: 'http://127.0.0.1:18080/docs/' + query }, OpenAPIDisplayNames: {} };
+  const window = { location: { href: 'http://127.0.0.1:18080/docs/' + query }, OpenAPIDisplayNames: {}, OpenAPINativeExamples: {} };
   vm.runInNewContext(fs.readFileSync(__dirname + '/startup.js', 'utf8'), { window, URL, SwaggerUIBundle: bundle, SwaggerUIStandalonePreset: {} });
   const options = { queryConfigEnabled: false, validatorUrl: null, supportedSubmitMethods: [], url: './openapi.json' };
   if (definitions) {

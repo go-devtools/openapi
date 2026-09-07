@@ -80,6 +80,8 @@ Fiber 和 Echo 仅为未来扩展方向，本仓库未交付或宣称支持这�
 
 参见[安全模型指南](docs/security-models.md)，了解类型化 OAuth 流程、原生 3.2 字段、存在性、验证与 UI 边界。
 
+离线 UI 可展示原生请求与响应体示例，并在提交时保留显式序列化文本。配对值、已验证格式及剩余 UI 边界见[原生示例](docs/native-objects.md#example)。
+
 参见[来源解释](docs/explain.md)，了解显式启用的字段、类型、接口和响应来源查询，以及声明与实施证据的边界。
 
 Example、Discriminator、XML 的验证规则和可选布尔字段迁移方式见[原生对象与显式值](docs/native-objects.md)。

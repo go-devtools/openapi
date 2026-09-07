@@ -3,8 +3,10 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -101,6 +103,11 @@ const documentJSON = `{
   }
 }`
 
+// Keep native Example fields intact in the served document.
+//
+//go:embed native-examples.json
+var nativeDocumentJSON string
+
 // Start an owned ephemeral listener and stop it when the test process requests shutdown.
 func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -108,6 +115,9 @@ func main() {
 		panic(err)
 	}
 	if report := openapi.Check([]byte(documentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(nativeDocumentJSON)); report.HasErrors() {
 		panic(report)
 	}
 	var guard sync.Mutex
@@ -130,15 +140,29 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(body)
 	})
+	// Echo raw bytes so tests can detect altered serialization and rounded numbers.
+	mux.HandleFunc("/native-submit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, "Invalid body", 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"body": string(body), "contentType": r.Header.Get("Content-Type")})
+	})
 	mux.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
 		guard.Lock()
 		defer guard.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(state)
 	})
-	for _, mode := range []string{"safe", "enabled"} {
+	for _, mode := range []string{"safe", "enabled", "native", "native-enabled"} {
 		cfg := swaggerui.Config{Title: "Browser contract", DocExpansion: "full", Definitions: []swaggerui.Definition{{Name: "All endpoints", URL: "./openapi.json"}, {Name: "Reference", URL: "./reference.json"}}}
-		if mode == "enabled" {
+		if strings.HasSuffix(mode, "enabled") {
 			cfg.SubmitMethods = []string{"post"}
 		}
 		ui, err := swaggerui.New(cfg)
@@ -150,6 +174,9 @@ func main() {
 			name := strings.TrimPrefix(r.URL.Path, prefix)
 			if name == "openapi.json" || name == "reference.json" {
 				data := documentJSON
+				if strings.HasPrefix(mode, "native") {
+					data = nativeDocumentJSON
+				}
 				if name == "reference.json" {
 					data = strings.Replace(data, "Browser API", "Reference API", 1)
 				}

@@ -80,6 +80,8 @@ See the [independent CI guide](docs/ci.md) for pinned tools, private module acce
 
 See the [security model guide](docs/security-models.md) for typed OAuth flows, native 3.2 fields, presence, validation, and UI boundaries.
 
+The offline UI displays native body examples and preserves explicit wire text during submission. See [native examples](docs/native-objects.md#example) for paired values, verified formats, and remaining UI boundaries.
+
 See [source explanations](docs/explain.md) for opt-in field, type, handler, and response provenance with explicit enforcement limits.
 
 See [native objects and explicit values](docs/native-objects.md) for Example, Discriminator, XML validation and the optional boolean API migration.

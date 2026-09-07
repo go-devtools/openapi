@@ -33,6 +33,10 @@ _ = example
 
 Summary, description, serializedValue, and externalValue must be strings when present. External example bytes must be supplied explicitly through `CheckOptions.ExampleResources`; checking never downloads them. See [offline references](references.md).
 
+The shared offline UI displays request/response media examples from native `dataValue` and `serializedValue`, including referenced examples and media components. JSON and `+json` data values retain their JSON types, including zero, false, null, empty collections, and strings that happen to contain JSON. Explicit wire text takes precedence without parsing, reformatting, or rounding its numbers. Paired examples also show their logical value under **Data value**. Selection and explicitly enabled submission use the displayed wire text; manual edits remain intact during unrelated response changes.
+
+This adaptation copies component inputs only. The served document and UI source document retain the original 3.2 fields; neither is downgraded to legacy `value`. The pinned upstream assets are unchanged. Browser tests verify exact JSON/XML/plain-text request bytes, SSE response framing, references, safe text rendering, and disabled submission by default. This is not complete native UI support: parameter/header examples, form serialization, external example retrieval, and non-JSON data-only codecs still have upstream limitations. Provide `serializedValue` for exact non-JSON body examples. See the [OpenAPI Example contract](https://spec.openapis.org/oas/v3.2.0.html#example-object).
+
 ## Discriminator
 
 `propertyName` is a required string. An empty string names the empty JSON property and is preserved by typed serialization. Mapping entries and defaultMapping identify schemas through the existing resource-aware offline graph; mappings do not change `oneOf` or `anyOf` instance validation.

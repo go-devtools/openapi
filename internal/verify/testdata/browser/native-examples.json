@@ -1,0 +1,257 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native examples API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/native-submit": {
+      "post": {
+        "summary": "Submit native examples",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "examples": [
+                  {
+                    "fallback": "not the selected example"
+                  }
+                ]
+              },
+              "examples": {
+                "logical": {
+                  "$ref": "#/components/examples/Logical"
+                },
+                "serialized": {
+                  "summary": "Exact wire JSON",
+                  "serializedValue": "{ \"amount\":9007199254740993, \"label\":\"wire\" }"
+                },
+                "paired": {
+                  "dataValue": {
+                    "Role": "editor",
+                    "Count": 0
+                  },
+                  "serializedValue": "{\"Role\":\"editor\",\"Count\":0}"
+                },
+                "zero": {
+                  "dataValue": 0
+                },
+                "false": {
+                  "dataValue": false
+                },
+                "null": {
+                  "dataValue": null
+                },
+                "empty string": {
+                  "dataValue": ""
+                },
+                "empty array": {
+                  "dataValue": []
+                },
+                "empty object": {
+                  "dataValue": {}
+                },
+                "JSON-looking string": {
+                  "dataValue": "{\"text\":\"still a string\"}"
+                },
+                "legacy": {
+                  "value": {
+                    "Role": "admin"
+                  }
+                },
+                "business fields": {
+                  "dataValue": {
+                    "serializedValue": "literal property",
+                    "dataValue": {
+                      "value": false
+                    }
+                  }
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "xml": {
+                  "name": "user"
+                }
+              },
+              "examples": {
+                "XML": {
+                  "serializedValue": "<user role=\"editor\">A &amp; B</user>"
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "text": {
+                  "serializedValue": "<img src=x onerror=alert(1)> & stars"
+                },
+                "empty": {
+                  "serializedValue": ""
+                },
+                "logical text": {
+                  "dataValue": "Stars & spaces"
+                }
+              }
+            },
+            "application/problem+json; charset=utf-8": {
+              "schema": {},
+              "examples": {
+                "problem": {
+                  "dataValue": {
+                    "status": 0,
+                    "detail": ""
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Echo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "examples": [
+                    {
+                      "fallback": "not the selected example"
+                    }
+                  ]
+                },
+                "examples": {
+                  "logical": {
+                    "$ref": "#/components/examples/Logical"
+                  },
+                  "serialized": {
+                    "summary": "Exact wire JSON",
+                    "serializedValue": "{ \"amount\":9007199254740993, \"label\":\"wire\" }"
+                  },
+                  "paired": {
+                    "dataValue": {
+                      "Role": "editor",
+                      "Count": 0
+                    },
+                    "serializedValue": "{\"Role\":\"editor\",\"Count\":0}"
+                  },
+                  "zero": {
+                    "dataValue": 0
+                  },
+                  "false": {
+                    "dataValue": false
+                  },
+                  "null": {
+                    "dataValue": null
+                  },
+                  "empty string": {
+                    "dataValue": ""
+                  },
+                  "empty array": {
+                    "dataValue": []
+                  },
+                  "empty object": {
+                    "dataValue": {}
+                  },
+                  "JSON-looking string": {
+                    "dataValue": "{\"text\":\"still a string\"}"
+                  },
+                  "legacy": {
+                    "value": {
+                      "Role": "admin"
+                    }
+                  },
+                  "business fields": {
+                    "dataValue": {
+                      "serializedValue": "literal property",
+                      "dataValue": {
+                        "value": false
+                      }
+                    }
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "xml": {
+                    "name": "user"
+                  }
+                },
+                "examples": {
+                  "XML": {
+                    "serializedValue": "<user role=\"editor\">A &amp; B</user>"
+                  }
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "text": {
+                    "serializedValue": "<img src=x onerror=alert(1)> & stars"
+                  },
+                  "empty": {
+                    "serializedValue": ""
+                  },
+                  "logical text": {
+                    "dataValue": "Stars & spaces"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "$ref": "#/components/mediaTypes/Events"
+              },
+              "application/problem+json; charset=utf-8": {
+                "schema": {},
+                "examples": {
+                  "problem": {
+                    "dataValue": {
+                      "status": 0,
+                      "detail": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "examples": {
+      "Logical": {
+        "summary": "Logical JSON",
+        "description": "Selected logical value.",
+        "dataValue": {
+          "Role": "editor",
+          "Count": 0,
+          "Enabled": false,
+          "Note": null
+        }
+      }
+    },
+    "mediaTypes": {
+      "Events": {
+        "itemSchema": {
+          "type": "object"
+        },
+        "examples": {
+          "event": {
+            "serializedValue": "event: updated\ndata: {\"count\":0}\n\n"
+          }
+        }
+      }
+    }
+  }
+}
