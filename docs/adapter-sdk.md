@@ -32,6 +32,22 @@ Template diagnostics travel with the Bundle and block Build when their route is 
 
 Format-1 readers accept the declared capabilities `oas32`, `schema2020-12`, and `request-conditions-v1`; unknown required capabilities and future formats are rejected. Public consumers in `internal/verify/testdata/external` exercise the SDK from a separate Go module. `OPENAPI_TEST_CORE_VERSION` selects a fixed remote version for that boundary test; the development default uses an isolated local replacement.
 
+## Version compatibility
+
+Keep three compatibility decisions separate:
+
+| Boundary | Supported contract | Failure behavior |
+| --- | --- | --- |
+| Go source SDK | This pre-1.0 SDK is selected by an exact module version. No compatibility with every older or newer Go API is promised. Compile custom frontends against the selected core; an adapter's `go.mod` records its required core version. | Go compilation reports missing or changed public APIs. Re-run external consumer and adapter checks before upgrading. |
+| Bundle writer/reader | Reader and writer format **1**, OpenAPI **3.2.0**, and the required capabilities `oas32`, `schema2020-12`, `request-conditions-v1`. A writer must declare every capability its payload needs. | Future formats, different specification versions, unknown required capabilities and unknown protocol fields are rejected. `GeneratedBundle` defers that error to `Validate`/`Build`; it never fabricates an empty successful contract. |
+| Executable build profile | Source-generation conditions and selected modules are recorded separately from the Bundle format. Gin validates them by default; core callers opt in with `Config.VerifyRuntimeBuild`. | Known target/module/configuration mismatches fail; unavailable metadata produces diagnostics. Format compatibility does not prove source freshness or executable equivalence. |
+
+`Profile.Generator` and `Profile.Frontend` identify the producing algorithms. Readers do not require those strings to equal their own versions. They are not substitutes for a format or capability declaration. Adding behavior that an older reader cannot preserve requires a new capability or format and an explicit compatibility test; retaining format 1 alone is not permission to silently change its meaning.
+
+`TestPublishedBundleCompatibility` reads archived output generated from real tag-free Go source with two published core versions: `v0.0.0-20260907071604-72140a9a7490` and `v0.0.0-20260907074029-365458867d54`. The current reader links each into a document and independently validates both valid and invalid request/response samples. `TestSerializedBundleCompatibilityRejection` exercises serialized format, specification, capability and unknown-field failures. The [fixture provenance and reproduction commands](../testdata/compatibility/README.md) identify the exact writers and input source.
+
+This verifies those writer/reader combinations for the archived ordinary JSON contract; it does not promise every historical module pair, every optional capability, or future source API compatibility. The ordinary and remote CI jobs run current consumer code against the exact selected module, and separately exercise finite request conditions. Upgrade an adapter's fixed core dependency only after the core tests pass, then regenerate and check the adapter with workspace disabled.
+
 ## Extension entry points
 
 | Behavior | Public entry point | Guide |

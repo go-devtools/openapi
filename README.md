@@ -11,6 +11,33 @@ This pre-1.0 SDK evolves between pinned versions. Use the public APIs and check 
 - Go 1.27.1 for development and verification.
 - No Gin, Fiber, or Echo dependency in the core or its tests.
 
+## Quick start
+
+From this repository's root, using Go 1.27.1:
+
+```sh
+GOWORK=off go mod download
+schema_file="$(mktemp)"
+GOWORK=off go run ./cmd/openapi schema --dir ./testdata/types --type Request --projection request --output "$schema_file"
+cat "$schema_file"
+GOWORK=off go run ./cmd/openapi check --spec ./testdata/golden/openapi32-full.json
+GOWORK=off make dev
+```
+
+The first command exports the actual tag-free [`Request`](testdata/types/types.go), including its source comments, recursive parent, bytes and numeric-key map. The output is standalone JSON Schema 2020-12 with local `$defs`, not an OpenAPI document. The second command checks the supplied native OpenAPI 3.2 fixture; a successful report has no error diagnostics. The temporary Schema file is yours to inspect or remove.
+
+For your application, change `--dir` and `--type` to the package and real type you want to project. Use `--projection response` for output encoding. Neither source projection nor specification checking executes business handlers. See the [standalone guide](docs/standalone-schema.md) for the equivalent Go API and the [external return-value frontend](internal/verify/testdata/external/consumer_test.go) for complete source-to-Bundle construction without a framework.
+
+| Task | Public API |
+| --- | --- |
+| Load and project Go source | `compiler.Load`, `Project.Type`, `Project.Schema` |
+| Compile a registered frontend | `compiler.Compile`, `Result.Write`, `Result.Check` |
+| Link a generated Bundle to normalized routes | `openapi.Build(bundle, routes, config)` |
+| Read or save the immutable document | `Document.JSON()`, `Document.Report()`, `Document.WriteFile(path)` |
+| Prepare shared offline UI resources | `swaggerui.New`, `UI.Resource`, `Resource.Bytes` |
+
+Keep `compiler`, `contracttest` and `swaggerui` imports optional. The root runtime package does not pull them into a business executable. Check the [SDK and Bundle compatibility contract](docs/adapter-sdk.md#version-compatibility) before upgrading a pinned module.
+
 ## Architecture
 
 Go source and real codec behavior define structure; ordinary comments provide business meaning. Documentation generation must not change business DTO tags, handler bodies, signatures, or existing route registration.

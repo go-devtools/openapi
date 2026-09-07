@@ -11,6 +11,33 @@
 - 开发和验证使用 Go 1.27.1。
 - 核心及其测试不依赖 Gin、Fiber 或 Echo。
 
+## 快速开始
+
+在本仓库根目录使用 Go 1.27.1 执行：
+
+```sh
+GOWORK=off go mod download
+schema_file="$(mktemp)"
+GOWORK=off go run ./cmd/openapi schema --dir ./testdata/types --type Request --projection request --output "$schema_file"
+cat "$schema_file"
+GOWORK=off go run ./cmd/openapi check --spec ./testdata/golden/openapi32-full.json
+GOWORK=off make dev
+```
+
+第一条功能命令从真实的零 tag [`Request`](testdata/types/types.go) 导出契约，包含源码注释、递归父对象、字节和整数键 map。输出为使用本地 `$defs` 引用的独立 JSON Schema 2020-12，并非 OpenAPI 文档。第二条功能命令校验仓库提供的原生 OpenAPI 3.2 文档；成功报告中没有错误诊断。临时 Schema 文件可自行查看或删除。
+
+接入自己的项目时，将 `--dir` 和 `--type` 替换为实际包目录和 Go 类型。输出编码使用 `--projection response`。源码投影和文档检查都不执行业务 handler。等价 Go API 见[独立 Schema 指南](docs/standalone-schema.md)；不依赖框架的完整源码到 Bundle 示例见[外部返回值前端](internal/verify/testdata/external/consumer_test.go)。
+
+| 任务 | 公开 API |
+| --- | --- |
+| 加载并投影 Go 源码 | `compiler.Load`、`Project.Type`、`Project.Schema` |
+| 编译已注册的前端 | `compiler.Compile`、`Result.Write`、`Result.Check` |
+| 将生成的 Bundle 与规范化路由链接 | `openapi.Build(bundle, routes, config)` |
+| 读取或保存不可变文档 | `Document.JSON()`、`Document.Report()`、`Document.WriteFile(path)` |
+| 准备共享离线 UI 资源 | `swaggerui.New`、`UI.Resource`、`Resource.Bytes` |
+
+按需导入 `compiler`、`contracttest` 和 `swaggerui`，根运行时包不会把它们带入业务程序。升级固定模块前请核对 [SDK 与 Bundle 兼容契约](docs/adapter-sdk.md#version-compatibility)。
+
 ## 架构
 
 Go 源码与真实编解码提供结构，普通注释提供业务语义。文档生成不修改业务 DTO tag、handler 函数体或签名，也不改变既有路由注册。
