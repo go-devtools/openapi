@@ -23,6 +23,7 @@ func HZero[T any]() any { var value T; return value }
 func HScalarZero[T ~int]() any { var value T; return value }
 func HBoxedZero[T any]() any { var value T; var boxed any = value; return boxed }
 func HNestedZero[T any]() any { var value struct{ Data T }; return value.Data }
+func HConverted[T ~int]() any { return T(1) }
 func HConditional[T any]() any { var value T; if any(value) == nil { return "nil" }; return 42 }
 func HPointer[T any]() any { var value *T; return value }
 func HSlice[T any]() any { var value []T; return value }
@@ -54,6 +55,12 @@ func HNonNilArgument() any { value := &Item{}; if pointerNil(value) { return "ni
 		name := strings.TrimPrefix(entry.Symbol, "example.test/type-parameter-values.")
 		t.Run(name, func(t *testing.T) {
 			document, err := openapi.Build(result.Bundle, []openapi.Route{{Method: "GET", Path: "/value", OperationKey: entry.Key}}, openapi.Config{Title: "Generic values", Version: "1"})
+			if name == "HConverted" {
+				if err == nil {
+					t.Fatal("conversion to an uninstantiated type parameter erased its wire identity")
+				}
+				return
+			}
 			if strings.HasSuffix(name, "Zero") {
 				if err == nil || !strings.Contains(err.Error(), "critical payload type is unresolved") {
 					t.Fatalf("unbound type parameter became a trusted payload: %v", err)
@@ -84,7 +91,7 @@ func HNonNilArgument() any { value := &Item{}; if pointerNil(value) { return "ni
 		})
 		seen++
 	}
-	if seen != 11 {
-		t.Fatalf("expected eleven actual source candidates, got %d", seen)
+	if seen != 12 {
+		t.Fatalf("expected twelve actual source candidates, got %d", seen)
 	}
 }

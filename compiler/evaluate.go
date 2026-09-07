@@ -325,7 +325,9 @@ func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation 
 	values := expressionValues(call.Function.Package.Info.TypeOf(call.Call))
 	if call.Function.Package.Info.Types[call.Call.Fun].IsType() && len(call.Arguments) == 1 && len(values) == 1 {
 		v := coerceValue(call.Arguments[0], values[0].Type)
-		if _, boxed := values[0].Type.Underlying().(*types.Interface); !boxed {
+		// A conversion to T changes type identity; only an actual interface conversion preserves a concrete boxed type.
+		_, parameter := types.Unalias(values[0].Type).(*types.TypeParam)
+		if _, boxed := values[0].Type.Underlying().(*types.Interface); !boxed || parameter {
 			v.Type = values[0].Type
 		}
 		return []evaluation{{state: state, values: []Value{v}}}
