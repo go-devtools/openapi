@@ -164,6 +164,8 @@ func (h *httpContext) list(owner *referenceNode) map[parameterIdentity]bool {
 func (h *httpContext) path(node *referenceNode) {
 	c, g := h.checker, h.checker.graph
 	fields := map[string]*referenceNode{}
+	template := g.pathTemplates[node.path]
+	nonempty, operationCount := false, 0
 	seen := map[string]bool{}
 	for current := node; current != nil && !seen[current.path] && !c.stopped(); current = h.targets[current.path] {
 		if !g.spend(64) {
@@ -171,6 +173,8 @@ func (h *httpContext) path(node *referenceNode) {
 		}
 		seen[current.path] = true
 		object, _ := current.value.(map[string]any)
+		// Detect content in constant time even when a reused item has many extensions.
+		nonempty = nonempty || len(object) > 1 || len(object) == 1 && !has(object, "$ref")
 		for _, key := range []string{"parameters", "additionalOperations", "get", "put", "post", "delete", "options", "head", "patch", "trace", "query"} {
 			if has(object, key) && fields[key] == nil && g.spend(64) {
 				fields[key] = current
@@ -193,20 +197,27 @@ func (h *httpContext) path(node *referenceNode) {
 				if c.stopped() {
 					return
 				}
-				h.operation(g.nodes[owner.path+"/additionalOperations/"+escape(method)], inherited, node.path)
+				operationCount++
+				h.operation(g.nodes[owner.path+"/additionalOperations/"+escape(method)], inherited, node.path, template)
 			}
 		} else {
-			h.operation(g.nodes[owner.path+"/"+field], inherited, node.path)
+			operationCount++
+			h.operation(g.nodes[owner.path+"/"+field], inherited, node.path, template)
 		}
+	}
+	// An effectively empty Path Item, including an alias to one, retains the ACL exception.
+	if operationCount == 0 && nonempty {
+		h.boundParameters(template, inherited, nil, node.path, "")
 	}
 }
 
 // Override inherited parameters with matching identities while preserving all other entries.
-func (h *httpContext) operation(node *referenceNode, inherited map[parameterIdentity]bool, path string) {
+func (h *httpContext) operation(node *referenceNode, inherited map[parameterIdentity]bool, path string, template *pathTemplate) {
 	if node == nil {
 		return
 	}
 	own := h.list(node)
+	h.boundParameters(template, inherited, own, path, node.path)
 	queries, whole := 0, 0
 	for _, parameters := range []map[parameterIdentity]bool{inherited, own} {
 		for key := range parameters {

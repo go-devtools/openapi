@@ -22,6 +22,7 @@ type referenceUse struct {
 // Index supplied content as an offline resource graph without file or network loaders.
 type referenceGraph struct {
 	schemaOnly            bool
+	pathTemplates         map[string]*pathTemplate
 	nodes                 map[string]*referenceNode
 	resources             map[string]*referenceNode
 	anchors               map[string]*referenceNode
@@ -39,7 +40,7 @@ type referenceGraph struct {
 
 // Build a bounded reference graph whose resource identities exist only for the current check.
 func newReferenceGraph() *referenceGraph {
-	return &referenceGraph{budget: byteBudget{remaining: 16 << 20}, maxNormalizedBytes: 16 << 20, nodes: map[string]*referenceNode{}, resources: map[string]*referenceNode{}, anchors: map[string]*referenceNode{}, maxReferences: 10000, maxResources: 64, resourceNodes: map[string]bool{}, exampleResources: map[string]bool{}}
+	return &referenceGraph{pathTemplates: map[string]*pathTemplate{}, budget: byteBudget{remaining: 16 << 20}, maxNormalizedBytes: 16 << 20, nodes: map[string]*referenceNode{}, resources: map[string]*referenceNode{}, anchors: map[string]*referenceNode{}, maxReferences: 10000, maxResources: 64, resourceNodes: map[string]bool{}, exampleResources: map[string]bool{}}
 }
 
 // Record the same error codes used by ordinary checks.

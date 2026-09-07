@@ -172,6 +172,9 @@ func (c *checker) walk(v any, path, role string, depth int) {
 		return
 	}
 	if singular := dictionaryRole(role); singular != "" {
+		if role == "paths" {
+			c.checkPaths(m, path)
+		}
 		if role == "responses" {
 			response := false
 			for key := range m {
@@ -187,9 +190,6 @@ func (c *checker) walk(v any, path, role string, depth int) {
 			}
 			if dictionaryExtension(role, k) {
 				continue
-			}
-			if role == "paths" {
-				c.checkPath(k, path)
 			}
 			if role == "responses" && !validStatus(k) {
 				c.add("response.status", path+"/"+escape(k), "invalid response status code")
@@ -422,36 +422,6 @@ func childRole(role, k string) string {
 		"server":      {"variables": "serverVariables"},
 	}
 	return children[role][k]
-}
-
-// Validate standard path braces without interpreting framework syntax.
-func (c *checker) checkPath(path, parent string) {
-	if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#\r\n") {
-		c.add("path", parent, "invalid OpenAPI path: "+path)
-	}
-	inside := false
-	start := 0
-	for i, r := range path {
-		if c.stopped() {
-			return
-		}
-		switch r {
-		case '{':
-			if inside {
-				c.add("path", parent, "nested path template")
-			}
-			inside = true
-			start = i
-		case '}':
-			if !inside || i == start+1 {
-				c.add("path", parent, "empty or mismatched path template")
-			}
-			inside = false
-		}
-	}
-	if inside {
-		c.add("path", parent, "unterminated path template")
-	}
 }
 
 // Recognize the fixed OpenAPI methods.
