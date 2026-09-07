@@ -1,0 +1,113 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native security API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "tags": [
+          "Browser"
+        ],
+        "summary": "Submit a role",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Request_opaque"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Request_opaque"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "deprecated": true
+      },
+      "Device": {
+        "type": "oauth2",
+        "description": "Authorization for a limited-input device.",
+        "deprecated": true,
+        "oauth2MetadataUrl": "https://oauth.invalid/metadata",
+        "flows": {
+          "deviceAuthorization": {
+            "deviceAuthorizationUrl": "https://oauth.invalid/device",
+            "tokenUrl": "https://oauth.invalid/token",
+            "refreshUrl": "https://oauth.invalid/refresh",
+            "scopes": {
+              "read": "Read a sample <img src=x onerror=alert(1)>"
+            }
+          }
+        }
+      },
+      "Redirect": {
+        "type": "oauth2",
+        "deprecated": false,
+        "oauth2MetadataUrl": "https://oauth.invalid/redirect-metadata",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://oauth.invalid/authorize",
+            "tokenUrl": "https://oauth.invalid/token",
+            "scopes": {
+              "read": "Read a sample"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Request_opaque": {
+        "title": "Request",
+        "type": "object",
+        "required": [
+          "Role"
+        ],
+        "properties": {
+          "Role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor"
+            ],
+            "x-enum-descriptions": [
+              "Administrator",
+              "Editor"
+            ],
+            "examples": [
+              "admin"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

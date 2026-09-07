@@ -3,7 +3,7 @@ window.OpenAPINativeCompatibility = function () {
   const limit = 10000;
   const diagnosticLimit = 200;
 
-  // Inspect only Path Item and Tag positions; examples, schemas, and extensions remain opaque.
+  // Inspect standard metadata positions; examples, schemas, and extensions remain opaque.
   function inspect(document) {
     const diagnostics = [];
     if (!document || !/^3\.2\.\d+$/.test(document.openapi)) return { diagnostics: diagnostics };
@@ -129,6 +129,37 @@ window.OpenAPINativeCompatibility = function () {
         if (fields.length) add('openapi.ui.tagMetadata', '#/tags/' + index,
           'Tag ' + JSON.stringify(tag.name) + ' has ' + fields.map(field => field + ': ' + JSON.stringify(tag[field])).join(', ') + '. The renderer displays a flat name/description group and does not present these fields.',
           'Use the original document for tag labels, hierarchy, and classification; flat UI groups do not imply independent root tags.');
+      }
+    }
+    const schemes = document.components && document.components.securitySchemes;
+    if (schemes && typeof schemes === 'object' && !Array.isArray(schemes)) {
+      for (const name of Object.keys(schemes)) {
+        if (--remaining < 0) { truncated = true; break; }
+        let scheme = schemes[name];
+        let pointer = '#/components/securitySchemes/' + token(name);
+        const seen = new Set();
+        while (scheme && typeof scheme.$ref === 'string') {
+          if (--remaining < 0 || seen.size >= 64) { truncated = true; break; }
+          if (seen.has(scheme)) { scheme = undefined; break; }
+          seen.add(scheme);
+          const reference = scheme.$ref;
+          pointer = reference;
+          scheme = resolve(reference);
+          if (!scheme) add('openapi.ui.reference', '#/components/securitySchemes/' + token(name) + '/$ref',
+            'Rendering compatibility of this unresolved Security Scheme reference was not inspected.',
+            'Inspect the referenced document with a compatible viewer; this check does not fetch external resources.');
+        }
+        if (!scheme || scheme.type !== 'oauth2') continue;
+        if (scheme.flows && Object.hasOwn(scheme.flows, 'deviceAuthorization')) {
+          add('openapi.ui.deviceAuthorization', pointer + '/flows/deviceAuthorization',
+            'Security scheme ' + JSON.stringify(name) + ' displays device endpoints and scopes, but the device authorization grant is unavailable in this viewer.',
+            'Use a device-authorization-capable client; the dialog intentionally offers no grant submission button.');
+        }
+        if (Object.hasOwn(scheme, 'oauth2MetadataUrl')) {
+          add('openapi.ui.oauth2Metadata', pointer + '/oauth2MetadataUrl',
+            'Security scheme ' + JSON.stringify(name) + ' displays OAuth metadata as a reference without automatic discovery.',
+            'Read the metadata with your authorization client; this viewer does not fetch it or configure authorization from it.');
+        }
       }
     }
     if (truncated) diagnostics.push({ code: 'openapi.ui.inspect.limit', severity: 'warning',

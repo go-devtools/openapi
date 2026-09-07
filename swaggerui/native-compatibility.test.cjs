@@ -63,3 +63,26 @@ test('whole-query diagnostics keep inherited references and custom method case',
  assert.deepEqual(diagnostics.map(d => d.route), ['GET /items', 'search /items']);
  assert.ok(diagnostics.every(d => d.message.startsWith('#/components/parameters/Whole:')));
 });
+
+// Identify device exchange and discovery limits without treating security-like example data as declarations.
+test('native security diagnostics follow local references and leave payloads opaque', () => {
+ const device = { type: 'oauth2', deprecated: true, oauth2MetadataUrl: 'https://oauth.invalid/metadata', flows: { deviceAuthorization: {} } };
+ const document = { openapi: '3.2.0', components: { securitySchemes: { 'Device/name~': device, Alias: { $ref: '#/components/securitySchemes/Device~1name~0' },
+  Bearer: { type: 'http', scheme: 'bearer', deprecated: false }, Cycle: { $ref: '#/components/securitySchemes/Cycle' }, Remote: { $ref: 'https://outside.invalid/security' } },
+  examples: { Fake: { value: { components: { securitySchemes: { device } } } } } }, 'x-security': device };
+ const before = JSON.stringify(document);
+ const diagnostics = inspect(document).diagnostics;
+ assert.deepEqual(diagnostics.map(d => d.code), ['openapi.ui.deviceAuthorization', 'openapi.ui.oauth2Metadata', 'openapi.ui.deviceAuthorization', 'openapi.ui.oauth2Metadata', 'openapi.ui.reference']);
+ assert.ok(diagnostics.slice(0, 4).every(d => d.message.startsWith('#/components/securitySchemes/Device~1name~0/')));
+ assert.equal(JSON.stringify(document), before);
+ assert.deepEqual(inspect({ ...document, openapi: '3.1.0' }).diagnostics, []);
+});
+
+// Stop deeply referenced and oversized security collections within the shared inspection budget.
+test('security inspection cannot silently exceed work or diagnostic budgets', () => {
+ const schemes = {};
+ for (let i = 0; i < 100; i++) schemes['s' + i] = { $ref: '#/components/securitySchemes/s' + (i + 1) };
+ assert.equal(inspect({ openapi: '3.2.0', components: { securitySchemes: schemes } }).diagnostics.at(-1).code, 'openapi.ui.inspect.limit');
+ for (let i = 0; i < 300; i++) schemes['s' + i] = { type: 'oauth2', flows: { deviceAuthorization: {} } };
+ assert.equal(inspect({ openapi: '3.2.0', components: { securitySchemes: schemes } }).diagnostics.length, 201);
+});

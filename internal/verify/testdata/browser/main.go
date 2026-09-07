@@ -118,6 +118,11 @@ var methodsDocumentJSON string
 //go:embed native-wire.json
 var wireDocumentJSON string
 
+// Keep native security metadata and device endpoints intact for browser verification.
+//
+//go:embed native-security.json
+var securityDocumentJSON string
+
 // Start an owned ephemeral listener and stop it when the test process requests shutdown.
 func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -134,6 +139,9 @@ func main() {
 		panic(report)
 	}
 	if report := openapi.Check([]byte(wireDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(securityDocumentJSON)); report.HasErrors() {
 		panic(report)
 	}
 	var guard sync.Mutex
@@ -211,7 +219,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(state)
 	})
-	for _, mode := range []string{"safe", "enabled", "native", "native-enabled", "methods", "methods-enabled", "wire", "wire-enabled"} {
+	for _, mode := range []string{"safe", "enabled", "native", "native-enabled", "methods", "methods-enabled", "wire", "wire-enabled", "security", "security-enabled"} {
 		cfg := swaggerui.Config{Title: "Browser contract", DocExpansion: "full", Definitions: []swaggerui.Definition{{Name: "All endpoints", URL: "./openapi.json"}, {Name: "Reference", URL: "./reference.json"}}}
 		if strings.HasSuffix(mode, "enabled") {
 			cfg.SubmitMethods = []string{"post"}
@@ -240,8 +248,11 @@ func main() {
 				if strings.HasPrefix(mode, "wire") {
 					data = wireDocumentJSON
 				}
+				if strings.HasPrefix(mode, "security") {
+					data = securityDocumentJSON
+				}
 				if name == "reference.json" {
-					if strings.HasPrefix(mode, "methods") {
+					if strings.HasPrefix(mode, "methods") || strings.HasPrefix(mode, "security") {
 						data = documentJSON
 					}
 					data = strings.Replace(data, "Browser API", "Reference API", 1)

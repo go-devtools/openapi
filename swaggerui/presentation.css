@@ -80,3 +80,11 @@ body { margin: 0; background: #fafafa; }
 
 /* Place a concise serialization limitation beside the affected parameter. */
 .swagger-ui .openapi-wire-note { padding: 10px 12px; border-left: 3px solid #7c91ab; background: #f0f4f8; color: #344054; font-size: 13px; line-height: 1.5; }
+
+/* Wrap native security metadata and keep readonly device scopes distinct from credential inputs. */
+.swagger-ui .openapi-security { min-width: 0; overflow-wrap: anywhere; }
+.swagger-ui .openapi-security code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.swagger-ui .openapi-security p, .swagger-ui .openapi-security dl { font-size: 13px; line-height: 1.6; }
+.swagger-ui .openapi-security dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px 16px; }
+.swagger-ui .openapi-security dd { margin: 0; }
+.swagger-ui .openapi-security-deprecated { font-weight: 600; }

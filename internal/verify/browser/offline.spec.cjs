@@ -2,6 +2,7 @@ const { test, expect } = require('./fixtures.cjs');
 
 // Render actual offline documentation without enabling request execution by default.
 test('safe defaults, display names, enum labels, and definition selection', async ({ page, request }, testInfo) => {
+ const before = await (await request.get('/state')).json();
  await page.goto('/safe/docs/?url=https://outside.invalid/spec.json');
  await expect(page).toHaveTitle('Browser contract');
  await expect(page.locator('.info .title')).toContainText('Browser API');
@@ -23,11 +24,12 @@ test('safe defaults, display names, enum labels, and definition selection', asyn
  await expect(page.locator('.info .title')).toBeVisible();
  await page.screenshot({ path: testInfo.outputPath('safe-mobile.png'), fullPage: true });
  const state = await (await request.get('/state')).json();
- expect(state.requests).toBe(0);
+ expect(state.requests).toBe(before.requests);
 });
 
 // Send a harmless local request only after explicit configuration and Bearer authorization.
 test('explicit submission sends the Bearer token and typed JSON', async ({ page, request }, testInfo) => {
+ const before = await (await request.get('/state')).json();
  await page.goto('/enabled/docs/');
  await expect(page.locator('.info .title')).toContainText('Browser API');
  await page.locator('.auth-wrapper').getByRole('button', { name: 'Authorize' }).click();
@@ -45,7 +47,7 @@ test('explicit submission sends the Bearer token and typed JSON', async ({ page,
  expect(response.status()).toBe(200);
  expect(await response.json()).toEqual({ Role: 'admin' });
  const state = await (await request.get('/state')).json();
- expect(state.requests).toBe(1);
+ expect(state.requests).toBe(before.requests + 1);
  expect(state.authorization).toBe('Bearer ci-demo-token');
  await page.screenshot({ path: testInfo.outputPath('explicit-submit.png'), fullPage: true });
 });
