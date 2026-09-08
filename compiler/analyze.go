@@ -33,13 +33,16 @@ type flow struct {
 
 // Keep a bounded analyzer with independent state for each handler.
 type analyzer struct {
-	ctx         context.Context
-	project     *Project
-	options     Options
-	frontend    Frontend
-	calls       int
-	nextCell    uint64
-	diagnostics []openapi.Diagnostic
+	// Summaries are private to one candidate and never enter the runtime Bundle.
+	summaries       *helperSummaryCache
+	summaryCaptures []*helperSummaryCapture
+	ctx             context.Context
+	project         *Project
+	options         Options
+	frontend        Frontend
+	calls           int
+	nextCell        uint64
+	diagnostics     []openapi.Diagnostic
 }
 
 // Copy path state so branches cannot mutate each other.
@@ -111,13 +114,13 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 		var result []flow
 		for _, e := range a.expressions(fn, s.Rhs, state, depth) {
 			for i, lhs := range s.Lhs {
-				value := Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
+				value := Value{Type: fn.concrete(fn.Package.Info.TypeOf(lhs)), Unknown: true}
 				if i < len(e.values) {
 					value = e.values[i]
 				}
 				if s.Tok != token.ASSIGN && s.Tok != token.DEFINE {
 					a.unknown(&e.state, source, "compound assignment requires explicit operator propagation")
-					value = Value{Type: fn.Package.Info.TypeOf(lhs), Unknown: true}
+					value = Value{Type: fn.concrete(fn.Package.Info.TypeOf(lhs)), Unknown: true}
 				}
 				a.assign(fn, lhs, value, &e.state)
 			}
@@ -134,11 +137,11 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 						for _, e := range a.expressions(fn, spec.Values, path, depth) {
 							for i, name := range spec.Names {
 								obj := fn.Package.Info.Defs[name]
-								value := zeroValue(obj.Type())
+								value := zeroValue(fn.concrete(obj.Type()))
 								if i < len(e.values) {
 									value = e.values[i]
 								}
-								a.bind(&e.state, obj, coerceValue(value, obj.Type()))
+								a.bind(&e.state, obj, coerceValue(value, fn.concrete(obj.Type())))
 							}
 							next = append(next, e.state)
 						}
@@ -159,7 +162,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 			}
 			for i := range e.values {
 				if i < fn.Signature.Results().Len() {
-					e.values[i] = coerceValue(e.values[i], fn.Signature.Results().At(i).Type())
+					e.values[i] = coerceValue(e.values[i], fn.concrete(fn.Signature.Results().At(i).Type()))
 				}
 			}
 			e.state.returned = e.values
@@ -207,7 +210,7 @@ func (a *analyzer) statement(fn Function, statement ast.Stmt, state flow, depth 
 	case *ast.IncDecStmt:
 		var result []flow
 		for _, path := range a.evaluate(fn, s.X, state, depth) {
-			value := incrementValue(scalar(path), fn.Package.Info.TypeOf(s.X), fn.Package.Sizes, s.Tok)
+			value := incrementValue(scalar(path), fn.concrete(fn.Package.Info.TypeOf(s.X)), fn.Package.Sizes, s.Tok)
 			a.assign(fn, s.X, value, &path.state)
 			result = append(result, path.state)
 		}
@@ -284,9 +287,9 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 		obj := fn.Package.Info.ObjectOf(id)
 		if obj != nil {
 			if obj.Pos() == lhs.Pos() || state.bindings[obj] == 0 {
-				a.bind(state, obj, coerceValue(value, obj.Type()))
+				a.bind(state, obj, coerceValue(value, fn.concrete(obj.Type())))
 			} else {
-				state.values[state.bindings[obj]] = coerceValue(value, obj.Type())
+				state.values[state.bindings[obj]] = coerceValue(value, fn.concrete(obj.Type()))
 			}
 		}
 		return
@@ -320,7 +323,7 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 				for name, old := range owner.Fields {
 					fields[name] = old
 				}
-				fields[field.Sel.Name] = coerceValue(value, fn.Package.Info.TypeOf(lhs))
+				fields[field.Sel.Name] = coerceValue(value, fn.concrete(fn.Package.Info.TypeOf(lhs)))
 				owner.Fields = fields
 				state.values[cell] = owner
 				return
@@ -354,6 +357,9 @@ func (a *analyzer) assign(fn Function, lhs ast.Expr, value Value, state *flow) {
 // Track write order; Abort does not imply a Go return.
 func (a *analyzer) effects(state *flow, effects []Effect) {
 	for _, e := range effects {
+		if e.NonEmptyBody && e.Kind != RequestBody && e.Kind != RequestField {
+			a.unknown(state, e.Source, "nonempty body proof requires a request-body or request-field effect")
+		}
 		switch e.Kind {
 		case Handled:
 			continue

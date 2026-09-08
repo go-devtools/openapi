@@ -236,7 +236,14 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		request.Explain = false
 		if s, ok, err := mapper(request); ok || err != nil {
 			p.recordRule(t, fmt.Sprintf("openapi.TypeMapper[%d]", index), "declared")
-			return s, err
+			if err != nil {
+				return nil, err
+			}
+			if s == nil {
+				return nil, fmt.Errorf("openapi.mapper.invalid: type mapper reported the type as handled without a Schema")
+			}
+			// Keep pointer projection, annotations, and consumers from modifying mapper-owned data.
+			return copyWireSchema(s)
 		}
 	}
 	if codec, ok := p.request.Codec.(WireTypeCodec); ok {
@@ -257,6 +264,30 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		}
 	}
 	p.recordRule(t, "go.types", "derived")
+	if alias, ok := t.(*types.Alias); ok && alias.Obj().Pkg() != nil {
+		doc, err := p.project.metadata(alias.Obj())
+		if err != nil {
+			return nil, err
+		}
+		if closedEnum(doc) {
+			return nil, p.project.annotationIssue(fmt.Errorf("openapi.schema.alias-enum: alias %s has no distinct Go constant type; declare an explicit enum array or provide a TypeMapper", alias.Obj().Name()), alias.Obj())
+		}
+		base, err := p.projectType(alias.Rhs())
+		if err != nil {
+			return nil, err
+		}
+		if doc.Summary == "" && len(doc.Directives) == 0 {
+			return base, nil
+		}
+		// Conjoin alias declarations without replacing inherited constraints or modifying shared components.
+		s := &spec.Schema{SchemaObject: &spec.SchemaObject{AllOf: []*spec.Schema{base}}}
+		if err = p.annotate(s, doc, false, alias.Obj().Name(), alias.Obj()); err != nil {
+			return nil, err
+		}
+		s.Title = types.TypeString(alias, func(*types.Package) string { return "" })
+		p.recordOrigin(alias.Obj(), alias, s, "type", "", false)
+		return s, nil
+	}
 	t = types.Unalias(t)
 	if ptr, ok := t.(*types.Pointer); ok {
 		s, err := p.projectType(ptr.Elem())
@@ -283,20 +314,8 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			case "encoding/json.RawMessage", "encoding/json/jsontext.Value":
 				return spec.Boolean(true), nil
 			}
-			method := "MarshalJSON"
-			textMethod := "MarshalText"
-			if p.request.Direction == Input {
-				method = "UnmarshalJSON"
-				textMethod = "UnmarshalText"
-			}
-			for _, mt := range []types.Type{t, types.NewPointer(t)} {
-				set := types.NewMethodSet(mt)
-				for i := 0; i < set.Len(); i++ {
-					name := set.At(i).Obj().Name()
-					if name == method || name == textMethod {
-						return nil, fmt.Errorf("openapi.codec.custom: %s defines %s; provide a direction-specific TypeMapper", identity, name)
-					}
-				}
+			if method := jsonValueCodecMethod(t, p.request.Direction); method != "" {
+				return nil, fmt.Errorf("openapi.codec.custom: %s defines %s; provide a direction-specific TypeMapper", identity, method)
 			}
 		}
 		codec := "std-json"
@@ -343,8 +362,10 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			return spec.Typed("string"), nil
 		case x.Info()&types.IsInteger != 0:
 			s := spec.Typed("integer")
-			if x.Kind() == types.Int64 || x.Kind() == types.Uint64 {
+			if x.Kind() == types.Int64 {
 				s.Format = "int64"
+			} else if x.Kind() == types.Uint64 {
+				s.Format = "uint64"
 			}
 			if x.Info()&types.IsUnsigned != 0 {
 				s.Minimum = spec.Set(json.Number("0"))
@@ -356,7 +377,11 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			return spec.Typed("null"), nil
 		}
 	case *types.Slice:
-		if basic, ok := types.Unalias(x.Elem()).(*types.Basic); ok && basic.Kind() == types.Byte {
+		if basic, ok := types.Unalias(x.Elem()).Underlying().(*types.Basic); ok && basic.Kind() == types.Byte &&
+			(p.request.Direction == Input || jsonValueCodecMethod(x.Elem(), Output) == "") {
+			if err := p.checkOpaqueByteElement(x.Elem()); err != nil {
+				return nil, err
+			}
 			s := spec.Typed("string")
 			s.ContentEncoding = "base64"
 			return nullable(s), nil
@@ -380,11 +405,18 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		return s, nil
 	case *types.Map:
 		key := types.Unalias(x.Key())
-		if named, ok := key.(*types.Named); ok {
-			key = named.Underlying()
+		basic, basicKey := key.Underlying().(*types.Basic)
+		methods, receiver := []string{"AppendText", "MarshalText"}, key
+		if p.request.Direction == Input {
+			methods, receiver = []string{"UnmarshalText"}, types.NewPointer(key)
 		}
-		basic, ok := key.(*types.Basic)
-		if !ok || basic.Info()&(types.IsString|types.IsInteger) == 0 {
+		// Match key-specific text receivers; JSON value methods do not encode object property names.
+		for _, method := range methods {
+			if jsonCodecMethod(receiver, method) {
+				return nil, fmt.Errorf("openapi.codec.mapkey: %s uses %s; provide a TypeMapper for the containing map or an explicit WireTypeCodec", x.Key(), method)
+			}
+		}
+		if !basicKey || basic.Info()&(types.IsString|types.IsInteger) == 0 {
 			return nil, fmt.Errorf("openapi.codec.mapkey: unknown JSON object key encoding %s", x.Key())
 		}
 		value, err := p.projectType(x.Elem())
@@ -422,7 +454,17 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Name, err)
 			}
-			if f.StringEncoded {
+			stringEncoded := f.StringEncoded
+			if stringEncoded && p.request.Codec == nil {
+				if method := jsonValueCodecMethod(f.Field.Type(), p.request.Direction); method != "" {
+					if p.request.Direction == Output && !jsonCodecMethod(f.Field.Type(), method) {
+						return nil, fmt.Errorf("openapi.codec.addressability: field %s has a pointer-only %s with ,string; map its containing type or provide an explicit WireTypeCodec", f.Name, method)
+					}
+					// A custom method owns its declared shape and constraints, including quoted-field use sites.
+					stringEncoded = false
+				}
+			}
+			if stringEncoded {
 				base := f.Field.Type().Underlying()
 				if ptr, ok := base.(*types.Pointer); ok {
 					base = ptr.Elem().Underlying()
@@ -432,7 +474,7 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 					return nil, fmt.Errorf("openapi.codec.string: unsupported type for ,string")
 				}
 				field = spec.Typed("string")
-				if _, ok := f.Field.Type().(*types.Pointer); ok {
+				if _, ok := types.Unalias(f.Field.Type()).Underlying().(*types.Pointer); ok {
 					field = nullable(field)
 				}
 			}
@@ -457,6 +499,64 @@ func (p *projector) projectType(t types.Type) (*spec.Schema, error) {
 		return s, nil
 	}
 	return nil, fmt.Errorf("openapi.schema.unsupported: cannot encode type %s", t)
+}
+
+// Match byte-oriented JSON and text interface signatures without executing their methods.
+func jsonCodecMethod(receiver types.Type, name string) bool {
+	method := types.NewMethodSet(receiver).Lookup(nil, name)
+	if method == nil {
+		return false
+	}
+	signature, ok := method.Obj().Type().(*types.Signature)
+	if !ok || signature.Variadic() {
+		return false
+	}
+	bytes := types.NewSlice(types.Typ[types.Byte])
+	errorType := types.Universe.Lookup("error").Type()
+	switch name {
+	case "MarshalJSON", "MarshalText":
+		return signature.Params().Len() == 0 && signature.Results().Len() == 2 &&
+			types.Identical(signature.Results().At(0).Type(), bytes) && types.Identical(signature.Results().At(1).Type(), errorType)
+	case "UnmarshalJSON", "UnmarshalText":
+		return signature.Params().Len() == 1 && signature.Results().Len() == 1 &&
+			types.Identical(signature.Params().At(0).Type(), bytes) && types.Identical(signature.Results().At(0).Type(), errorType)
+	case "AppendText":
+		return signature.Params().Len() == 1 && signature.Results().Len() == 2 &&
+			types.Identical(signature.Params().At(0).Type(), bytes) && types.Identical(signature.Results().At(0).Type(), bytes) && types.Identical(signature.Results().At(1).Type(), errorType)
+	case "MarshalJSONTo", "UnmarshalJSONFrom":
+		if signature.Params().Len() != 1 || signature.Results().Len() != 1 || !types.Identical(signature.Results().At(0).Type(), errorType) {
+			return false
+		}
+		pointer, ok := types.Unalias(signature.Params().At(0).Type()).(*types.Pointer)
+		if !ok {
+			return false
+		}
+		target, ok := types.Unalias(pointer.Elem()).(*types.Named)
+		if !ok || target.Obj().Pkg() == nil || target.Obj().Pkg().Path() != "encoding/json/jsontext" {
+			return false
+		}
+		if name == "MarshalJSONTo" {
+			return target.Obj().Name() == "Encoder"
+		}
+		return target.Obj().Name() == "Decoder"
+	}
+	return false
+}
+
+// Recognize direction-specific custom value codecs, preferring JSON over Text across effective receivers.
+func jsonValueCodecMethod(t types.Type, direction Direction) string {
+	methods := []string{"MarshalJSONTo", "MarshalJSON", "AppendText", "MarshalText"}
+	if direction == Input {
+		methods = []string{"UnmarshalJSONFrom", "UnmarshalJSON", "UnmarshalText"}
+	}
+	for _, method := range methods {
+		for _, receiver := range []types.Type{t, types.NewPointer(t)} {
+			if jsonCodecMethod(receiver, method) {
+				return method
+			}
+		}
+	}
+	return ""
 }
 
 // Recognize bare flags and explicitly true directive values.
@@ -523,19 +623,7 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 				}
 				continue
 			case "nonnull":
-				if string(v) == "true" {
-					if len(s.Type) > 0 {
-						types := spec.Types{}
-						for _, t := range s.Type {
-							if t != "null" {
-								types = append(types, t)
-							}
-						}
-						s.Type = types
-						encoded, _ := json.Marshal(types)
-						obj["type"] = encoded
-					}
-				}
+				// Apply null exclusion after all directives so later constraints cannot overwrite it.
 				continue
 			case "nullable":
 				if string(v) == "true" {
@@ -572,6 +660,42 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 			obj[k] = v
 		}
 	}
+	if flag(doc, "nonnull") {
+		if encodedType, exists := obj["type"]; exists {
+			var kinds spec.Types
+			if err = json.Unmarshal(encodedType, &kinds); err != nil {
+				return err
+			}
+			nonnull := spec.Types{}
+			for _, kind := range kinds {
+				if kind != "null" {
+					nonnull = append(nonnull, kind)
+				}
+			}
+			if len(nonnull) == 0 {
+				return fmt.Errorf("openapi.comment.conflict: nonnull contradicts a null-only wire type")
+			}
+			obj["type"], err = json.Marshal(nonnull)
+			if err != nil {
+				return err
+			}
+		} else if _, exists := obj["not"]; !exists {
+			obj["not"] = json.RawMessage(`{"type":"null"}`)
+		} else {
+			// Keep an existing negation and conjoin null exclusion instead of replacing it.
+			var constraints []json.RawMessage
+			if previous, exists := obj["allOf"]; exists {
+				if err = json.Unmarshal(previous, &constraints); err != nil {
+					return err
+				}
+			}
+			constraints = append(constraints, json.RawMessage(`{"not":{"type":"null"}}`))
+			obj["allOf"], err = json.Marshal(constraints)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	encoded, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -592,6 +716,60 @@ func (p *projector) annotate(s *spec.Schema, doc comment.Document, field bool, s
 		p.annotations = append(p.annotations, annotationCheck{schema: s, before: &before, doc: doc, site: site, object: object})
 	}
 	return nil
+}
+
+// Reject scalar declarations that cannot be preserved inside an opaque Base64 representation.
+func (p *projector) checkOpaqueByteElement(t types.Type) error {
+	for {
+		var object *types.TypeName
+		var next types.Type
+		switch value := t.(type) {
+		case *types.Alias:
+			object, next = value.Obj(), value.Rhs()
+		case *types.Named:
+			object = value.Obj()
+		default:
+			return nil
+		}
+		p.count++
+		if p.count > p.request.MaxTypes {
+			return fmt.Errorf("openapi.schema.budget: byte element aliases exceed the type budget")
+		}
+		doc, err := p.project.metadata(object)
+		if err != nil {
+			return err
+		}
+		if len(doc.Directives) > 0 {
+			return p.project.annotationIssue(fmt.Errorf("openapi.codec.byte-element: declarations on %s cannot be preserved in opaque Base64; map the containing byte slice or provide an explicit WireTypeCodec", object.Name()), object)
+		}
+		if next == nil {
+			return nil
+		}
+		t = next
+	}
+}
+
+// Match standard JSON empty-value omission without confusing it with zero-value omission.
+func jsonEmptyValuePossible(t types.Type) bool {
+	switch x := types.Unalias(t).Underlying().(type) {
+	case *types.Array:
+		return x.Len() == 0
+	case *types.Slice, *types.Map, *types.Pointer, *types.Interface:
+		return true
+	case *types.Basic:
+		return x.Info()&(types.IsBoolean|types.IsInteger|types.IsFloat|types.IsString) != 0
+	}
+	return false
+}
+
+// Standard JSON ignores the string option on composite kinds instead of converting their wire representation.
+func jsonStringOptionApplies(t types.Type) bool {
+	t = types.Unalias(t).Underlying()
+	if pointer, ok := t.(*types.Pointer); ok {
+		t = types.Unalias(pointer.Elem()).Underlying()
+	}
+	basic, ok := t.(*types.Basic)
+	return ok && basic.Info()&(types.IsBoolean|types.IsInteger|types.IsFloat|types.IsString) != 0
 }
 
 // Select JSON fields by embedding depth, tag priority, and conflict rules.
@@ -631,11 +809,17 @@ func jsonFields(root *types.Struct) ([]WireField, error) {
 			}
 			parts := strings.Split(tag, ",")
 			name := parts[0]
+			if strings.ContainsAny(name, "\\'\"`") {
+				return nil, fmt.Errorf("openapi.codec.fieldname: field %s has a reserved-character JSON tag name; provide an explicit WireCodec for the actual encoder's name selection", f.Name())
+			}
 			tagged := name != ""
 			omit, stringEncoded := false, false
 			for _, option := range parts[1:] {
-				omit = omit || option == "omitempty" || option == "omitzero"
-				stringEncoded = stringEncoded || option == "string"
+				if option == "format" || strings.HasPrefix(option, "format:") {
+					return nil, fmt.Errorf("openapi.codec.format: field %s uses a format tag unsupported by the standard JSON compatibility profile; provide an explicit WireCodec for a different encoder", f.Name())
+				}
+				omit = omit || option == "omitzero" || option == "omitempty" && jsonEmptyValuePossible(f.Type())
+				stringEncoded = stringEncoded || option == "string" && jsonStringOptionApplies(f.Type())
 			}
 			if f.Embedded() && isStruct && !tagged {
 				if current.ancestors[embeddedStruct] {

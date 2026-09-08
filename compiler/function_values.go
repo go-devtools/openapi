@@ -7,6 +7,8 @@ import (
 
 // A function value binds implementation and capture-cell identities; branches may share this immutable metadata.
 type functionValue struct {
+	// Instantiations belong to the function value and survive aliases and callback captures.
+	typeArguments    []types.Type
 	object           *types.Func
 	implementation   *Function
 	receiver         Value
@@ -47,7 +49,7 @@ func (a *analyzer) methodReceiver(fn Function, expression ast.Expr, object *type
 	if signature == nil || signature.Recv() == nil {
 		return receiver
 	}
-	target := signature.Recv().Type()
+	target := fn.concrete(signature.Recv().Type())
 	_, wantsPointer := target.Underlying().(*types.Pointer)
 	_, hasPointer := receiver.Type.Underlying().(*types.Pointer)
 	if wantsPointer && !hasPointer {
@@ -87,6 +89,9 @@ func (a *analyzer) resolveFunction(value *functionValue, object *types.Func) (Fu
 	if value != nil && value.implementation != nil {
 		return *value.implementation, true
 	}
+	if object != nil {
+		object = object.Origin()
+	}
 	fn, ok := a.project.functions[object]
 	return fn, ok && fn.Declaration != nil && fn.Declaration.Body != nil
 }
@@ -97,6 +102,19 @@ func (a *analyzer) invokeFunction(call CallContext, helper Function, state flow,
 		a.unknown(&state, call.Source, "helper calls or recursion exceed the depth budget")
 		return []evaluation{{state: state, values: fallback}}
 	}
+	var err error
+	helper, err = a.instantiateFunction(call, helper)
+	if err != nil {
+		a.unknown(&state, call.Source, err.Error())
+		return []evaluation{{state: state, values: fallback}}
+	}
+	return a.summarizedFunction(call, helper, state, depth, fallback, func() []evaluation {
+		return a.analyzeFunction(call, helper, state, depth, fallback)
+	})
+}
+
+// Analyze a helper's typed source in an independent frame when no reusable effect summary applies.
+func (a *analyzer) analyzeFunction(call CallContext, helper Function, state flow, depth int, fallback []Value) []evaluation {
 	child := state.clone()
 	child.bindings = map[types.Object]uint64{}
 	if call.callee != nil {
@@ -105,7 +123,7 @@ func (a *analyzer) invokeFunction(call CallContext, helper Function, state flow,
 	child.ended, child.returned = false, nil
 	for i := 0; i < helper.Signature.Params().Len() && i < len(call.Arguments); i++ {
 		parameter := helper.Signature.Params().At(i)
-		a.bind(&child, parameter, coerceValue(call.Arguments[i], parameter.Type()))
+		a.bind(&child, parameter, coerceValue(call.Arguments[i], helper.concrete(parameter.Type())))
 	}
 	if receiver := helper.Signature.Recv(); receiver != nil {
 		a.bind(&child, receiver, call.Receiver)
@@ -113,11 +131,14 @@ func (a *analyzer) invokeFunction(call CallContext, helper Function, state flow,
 	for i := 0; i < helper.Signature.Results().Len(); i++ {
 		object := helper.Signature.Results().At(i)
 		if object.Name() != "" {
-			a.bind(&child, object, zeroValue(object.Type()))
+			a.bind(&child, object, zeroValue(helper.concrete(object.Type())))
 		}
 	}
 	var results []evaluation
 	for _, path := range a.statements(helper, helper.Declaration.Body.List, []flow{child}, depth+1, false) {
+		if helper.substitution != nil && helper.substitution.err != nil {
+			a.unknown(&path, call.Source, helper.substitution.err.Error())
+		}
 		returned := path.returned
 		if len(returned) != len(fallback) {
 			a.unknown(&path, call.Source, "helper return value is unresolved")

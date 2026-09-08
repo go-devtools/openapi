@@ -174,7 +174,11 @@ func (p *Project) mergeRequestPaths(operation *spec.Operation, diagnostics *[]op
 		}
 	}
 	if merged != nil {
-		merged.Required = spec.Set(required)
+		merged.Required = spec.Set(required || inferredBodyRequired(paths))
+		if !merged.Required.Value && rejectedBodyPaths(paths) {
+			// No accepted path supplies a presence policy; a later explicit declaration may still set one.
+			merged.Required = spec.Optional[bool]{}
+		}
 		body := spec.Inline(*merged)
 		operation.RequestBody = &body
 	}

@@ -1,0 +1,177 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native relationship API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Local service"
+    }
+  ],
+  "paths": {
+    "/subscribe": {
+      "post": {
+        "operationId": "subscribe",
+        "summary": "Create subscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "callbackUrl": {
+                    "type": "string",
+                    "format": "uri-reference"
+                  }
+                }
+              },
+              "example": {
+                "callbackUrl": "/callback"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "id": 7
+                }
+              },
+              "application/x-ndjson": {
+                "itemSchema": {
+                  "$ref": "#/components/schemas/Event_opaque"
+                },
+                "examples": {
+                  "event": {
+                    "serializedValue": "{\"name\":\"event\"}\n"
+                  }
+                }
+              }
+            },
+            "links": {
+              "Details": {
+                "$ref": "#/components/links/SubscriptionDetails"
+              }
+            }
+          }
+        },
+        "callbacks": {
+          "Event": {
+            "$ref": "#/components/callbacks/Event"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}": {
+      "get": {
+        "operationId": "getSubscription",
+        "summary": "Read subscription",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription"
+          }
+        },
+        "servers": [
+          {
+            "url": "/v2",
+            "description": "Second version"
+          }
+        ]
+      }
+    }
+  },
+  "webhooks": {
+    "SubscriptionChanged": {
+      "$ref": "#/components/pathItems/Changed"
+    }
+  },
+  "components": {
+    "schemas": {
+      "Event_opaque": {
+        "title": "Event",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "callbacks": {
+      "Event": {
+        "{$request.body#/callbackUrl}": {
+          "post": {
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Event_opaque"
+                  }
+                }
+              }
+            },
+            "responses": {
+              "204": {
+                "description": "Event accepted"
+              }
+            },
+            "summary": "Subscription event callback"
+          }
+        }
+      }
+    },
+    "pathItems": {
+      "Changed": {
+        "post": {
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event_opaque"
+                }
+              }
+            }
+          },
+          "responses": {
+            "204": {
+              "description": "Event accepted"
+            }
+          },
+          "summary": "Subscription changed webhook"
+        }
+      }
+    },
+    "links": {
+      "SubscriptionDetails": {
+        "operationId": "getSubscription",
+        "parameters": {
+          "id": "$response.body#/id"
+        },
+        "description": "Read the newly created subscription"
+      }
+    }
+  }
+}

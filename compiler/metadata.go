@@ -78,9 +78,16 @@ func (p *Project) directivePositions(groups ...*ast.CommentGroup) []token.Pos {
 }
 
 // Associate instantiated generic fields with their declaration's comments and diagnostics.
-func metadataObject(object types.Object) types.Object {
-	if field, ok := object.(*types.Var); ok {
-		return field.Origin()
+func (p *Project) metadataObject(object types.Object) types.Object {
+	for {
+		if field, ok := object.(*types.Var); ok {
+			object = field.Origin()
+		}
+		if original := p.substitutionOrigins[object]; original != nil {
+			object = original
+			continue
+		}
+		break
 	}
 	return object
 }
@@ -90,7 +97,7 @@ func (p *Project) attachComment(object types.Object, root bool, groups ...*ast.C
 	if object == nil {
 		return
 	}
-	object = metadataObject(object)
+	object = p.metadataObject(object)
 	var parts []string
 	for _, group := range groups {
 		if group != nil {
@@ -131,7 +138,7 @@ func (p *Project) attachComment(object types.Object, root bool, groups ...*ast.C
 
 // Read immutable metadata through original Go identities rather than requiring every DTO package to be a source root.
 func (p *Project) metadata(object types.Object) (comment.Document, error) {
-	object = metadataObject(object)
+	object = p.metadataObject(object)
 	if issue, ok := p.commentErrors[object]; ok {
 		return comment.Document{}, openapi.Report{Diagnostics: []openapi.Diagnostic{issue}}
 	}
@@ -153,7 +160,7 @@ func projectionDiagnostics(err error, source openapi.Source) []openapi.Diagnosti
 
 // Locate the original source object; anonymous nested fields refer to their real enclosing named declaration.
 func (p *Project) metadataSource(object types.Object) openapi.Source {
-	object = metadataObject(object)
+	object = p.metadataObject(object)
 	if object == nil {
 		return openapi.Source{Kind: "declared", Rule: "openapi.comment"}
 	}

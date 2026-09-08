@@ -123,6 +123,26 @@ var wireDocumentJSON string
 //go:embed native-security.json
 var securityDocumentJSON string
 
+// Keep parameter, header, form and native encoding fixtures valid before browser rendering.
+//
+//go:embed native-projection.json
+var projectionDocumentJSON string
+
+// Keep schema metadata intact while verifying the shared viewer.
+//
+//go:embed native-schema-metadata.json
+var metadataDocumentJSON string
+
+// Keep the incremental stream contract valid before testing browser buffering.
+//
+//go:embed native-incremental.json
+var incrementalDocumentJSON string
+
+// Keep advanced relationship contracts valid before testing browser display.
+//
+//go:embed native-relationships.json
+var relationshipsDocumentJSON string
+
 // Start an owned ephemeral listener and stop it when the test process requests shutdown.
 func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -142,6 +162,18 @@ func main() {
 		panic(report)
 	}
 	if report := openapi.Check([]byte(securityDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(projectionDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(metadataDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(incrementalDocumentJSON)); report.HasErrors() {
+		panic(report)
+	}
+	if report := openapi.Check([]byte(relationshipsDocumentJSON)); report.HasErrors() {
 		panic(report)
 	}
 	var guard sync.Mutex
@@ -212,6 +244,62 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/x-ndjson")
 		_, _ = w.Write([]byte("{\"message\":\"first\"}\n{\"message\":\"second\"}\n"))
+	})
+	// Hold an actual response open after its first flushed item until the browser test releases it.
+	var streamRelease chan struct{}
+	mux.HandleFunc("/incremental-stream", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		gate := make(chan struct{})
+		guard.Lock()
+		if streamRelease != nil {
+			guard.Unlock()
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		streamRelease = gate
+		guard.Unlock()
+		defer func() {
+			guard.Lock()
+			if streamRelease == gate {
+				streamRelease = nil
+			}
+			guard.Unlock()
+		}()
+		first, second := "{\"message\":\"flushed-first\"}\n", "{\"message\":\"released-second\"}\n"
+		media := "application/x-ndjson"
+		if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+			media = "text/event-stream"
+			first, second = "event: first\ndata: flushed-first\n\n", "event: second\ndata: released-second\n\n"
+		}
+		w.Header().Set("Content-Type", media)
+		_, _ = io.WriteString(w, first)
+		w.(http.Flusher).Flush()
+		select {
+		case <-gate:
+			_, _ = io.WriteString(w, second)
+		case <-r.Context().Done():
+		case <-time.After(30 * time.Second):
+		}
+	})
+	// Release only the fixture's pending stream; repeated or premature release has an observable failure.
+	mux.HandleFunc("/incremental-release", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		guard.Lock()
+		gate := streamRelease
+		streamRelease = nil
+		guard.Unlock()
+		if gate == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		close(gate)
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
 		guard.Lock()

@@ -38,6 +38,8 @@ type SchemaOrigin struct {
 
 // Describe the payload projection used by a neutral effect before optional response wrapping.
 type SchemaUse struct {
+	// Preserve the outcome-specific nonempty-body proof independently of field requirements.
+	NonEmptyBody     bool                    `json:"nonEmptyBody,omitempty"`
 	Handler          string                  `json:"handler"`
 	Kind             EffectKind              `json:"kind"`
 	Direction        Direction               `json:"direction"`
@@ -154,7 +156,7 @@ func (p *Project) effectUse(effect Effect, direction Direction) SchemaUse {
 	} else if effect.Payload.Type != nil && effect.WireSchema == nil && (media == "" || media == "application/json") {
 		codec = "std-json"
 	}
-	return SchemaUse{Kind: effect.Kind, Direction: direction, Status: effect.Status, MediaType: effect.MediaType, PayloadMediaType: effect.PayloadMediaType, In: effect.In, Name: effect.Name, Source: effect.Source, GoType: explainType(effect.Payload.Type), Codec: codec, Transformed: effect.TransformSchema != nil, Provided: effect.WireSchema != nil}
+	return SchemaUse{NonEmptyBody: effect.NonEmptyBody, Kind: effect.Kind, Direction: direction, Status: effect.Status, MediaType: effect.MediaType, PayloadMediaType: effect.PayloadMediaType, In: effect.In, Name: effect.Name, Source: effect.Source, GoType: explainType(effect.Payload.Type), Codec: codec, Transformed: effect.TransformSchema != nil, Provided: effect.WireSchema != nil}
 }
 
 // Use import paths instead of local aliases for stable type identities.

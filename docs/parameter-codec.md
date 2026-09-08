@@ -14,7 +14,7 @@ type WireTypeCodec interface {
 }
 ```
 
-The callback receives a read-only request for the current actual Go type. It returns a schema with `handled=true`, or delegates to the shared structural projector with `handled=false`. Returning `handled=true` without a schema is an error. Caller-provided TypeMapper rules run first, enabling centralized application overrides.
+The callback receives a read-only request for the current actual Go type. It returns a schema with `handled=true`, or delegates to the shared structural projector with `handled=false`. Returning `handled=true` without a schema is an error. Caller-provided TypeMapper rules run first, enabling centralized application overrides. A handled TypeMapper also requires a nonnil serializable schema; its returned value is copied before projection uses it. See [standard JSON map keys and custom mappings](standalone-schema.md#standard-json-map-keys-and-custom-mappings) for direction-specific key codecs.
 
 The recursive function preserves the current projection's type budget, component references, annotations, and codec identity. Invoke it synchronously during the callback; do not retain it, invoke it concurrently, or call business methods. A recursive callback consumes the same type budget and returns a diagnostic on exhaustion. Each Project.Schema call owns separate state and can be invoked concurrently when the supplied codec and mapper values also support concurrent reads.
 

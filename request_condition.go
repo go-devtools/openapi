@@ -214,10 +214,12 @@ func linkConditionalTemplate(template Template, route Route) (spec.Operation, []
 		if selected[i] {
 			// Media-dependent presence cannot be projected losslessly into one body-required boolean.
 			required := variant.Operation.RequestBody != nil && variant.Operation.RequestBody.Value != nil && variant.Operation.RequestBody.Value.Required.Value
-			if bodyRequired != nil && *bodyRequired != required {
-				return op, diagnostics, facts, fmt.Errorf("openapi.condition.ambiguous: request body required differs across conditions")
+			if !rejectedOperationWithoutBodyPolicy(variant.Operation) {
+				if bodyRequired != nil && *bodyRequired != required {
+					return op, diagnostics, facts, fmt.Errorf("openapi.condition.ambiguous: request body required differs across conditions")
+				}
+				bodyRequired = &required
 			}
-			bodyRequired = &required
 			parameterJSON, _ := json.Marshal(variant.Operation.Parameters)
 			if parameters != nil && !bytes.Equal(parameters, parameterJSON) {
 				return op, diagnostics, facts, fmt.Errorf("openapi.condition.ambiguous: parameter contracts from different conditions cannot be merged without loss")
@@ -416,4 +418,20 @@ func conditionalSchemaUnion(a, b *spec.Schema) *spec.Schema {
 	}
 
 	return &spec.Schema{SchemaObject: &spec.SchemaObject{AnyOf: []*spec.Schema{copyJSON(a), copyJSON(b)}}}
+}
+
+// Rejection-only variants without an explicit presence policy must not weaken accepted request contracts.
+func rejectedOperationWithoutBodyPolicy(operation spec.Operation) bool {
+	if operation.RequestBody != nil && (operation.RequestBody.Value == nil || operation.RequestBody.Value.Required.Present) {
+		return false
+	}
+	if len(operation.Responses) == 0 {
+		return false
+	}
+	for status := range operation.Responses {
+		if len(status) != 3 || (status[0] != '4' && status[0] != '5') || status[1] < '0' || status[1] > '9' || status[2] < '0' || status[2] > '9' {
+			return false
+		}
+	}
+	return true
 }

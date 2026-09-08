@@ -98,7 +98,7 @@ func knownBool(v Value) (bool, bool) {
 // Evaluate constants, objects, short-circuit expressions, and calls with independent result states.
 func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) []evaluation {
 	info := fn.Package.Info
-	value := Value{Type: info.TypeOf(expr)}
+	value := Value{Type: fn.concrete(info.TypeOf(expr))}
 	single := func(v Value) []evaluation { return []evaluation{{state: state, values: []Value{v}}} }
 	if tv, ok := info.Types[expr]; ok && tv.Value != nil {
 		value.Constant = tv.Value
@@ -115,7 +115,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 			return single(state.values[id])
 		}
 		if object, ok := value.Object.(*types.Func); ok {
-			value.callable = &functionValue{object: object}
+			value.callable = &functionValue{object: object, typeArguments: fn.instanceArguments(x)}
 			value.NonNil = true
 		}
 	case *ast.ParenExpr:
@@ -159,7 +159,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 			v := value
 			base := scalar(paths[i])
 			if object, ok := value.Object.(*types.Func); ok {
-				v.callable = &functionValue{object: object}
+				v.callable = &functionValue{object: object, typeArguments: fn.instanceArguments(x)}
 				v.NonNil = true
 				if selection := info.Selections[x]; selection != nil {
 					v.callable.methodExpression = selection.Kind() == types.MethodExpr
@@ -179,8 +179,8 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 		}
 		return paths
 	case *ast.FuncLit:
-		signature, _ := value.Type.Underlying().(*types.Signature)
-		implementation := Function{Signature: signature, Declaration: &ast.FuncDecl{Type: x.Type, Body: x.Body}, Package: fn.Package, Source: a.project.Source(x.Pos())}
+		signature, _ := info.TypeOf(x).Underlying().(*types.Signature)
+		implementation := Function{substitution: fn.substitution, Signature: signature, Declaration: &ast.FuncDecl{Type: x.Type, Body: x.Body}, Package: fn.Package, Source: a.project.Source(x.Pos())}
 		value.callable = &functionValue{implementation: &implementation, captures: copyBindings(state.bindings)}
 		value.NonNil = true
 		return single(value)
@@ -226,7 +226,12 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 		return a.composite(fn, x, state, depth)
 	case *ast.CallExpr:
 		return a.call(fn, x, state, depth)
+	case *ast.IndexListExpr:
+		return a.instantiatedValue(fn, x.X, value.Type, state, depth)
 	case *ast.IndexExpr:
+		if len(fn.instanceArguments(x.X)) > 0 {
+			return a.instantiatedValue(fn, x.X, value.Type, state, depth)
+		}
 		paths := a.expressions(fn, []ast.Expr{x.X, x.Index}, state, depth)
 		for i := range paths {
 			v := value
@@ -250,7 +255,7 @@ func (a *analyzer) evaluate(fn Function, expr ast.Expr, state flow, depth int) [
 
 // Evaluate literal keys and values in order, retaining call effects even for opaque collections.
 func (a *analyzer) composite(fn Function, x *ast.CompositeLit, state flow, depth int) []evaluation {
-	value := Value{Type: fn.Package.Info.TypeOf(x), Fields: map[string]Value{}}
+	value := Value{Type: fn.concrete(fn.Package.Info.TypeOf(x)), Fields: map[string]Value{}}
 	paths := []evaluation{{state: state, values: []Value{value}}}
 	for index, element := range x.Elts {
 		key := ""
@@ -322,7 +327,7 @@ func (a *analyzer) call(fn Function, x *ast.CallExpr, state flow, depth int) []e
 
 // Dispatch registered rules or real helpers and propagate finite result alternatives centrally.
 func (a *analyzer) invoke(call CallContext, state flow, depth int) []evaluation {
-	values := expressionValues(call.Function.Package.Info.TypeOf(call.Call))
+	values := expressionValues(call.Function.concrete(call.Function.Package.Info.TypeOf(call.Call)))
 	if call.Function.Package.Info.Types[call.Call.Fun].IsType() && len(call.Arguments) == 1 && len(values) == 1 {
 		v := coerceValue(call.Arguments[0], values[0].Type)
 		// A conversion to T changes type identity; only an actual interface conversion preserves a concrete boxed type.
@@ -490,4 +495,15 @@ func invalidateAddresses(state *flow, arguments []Value) {
 			state.values[arg.address] = Value{Type: old.Type}
 		}
 	}
+}
+
+// Generic index syntax selects a function instance and does not perform a runtime collection lookup.
+func (a *analyzer) instantiatedValue(fn Function, expression ast.Expr, typ types.Type, state flow, depth int) []evaluation {
+	paths := a.evaluate(fn, expression, state, depth)
+	for i := range paths {
+		value := scalar(paths[i])
+		value.Type = typ
+		paths[i].values = []Value{value}
+	}
+	return paths
 }

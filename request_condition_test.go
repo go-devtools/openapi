@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -84,5 +85,61 @@ func TestRequestConditionLinking(t *testing.T) {
 	}
 	if _, err := ParseBundle([]byte(strings.Replace(string(raw), `,"request-conditions-v1"`, "", 1))); err == nil {
 		t.Fatal("conditional bundle accepted without capability gate")
+	}
+}
+
+// Shared rejection variants preserve required input while explicit optional policies still conflict.
+func TestConditionalRejectedBodyPresence(t *testing.T) {
+	success := `{"when":{"methods":["POST"]},"operation":{"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object"}}}},"responses":{"201":{"description":"created"}}}}`
+	for _, sample := range []struct {
+		status, required string
+		body, valid      bool
+	}{
+		{"400", "", true, true}, {"500", "", true, true}, {"400", ",\"required\":false", true, false},
+		{"400", ",\"required\":true", true, true}, {"302", "", true, false}, {"default", "", true, false}, {"400", "", false, true},
+	} {
+		for _, reverse := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%s/body=%t/reverse=%t", sample.status, sample.required, sample.body, reverse), func(t *testing.T) {
+				body := ""
+				if sample.body {
+					body = `"requestBody":{"content":{"application/json":{"schema":{"type":"object"}}}` + sample.required + `},`
+				}
+				rejection := fmt.Sprintf(`{"when":{},"operation":{%s"responses":{"%s":{"description":"not accepted"}}}}`, body, sample.status)
+				variants := success + "," + rejection
+				if reverse {
+					variants = rejection + "," + success
+				}
+				raw := fmt.Sprintf(`{"formatVersion":1,"specVersion":"3.2.0","capabilities":["oas32","schema2020-12","request-conditions-v1"],"components":{},"templates":[{"key":"handler","operation":{},"variants":[%s]}]}`, variants)
+				bundle, err := ParseBundle([]byte(raw))
+				if err != nil {
+					t.Fatal(err)
+				}
+				doc, err := Build(bundle, []Route{{Method: "POST", Path: "/value", OperationKey: "handler"}}, Config{Title: "Presence", Version: "1"})
+				if !sample.valid {
+					if err == nil || !strings.Contains(err.Error(), "request body required differs") {
+						t.Fatalf("lost explicit/accepted policy conflict: %v", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				var parsed struct {
+					Paths map[string]struct {
+						Post struct {
+							RequestBody struct{ Required bool }
+							Responses   map[string]any
+						}
+					}
+				}
+				if err := json.Unmarshal(doc.JSON(), &parsed); err != nil {
+					t.Fatal(err)
+				}
+				op := parsed.Paths["/value"].Post
+				if !op.RequestBody.Required || op.Responses[sample.status] == nil || op.Responses["201"] == nil {
+					t.Fatal("rejection weakened input or lost responses")
+				}
+			})
+		}
 	}
 }

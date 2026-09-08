@@ -88,3 +88,51 @@ body { margin: 0; background: #fafafa; }
 .swagger-ui .openapi-security dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px 16px; }
 .swagger-ui .openapi-security dd { margin: 0; }
 .swagger-ui .openapi-security-deprecated { font-weight: 600; }
+
+/* Keep native form selection and header examples readable at narrow viewport widths. */
+.swagger-ui .openapi-form-examples { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.swagger-ui .openapi-header-examples { margin-top: 16px; overflow-wrap: anywhere; }
+.swagger-ui .openapi-header-examples details { margin: 8px 0; }
+.swagger-ui .openapi-header-examples pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.swagger-ui .headers { width: 100%; table-layout: fixed; }
+.swagger-ui .headers .header-col { padding-right: 8px; overflow-wrap: anywhere; }
+
+/* Keep native schema annotations readable alongside upstream metadata on narrow screens. */
+.swagger-ui .openapi-schema-metadata {
+  margin: 8px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.swagger-ui .openapi-schema-metadata code { white-space: pre-wrap; }
+.swagger-ui .openapi-schema-metadata p { margin: 4px 0 0; line-height: 1.5; }
+
+/* Separate keyword labels, expansion controls and type badges. */
+.swagger-ui .json-schema-2020-12-keyword > .json-schema-2020-12__attribute { margin-left: 6px; }
+
+/* Wrap link expressions inside the response table instead of widening the viewport. */
+.swagger-ui .response-col_links { overflow-wrap: anywhere; min-width: 6em; }
+.swagger-ui .response-col_links:has(.operation-link) { min-width: 220px; }
+.swagger-ui .response-col_links pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .swagger-ui .response-col_links { padding-left: 8px; }
+}
+
+/* Keep callback tabs and the parent request controls within narrow operation headers. */
+@media (max-width: 540px) {
+  .swagger-ui .opblock .opblock-section-header { flex-wrap: wrap; row-gap: 12px; }
+  .swagger-ui .opblock .opblock-section-header .tab-header .tab-item { padding: 0 12px 0 0; }
+}
+
+/* Place populated link contracts below response content on mobile, retaining readable expressions. */
+@media (max-width: 540px) {
+  .swagger-ui .responses-table:has(.operation-link),
+  .swagger-ui .responses-table:has(.operation-link) > thead,
+  .swagger-ui .responses-table:has(.operation-link) > tbody { display: block; width: 100%; }
+  .swagger-ui .responses-table:has(.operation-link) > thead > tr,
+  .swagger-ui .responses-table:has(.operation-link) > tbody > tr.response { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 8px; }
+  .swagger-ui .responses-table:has(.operation-link) .response-col_status,
+  .swagger-ui .responses-table:has(.operation-link) .response-col_description { width: auto; min-width: 0; padding-right: 0; }
+  .swagger-ui .responses-table:has(.operation-link) > thead .response-col_links { display: none; }
+  .swagger-ui .responses-table:has(.operation-link) > tbody > tr.response > .response-col_links { grid-column: 2; width: auto; min-width: 0; padding: 12px 0 0; }
+  .swagger-ui .responses-table:has(.operation-link) > tbody > tr.response > .response-col_links::before { content: 'Links'; display: block; font-weight: 600; margin-bottom: 8px; }
+}

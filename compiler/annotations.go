@@ -100,6 +100,10 @@ func (p *projector) checkAnnotations() error {
 // Apply constraints only to matching wire types without overriding fixed-array lengths or numeric encoding facts.
 func (p *projector) checkAnnotation(check annotationCheck) error {
 	facts, kinds := p.annotationFacts(check.schema)
+	if check.before != nil {
+		// Applicability follows the actual wire projection, not type facts introduced by declarations.
+		_, kinds = p.annotationFacts(check.before)
+	}
 	for _, directive := range check.doc.Directives {
 		for _, key := range directiveKeys(directive.Values) {
 			want := ""

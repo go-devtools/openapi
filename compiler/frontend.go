@@ -64,6 +64,8 @@ type HeaderValue struct {
 
 // Record request, response, status, and control effects with their sources.
 type Effect struct {
+	// This outcome cannot occur with an empty request body; only RequestBody and RequestField may carry this proof.
+	NonEmptyBody bool
 	// Select the response payload codec media type independently of its outer protocol representation.
 	PayloadMediaType string
 	// Wrap a projected response schema at compile time; both sides are detached and nil/errors prevent trusted publication.
@@ -126,7 +128,7 @@ type ReturnContext struct {
 	Source   openapi.Source
 }
 
-// Register frontend rules explicitly; absent callbacks define no rules.
+// Register deterministic frontend rules; callbacks may be reused through parameterized helper summaries.
 type Frontend struct {
 	// Declare synchronous callback invocation and repetition while the core executes neutral control flow.
 	Callback func(CallContext) (*CallbackPlan, error)
@@ -142,6 +144,10 @@ type Frontend struct {
 
 // Configure analysis budgets, frontend dispatch, and centralized type mappings.
 type Options struct {
+	// Bound parameterized helper contexts and normalized retained summary bytes per candidate.
+	MaxSummaries, MaxSummaryBytes int
+	// Reanalyze every helper invocation for differential verification or troubleshooting.
+	DisableHelperSummaries bool
 	// Capture optional explanations; zero uses a sixteen-MiB evidence budget.
 	Explain         bool
 	MaxExplainBytes int
@@ -196,10 +202,16 @@ func Compile(ctx context.Context, options Options) (*Result, error) {
 	if options.MaxCalls == 0 {
 		options.MaxCalls = 10000
 	}
+	if options.MaxSummaries == 0 {
+		options.MaxSummaries = 512
+	}
+	if options.MaxSummaryBytes == 0 {
+		options.MaxSummaryBytes = 16 << 20
+	}
 	if options.MaxIterations == 0 {
 		options.MaxIterations = 32
 	}
-	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 || options.MaxIterations < 1 {
+	if options.MaxDepth < 1 || options.MaxPaths < 1 || options.MaxCalls < 1 || options.MaxIterations < 1 || options.MaxSummaries < 1 || options.MaxSummaryBytes < 1 {
 		return nil, fmt.Errorf("openapi.analysis.budget: all budgets must be positive")
 	}
 	if options.MaxExplainBytes < 0 {

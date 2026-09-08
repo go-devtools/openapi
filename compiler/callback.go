@@ -63,18 +63,25 @@ func (a *analyzer) invokeCallback(call CallContext, plan CallbackPlan, state flo
 	if !ok {
 		return fail("callback has no analyzable source implementation")
 	}
+	callbackCall := call
+	callbackCall.callee, callbackCall.Object, callbackCall.Receiver, callbackCall.Arguments = callable, callable.object, callable.receiver, plan.Arguments
+	var err error
+	helper, err = a.instantiateFunction(callbackCall, helper)
+	if err != nil {
+		return fail(err.Error())
+	}
 	signature := helper.Signature
 	if signature.Variadic() || len(plan.Arguments) != signature.Params().Len() {
 		return fail("callback arguments do not match or variadic expansion is unresolved")
 	}
 	for i, value := range plan.Arguments {
-		if value.Type == nil || !types.AssignableTo(value.Type, signature.Params().At(i).Type()) {
+		if value.Type == nil || !types.AssignableTo(value.Type, helper.concrete(signature.Params().At(i).Type())) {
 			return fail("callback argument types differ from the Go signature")
 		}
 	}
 	var callbackReturns []Value
 	for i := 0; i < signature.Results().Len(); i++ {
-		callbackReturns = append(callbackReturns, Value{Type: signature.Results().At(i).Type()})
+		callbackReturns = append(callbackReturns, Value{Type: helper.concrete(signature.Results().At(i).Type())})
 	}
 	if plan.Repeat != nil {
 		index := plan.Repeat.ResultIndex

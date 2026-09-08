@@ -1,0 +1,53 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Incremental stream API",
+    "version": "1"
+  },
+  "paths": {
+    "/incremental-stream": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Two released items",
+            "content": {
+              "application/x-ndjson": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "preview": {
+                    "serializedValue": "{\"message\":\"preview\"}\n"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "preview": {
+                    "serializedValue": "data: preview\n\n"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

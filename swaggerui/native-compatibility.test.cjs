@@ -37,9 +37,10 @@ test('callbacks, webhooks and reference cycles retain bounded diagnostics', () =
  const document = { openapi: '3.2.0', paths: { '/items': { $ref: '#/paths/~1items', get: { callbacks: { local: { '{$request.body#/url}': { additionalOperations: { NOTIFY: {} } } },
   remote: { $ref: 'https://outside.invalid/callback.json' } } } } }, webhooks: { changed: { additionalOperations: { PING: {} } }, remote: { $ref: 'https://outside.invalid/path.json' } } };
  const diagnostics = inspect(document).diagnostics;
- assert.equal(diagnostics.length, 4);
+ assert.equal(diagnostics.length, 6);
  assert.deepEqual(diagnostics.filter(d => d.code === 'openapi.ui.additionalOperations').map(d => d.route), ['NOTIFY {$request.body#/url}', 'PING changed']);
  assert.equal(diagnostics.filter(d => d.code === 'openapi.ui.reference').length, 2);
+ assert.equal(diagnostics.filter(d => d.code === 'openapi.ui.webhooks').length, 2);
 });
 
 // Distinguish empty-but-present tag metadata from absent fields and report both work and output limits.
@@ -85,4 +86,22 @@ test('security inspection cannot silently exceed work or diagnostic budgets', ()
  assert.equal(inspect({ openapi: '3.2.0', components: { securitySchemes: schemes } }).diagnostics.at(-1).code, 'openapi.ui.inspect.limit');
  for (let i = 0; i < 300; i++) schemes['s' + i] = { type: 'oauth2', flows: { deviceAuthorization: {} } };
  assert.equal(inspect({ openapi: '3.2.0', components: { securitySchemes: schemes } }).diagnostics.length, 201);
+});
+
+// Keep webhook locations stable without scanning application payloads or exceeding report limits.
+test('webhook display limits preserve names, references and bounded output', () => {
+ const document = { openapi: '3.2.0', webhooks: { 'Event/~': { $ref: '#/components/pathItems/Event' } },
+  paths: { '/normal': { get: { responses: { '200': { description: 'OK' } } } } },
+  components: { pathItems: { Event: { post: { responses: { '204': { description: 'Accepted' } } } } },
+   examples: { Fake: { value: { webhooks: { Fake: {} } } } } } };
+ const before = JSON.stringify(document);
+ const diagnostics = inspect(document).diagnostics;
+ assert.equal(diagnostics.length, 1);
+ assert.equal(diagnostics[0].code, 'openapi.ui.webhooks');
+ assert.match(diagnostics[0].message, /^#\/webhooks\/Event~1~0:/);
+ assert.equal(JSON.stringify(document), before);
+ const webhooks = Object.fromEntries(Array.from({ length: 300 }, (_, index) => ['event' + index, {}]));
+ const bounded = inspect({ openapi: '3.2.0', webhooks }).diagnostics;
+ assert.equal(bounded.length, 201);
+ assert.equal(bounded.at(-1).code, 'openapi.ui.inspect.limit');
 });

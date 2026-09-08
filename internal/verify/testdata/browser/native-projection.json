@@ -1,0 +1,187 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Native projection probe",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/native-submit": {
+      "post": {
+        "summary": "Inspect original request bytes",
+        "requestBody": {
+          "content": {
+            "multipart/mixed": {
+              "schema": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "prefixEncoding": [
+                {
+                  "contentType": "application/json"
+                }
+              ],
+              "itemEncoding": {
+                "contentType": "text/plain"
+              },
+              "examples": {
+                "parts": {
+                  "dataValue": [
+                    {
+                      "name": "stars"
+                    },
+                    "payload"
+                  ]
+                }
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "xml": {
+                  "name": "message",
+                  "nodeType": "element"
+                },
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "examples": [
+                      7
+                    ],
+                    "xml": {
+                      "nodeType": "attribute"
+                    }
+                  },
+                  "text": {
+                    "type": "string",
+                    "examples": [
+                      "hello & stars"
+                    ],
+                    "xml": {
+                      "nodeType": "cdata"
+                    }
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "examples": {
+                "form": {
+                  "dataValue": {
+                    "label": "star field",
+                    "active": false
+                  },
+                  "serializedValue": "label=star+field&active=false"
+                },
+                "second": {
+                  "dataValue": {
+                    "label": "second field",
+                    "active": true
+                  },
+                  "serializedValue": "label=second+field&active=true"
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "examples": {
+                "ordinary": {
+                  "value": {
+                    "name": "regular"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "native": {
+                "dataValue": "star field",
+                "serializedValue": "star%20field"
+              }
+            }
+          },
+          {
+            "name": "X-Number",
+            "in": "header",
+            "schema": {
+              "type": "integer"
+            },
+            "examples": {
+              "native": {
+                "dataValue": 0,
+                "serializedValue": "0"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raw request",
+            "headers": {
+              "X-Reply": {
+                "schema": {
+                  "type": "integer"
+                },
+                "examples": {
+                  "native": {
+                    "dataValue": 0,
+                    "serializedValue": "0"
+                  }
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

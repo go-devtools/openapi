@@ -58,3 +58,45 @@ test('request guard avoids lossy execution and invalidates its document cache', 
  assert.equal(calls, 1);
  assert.equal(copies, 2);
 });
+
+// Keep positional encoding decisions scoped to a selected media type and resolve only local aliases.
+test('native request body limits retain supported alternatives and exact XML examples', () => {
+ const body = { content: {
+  'multipart/mixed': { prefixEncoding: [{ contentType: 'application/json' }], itemEncoding: { contentType: 'text/plain' } },
+  'multipart/form-data': { schema: { type: 'object', properties: { name: { type: 'string' } } } },
+  'application/json': { example: { xml: { nodeType: 'cdata' } } },
+  'application/xml': { schema: { $ref: '#/components/schemas/XML' }, examples: { logical: { dataValue: { text: 'value' } }, wire: { $ref: '#/components/examples/XML' } } }
+ } };
+ const document = { openapi: '3.2.0', paths: { '/body': { post: { requestBody: { $ref: '#/components/requestBodies/Body' } } } }, components: {
+  requestBodies: { Body: body }, schemas: { XML: { type: 'object', properties: { text: { type: 'string', xml: { nodeType: 'cdata' } } } } },
+  examples: { XML: { serializedValue: '<message><![CDATA[value]]></message>' } }
+ } };
+ const inspect = plugin().fn.openapiBodyLimitation;
+ const before = JSON.stringify(document);
+ assert.equal(inspect(document, '/body', 'post', 'multipart/mixed').code, 'openapi.ui.multipart');
+ assert.equal(inspect(document, '/body', 'post', 'multipart/form-data'), null);
+ assert.equal(inspect(document, '/body', 'post', 'application/json'), null);
+ assert.equal(inspect(document, '/body', 'post', 'application/xml', 'logical').code, 'openapi.ui.xmlNodeType');
+ assert.equal(inspect(document, '/body', 'post', 'application/xml', 'wire'), null);
+ assert.equal(inspect({ ...document, openapi: '3.1.0' }, '/body', 'post', 'multipart/mixed'), null);
+ assert.equal(JSON.stringify(document), before);
+});
+
+// The action guard must use the current selection and emit no request for a lossy body.
+test('native request body action guard follows media selection and refreshed documents', () => {
+ const feature = plugin();
+ let calls = 0;
+ let selected = 'multipart/mixed';
+ const document = { openapi: '3.2.0', paths: { '/body': { post: { requestBody: { content: { 'multipart/mixed': {}, 'application/json': {} } } } } } };
+ const source = { toJS: () => document };
+ const system = { specSelectors: { specJson: () => source }, oas3Selectors: { requestContentType: () => selected, activeExamplesMember: () => null } };
+ const execute = feature.statePlugins.spec.wrapActions.executeRequest(value => { calls++; return value; }, system);
+ const request = { pathName: '/body', method: 'post' };
+ assert.equal(execute(request).payload.code, 'openapi.ui.multipart');
+ assert.equal(calls, 0);
+ selected = 'application/json';
+ assert.equal(execute(request), request);
+ assert.equal(calls, 1);
+ assert.equal(execute({ ...request, requestContentType: 'multipart/mixed' }).payload.code, 'openapi.ui.multipart');
+ assert.equal(calls, 1);
+});

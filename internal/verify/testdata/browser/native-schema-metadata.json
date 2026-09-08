@@ -1,0 +1,101 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Schema metadata API",
+    "version": "1"
+  },
+  "paths": {
+    "/native-submit": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Change_opaque"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Change_opaque": {
+        "title": "Change",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Created_opaque"
+          },
+          {
+            "$ref": "#/components/schemas/Unknown_opaque"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "created": "#/components/schemas/Created_opaque"
+          },
+          "defaultMapping": "#/components/schemas/Unknown_opaque"
+        },
+        "xml": {
+          "name": "change",
+          "namespace": "urn:example:changes",
+          "prefix": "c",
+          "nodeType": "element"
+        },
+        "externalDocs": {
+          "description": "Change schema reference",
+          "url": "https://example.invalid/schema-reference"
+        },
+        "examples": [
+          {
+            "kind": "created",
+            "active": false
+          }
+        ],
+        "example": {
+          "kind": "legacy",
+          "active": false
+        }
+      },
+      "Created_opaque": {
+        "title": "Created",
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "const": "created"
+          },
+          "active": {
+            "type": "boolean",
+            "examples": [
+              false
+            ]
+          }
+        }
+      },
+      "Unknown_opaque": {
+        "title": "Unknown",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "not": {
+              "enum": [
+                "created"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

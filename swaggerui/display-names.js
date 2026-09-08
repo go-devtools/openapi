@@ -14,13 +14,69 @@ window.OpenAPIDisplayNames = function () {
         return h("li", { key: index }, h(structured ? "pre" : "code", null, encoded + (description ? " - " + description : "")));
       })));
   }
+  // Resolve only declared local component titles, leaving external or unknown references as literal text.
+  function mappingLabel(system, reference) {
+    if (typeof reference !== "string") return reference;
+    let key = reference;
+    const marker = "#/components/schemas/";
+    if (reference.startsWith(marker)) {
+      key = reference.slice(marker.length);
+      try { key = decodeURIComponent(key); } catch (_) { return reference; }
+      if (key.includes("/")) return reference;
+      key = key.replace(/~1/g, "/").replace(/~0/g, "~");
+    }
+    const source = system.specSelectors.specJson();
+    const title = source && source.getIn && source.getIn(["components", "schemas", key, "title"]);
+    return typeof title === "string" && title.length > 0 ? title : reference;
+  }
   return {
     wrapComponents: {
-      // Render Schema.examples as example values rather than an indexed schema array.
-      JSONSchema202012KeywordExamples: function (_Original, system) {
+      // Retain upstream sibling metadata while replacing only the indexed examples display.
+      JSONSchema202012KeywordExamples: function (Original, system) {
         return function SchemaExamples(props) {
-          const examples = props.schema && props.schema.examples;
-          return valueList(system, examples, examples && examples.length === 1 ? "Example" : "Examples", "Examples");
+          const schema = props.schema;
+          const examples = schema && schema.examples;
+          const projected = schema && typeof schema === "object" ? Object.assign({}, schema) : schema;
+          if (projected && typeof projected === "object") delete projected.examples;
+          return system.React.createElement(system.React.Fragment, null,
+            valueList(system, examples, examples && examples.length === 1 ? "Example" : "Examples", "Examples"),
+            system.React.createElement(Original, Object.assign({}, props, { schema: projected })));
+        };
+      },
+      // Show title-based mapping labels without changing references used by the document or validator.
+      JSONSchema202012KeywordDiscriminator: function (Original, system) {
+        return function SchemaDiscriminator(props) {
+          const schema = props.schema;
+          const discriminator = schema && schema.discriminator;
+          const h = system.React.createElement;
+          if (!discriminator || typeof discriminator !== "object") return h(Original, props);
+          const projected = Object.assign({}, discriminator);
+          if (discriminator.mapping && typeof discriminator.mapping === "object") {
+            projected.mapping = Object.fromEntries(Object.entries(discriminator.mapping).map(function (entry) {
+              return [entry[0], mappingLabel(system, entry[1])];
+            }));
+          }
+          const native = system.specSelectors.isOAS32 && system.specSelectors.isOAS32();
+          const hasDefault = native && Object.prototype.hasOwnProperty.call(discriminator, "defaultMapping");
+          return h(system.React.Fragment, null,
+            h(Original, Object.assign({}, props, { schema: Object.assign({}, schema, { discriminator: projected }) })),
+            discriminator.propertyName === "" ? h("div", { className: "openapi-schema-metadata" },
+              h("span", null, "Discriminator property "), h("code", null, '\"\"')) : null,
+            hasDefault ? h("section", { className: "openapi-schema-metadata", "aria-label": "Default mapping" },
+              h("strong", null, "Default mapping "), h("code", null, mappingLabel(system, discriminator.defaultMapping)),
+              h("p", null, "Expected schema for a missing or unmatched discriminator value. Schema validation still applies.")) : null);
+        };
+      },
+      // Add the native XML node annotation alongside the existing name, namespace and extension display.
+      JSONSchema202012KeywordXml: function (Original, system) {
+        return function SchemaXml(props) {
+          const xml = props.schema && props.schema.xml;
+          const native = system.specSelectors.isOAS32 && system.specSelectors.isOAS32();
+          const h = system.React.createElement;
+          return h(system.React.Fragment, null, h(Original, props),
+            native && xml && Object.prototype.hasOwnProperty.call(xml, "nodeType") ?
+              h("div", { className: "openapi-schema-metadata" }, h("strong", null, "XML nodeType "),
+                h("code", { "aria-label": "XML node type" }, xml.nodeType)) : null);
         };
       },
       // Display enum values directly while preserving their original JSON types.

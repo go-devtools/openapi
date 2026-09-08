@@ -117,6 +117,9 @@ window.OpenAPINativeCompatibility = function () {
       for (const name of Object.keys(items)) {
         if (name.startsWith('x-') && field === 'paths') continue;
         if (--remaining < 0) { truncated = true; break; }
+        if (field === 'webhooks') add('openapi.ui.webhooks', '#/webhooks/' + token(name),
+          'Webhook ' + JSON.stringify(name) + ' is absent from this viewer\'s operation list.',
+          'Inspect the webhook Path Item and its operations in the original document or a viewer supporting webhooks.');
         pathItem(items[name], '#/' + field + '/' + token(name), name, new Set());
       }
     }

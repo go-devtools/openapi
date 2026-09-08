@@ -42,6 +42,8 @@ type Package struct {
 
 // Store a composable project view that supports concurrent reads after loading.
 type Project struct {
+	// Compile-only substituted field origins preserve frozen declaration metadata.
+	substitutionOrigins map[types.Object]types.Object
 	// Capture is private to Compile; public Schema calls never mutate it.
 	explanations    *explanationCapture
 	dependencies    []Package
@@ -60,12 +62,14 @@ type Project struct {
 
 // Describe functions without assuming context parameters or return conventions.
 type Function struct {
-	Object      *types.Func
-	Signature   *types.Signature
-	Declaration *ast.FuncDecl
-	Package     *Package
-	Symbol      string
-	Source      openapi.Source
+	// Helper invocations retain concrete type arguments without changing the loaded declaration.
+	substitution *typeSubstitution
+	Object       *types.Func
+	Signature    *types.Signature
+	Declaration  *ast.FuncDecl
+	Package      *Package
+	Symbol       string
+	Source       openapi.Source
 }
 
 // Load actual build-selected source and types without changing module files.
@@ -182,6 +186,21 @@ func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 				symbol = types.TypeString(sig.Recv().Type(), func(p *types.Package) string { return p.Path() }) + "." + obj.Name()
 			}
 			p.functions[obj] = Function{Object: obj, Signature: sig, Declaration: d, Package: pkg, Symbol: symbol, Source: p.Source(d.Pos())}
+			// Anonymous response structs inside helpers retain their field declarations as well.
+			if d.Body != nil {
+				ast.Inspect(d.Body, func(node ast.Node) bool {
+					if structure, ok := node.(*ast.StructType); ok {
+						for _, field := range structure.Fields.List {
+							for _, name := range field.Names {
+								object := pkg.Info.Defs[name]
+								p.metadataSymbols[p.metadataObject(object)] = symbol + "." + name.Name
+								attach(object, field.Doc, field.Comment)
+							}
+						}
+					}
+					return true
+				})
+			}
 		case *ast.GenDecl:
 			for _, s := range d.Specs {
 				switch s := s.(type) {
@@ -206,7 +225,7 @@ func (p *Project) indexFile(pkg *Package, file *ast.File, root bool) {
 								if direct[field] {
 									symbol += "." + name.Name
 								}
-								p.metadataSymbols[metadataObject(object)] = symbol
+								p.metadataSymbols[p.metadataObject(object)] = symbol
 								attach(object, field.Doc, field.Comment)
 							}
 						}
