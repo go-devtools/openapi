@@ -34,6 +34,7 @@ import fs from 'node:fs';
 const args = process.argv.slice(2), data = JSON.parse(fs.readFileSync(process.env.MOCK_STATE));
 fs.appendFileSync(process.env.MOCK_CALLS, JSON.stringify(args) + '\\n');
 let result = {};
+if (args[0] === 'release' && args[1] === 'view') result = { isDraft: data.release.draft, tagName: data.release.tag_name };
 if (args[0] === 'api') {
   const path = args[1];
   if (path.includes('/workflows/ci.yml/runs?')) result = { workflow_runs: data.runs };
@@ -104,7 +105,7 @@ test('failed or missing exact-commit gates never create release tags', () => fix
 test('successful main promotion creates one annotated tag and explicitly dispatches publication', () => fixture(({ command, event, git, sha, calls }) => {
   event('main'); const first = command('promote'); assert.equal(first.status, 0, first.stderr);
   assert.equal(git('cat-file', '-t', 'v0.0.1'), 'tag'); assert.equal(git('rev-parse', 'v0.0.1^{commit}'), sha);
-  assert(readFileSync(calls, 'utf8').includes('["workflow","run","release.yml","--repo","go-devtools/openapi","--ref","v0.0.1"]'));
+  assert(readFileSync(calls, 'utf8').includes('["workflow","run","release.yml","--repo","go-devtools/openapi","--ref","main","-f","tag=v0.0.1"]'));
   const object = git('rev-parse', 'v0.0.1'); assert.equal(command('promote').status, 0); assert.equal(git('rev-parse', 'v0.0.1'), object);
 }));
 

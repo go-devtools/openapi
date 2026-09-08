@@ -158,7 +158,7 @@ function promote() {
   assert(present(`refs/remotes/origin/release/${parsed.line}`), 'Missing release line');
   git('tag', '-a', tag, '-m', `Release ${tag}`, source.head_sha);
   push(`refs/tags/${tag}`);
-  run('gh', ['workflow', 'run', 'release.yml', '--repo', repo, '--ref', tag]);
+  run('gh', ['workflow', 'run', 'release.yml', '--repo', repo, '--ref', 'main', '-f', `tag=${tag}`]);
   console.log(`Created ${tag} at ${source.head_sha}; publication dispatched`);
 }
 
@@ -221,8 +221,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   else if (command === 'sync') sync(argument);
   else if (command === 'publish') {
     const parsed = version(argument), repo = repository();
-    const release = api(`repos/${repo}/releases/tags/${argument}`);
-    assert(release.draft, 'Published releases are immutable; do not rerun publication');
+    const release = JSON.parse(run('gh', ['release', 'view', argument, '--repo', repo, '--json', 'isDraft,tagName']));
+    assert(release.isDraft && release.tagName === argument, 'Published releases are immutable; do not rerun publication');
     const latest = api(`repos/${repo}/releases?per_page=100`).filter(item => !item.draft && !item.prerelease).map(item => item.tag_name).filter(item => /^v\d+\.\d+\.\d+$/.test(item)).sort((a, b) => compare(b, a))[0];
     run('gh', ['release', 'edit', argument, '--repo', repo, '--draft=false', `--prerelease=${!!parsed.prerelease}`, `--latest=${!parsed.prerelease && (!latest || compare(argument, latest) > 0)}`]);
   } else throw new Error('Usage: release.mjs {policy|validate TAG|prepare TAG|promote|publish TAG|sync TAG}');

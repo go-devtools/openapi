@@ -43,8 +43,8 @@ function smoke(tag) {
   const arch = { x64: 'amd64', arm64: 'arm64' }[process.arch];
   assert(os && arch, 'Unsupported native smoke runner');
   const archive = `${product}_${tag.slice(1)}_${os}_${arch}.${os === 'windows' ? 'zip' : 'tar.gz'}`;
-  const dir = mkdtempSync(join(tmpdir(), 'release-smoke-'));
-  run('gh', ['release', 'download', tag, '--repo', repo, '--dir', dir, '--pattern', archive, '--pattern', 'checksums.txt']);
+  const dir = process.env.RELEASE_ASSET_DIR || mkdtempSync(join(tmpdir(), 'release-smoke-'));
+  if (!process.env.RELEASE_ASSET_DIR) run('gh', ['release', 'download', tag, '--repo', repo, '--dir', dir, '--pattern', archive, '--pattern', 'checksums.txt']);
   const expected = readFileSync(join(dir, 'checksums.txt'), 'utf8').split('\n').find(line => line.endsWith(`  ${archive}`))?.split(' ')[0];
   assert(expected, 'Archive is missing from checksums');
   assert.equal(createHash('sha256').update(readFileSync(join(dir, archive))).digest('hex'), expected);
