@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	. "github.com/openapi-golang/openapi/compiler"
+	. "github.com/go-devtools/openapi/compiler"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Change each build selector independently so one change cannot hide another missing input.

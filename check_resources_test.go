@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Find stable error codes in public reports without depending on editable message text.

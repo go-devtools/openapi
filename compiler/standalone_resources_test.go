@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Bundle retrieval aliases, relative identities, dynamic recursion, and boolean resources into one offline document.

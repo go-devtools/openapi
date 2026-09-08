@@ -8,7 +8,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Track values, effects, and termination for one reachable path.

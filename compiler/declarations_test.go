@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
 )
 
 // Load actual source with declarations without importing comment-only DTO packages.

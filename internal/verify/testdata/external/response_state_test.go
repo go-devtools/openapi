@@ -2,8 +2,8 @@ package consumer
 
 import (
 	"context"
-	"github.com/openapi-golang/openapi"
-	. "github.com/openapi-golang/openapi/compiler"
+	"github.com/go-devtools/openapi"
+	. "github.com/go-devtools/openapi/compiler"
 	"go/constant"
 	"go/types"
 	"os"

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Verify return-value frontends reuse the pipeline without a framework context.

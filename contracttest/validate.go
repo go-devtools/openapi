@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/openapi-golang/openapi/internal/validate"
+	"github.com/go-devtools/openapi/internal/validate"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 

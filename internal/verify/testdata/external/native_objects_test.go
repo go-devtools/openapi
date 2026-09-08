@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Consume native object construction and explicit booleans from a separately versioned module.

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
-	"github.com/openapi-golang/openapi/spec"
-	"github.com/openapi-golang/openapi/swaggerui"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
+	"github.com/go-devtools/openapi/spec"
+	"github.com/go-devtools/openapi/swaggerui"
 )
 
 // Register a return-value frontend through the public SDK from another module and validate actual call samples.

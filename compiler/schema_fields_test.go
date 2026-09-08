@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
-	"github.com/openapi-golang/openapi/spec"
-	"github.com/openapi-golang/openapi/testdata/jsonfields"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
+	"github.com/go-devtools/openapi/spec"
+	"github.com/go-devtools/openapi/testdata/jsonfields"
 )
 
 // Resolve a real source type and its object schema with the public standalone exporter.

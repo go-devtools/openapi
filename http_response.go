@@ -2,7 +2,7 @@ package openapi
 
 import (
 	"fmt"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 	"net/url"
 	"sort"
 	"strings"

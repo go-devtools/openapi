@@ -14,18 +14,19 @@ func TestCICredentialScope(t *testing.T) {
 	for _, sample := range []struct {
 		name, action, protocol, host, path, repository, own, core, want string
 	}{
-		{"own core", "get", "https", "github.com", "openapi-golang/openapi", "openapi-golang/openapi", "own-fake", "", "own-fake"},
-		{"own adapter", "get", "https", "github.com", "openapi-golang/gin-swagger.git", "openapi-golang/gin-swagger", "own-fake", "core-fake", "own-fake"},
-		{"private core", "get", "https", "github.com", "openapi-golang/openapi.git", "openapi-golang/gin-swagger", "own-fake", "core-fake", "core-fake"},
-		{"no cross token", "get", "https", "github.com", "openapi-golang/openapi", "openapi-golang/gin-swagger", "own-fake", "", ""},
-		{"other host", "get", "https", "github.com.evil.test", "openapi-golang/openapi", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"http", "get", "http", "github.com", "openapi-golang/openapi", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"path suffix", "get", "https", "github.com", "openapi-golang/openapi-other", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"nested path", "get", "https", "github.com", "openapi-golang/openapi/other", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"unrelated owner", "get", "https", "github.com", "other/openapi", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"reverse dependency", "get", "https", "github.com", "openapi-golang/gin-swagger", "openapi-golang/openapi", "own-fake", "core-fake", ""},
-		{"store ignored", "store", "https", "github.com", "openapi-golang/openapi", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
-		{"erase ignored", "erase", "https", "github.com", "openapi-golang/openapi", "openapi-golang/gin-swagger", "own-fake", "core-fake", ""},
+		{"own core", "get", "https", "github.com", "go-devtools/openapi", "go-devtools/openapi", "own-fake", "", "own-fake"},
+		{"own adapter", "get", "https", "github.com", "go-devtools/gin-swagger.git", "go-devtools/gin-swagger", "own-fake", "core-fake", "own-fake"},
+		{"private core", "get", "https", "github.com", "go-devtools/openapi.git", "go-devtools/gin-swagger", "own-fake", "core-fake", "core-fake"},
+		{"no cross token", "get", "https", "github.com", "go-devtools/openapi", "go-devtools/gin-swagger", "own-fake", "", ""},
+		{"other host", "get", "https", "github.com.evil.test", "go-devtools/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"http", "get", "http", "github.com", "go-devtools/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"path suffix", "get", "https", "github.com", "go-devtools/openapi-other", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"nested path", "get", "https", "github.com", "go-devtools/openapi/other", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"previous organization denied", "get", "https", "github.com", "openapi-golang/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"unrelated owner", "get", "https", "github.com", "other/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"reverse dependency", "get", "https", "github.com", "go-devtools/gin-swagger", "go-devtools/openapi", "own-fake", "core-fake", ""},
+		{"store ignored", "store", "https", "github.com", "go-devtools/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
+		{"erase ignored", "erase", "https", "github.com", "go-devtools/openapi", "go-devtools/gin-swagger", "own-fake", "core-fake", ""},
 	} {
 		t.Run(sample.name, func(t *testing.T) {
 			cmd := exec.Command("bash", helper, sample.action)

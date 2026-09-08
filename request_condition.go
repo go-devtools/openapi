@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Describe finite method and media decisions; an empty inclusion set leaves that dimension unrestricted.

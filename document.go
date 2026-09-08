@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openapi-golang/openapi/internal/validate"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/internal/validate"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Accept normalized OpenAPI paths without framework route syntax.

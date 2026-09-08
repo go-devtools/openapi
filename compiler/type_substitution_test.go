@@ -9,16 +9,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
-	"github.com/openapi-golang/openapi/testdata/helpergeneric"
+	"github.com/go-devtools/openapi"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
+	"github.com/go-devtools/openapi/testdata/helpergeneric"
 )
 
 // Register a neutral emitter by complete package and method identity.
 func genericFrontend() core.Frontend {
 	return core.Frontend{Name: "neutral-generic-helper-v1", Match: func(f core.Function) bool { return strings.HasPrefix(f.Object.Name(), "H") }, Call: func(c core.CallContext) ([]core.Effect, error) {
-		if c.Object == nil || c.Object.Pkg() == nil || c.Object.Pkg().Path() != "github.com/openapi-golang/openapi/testdata/helpergeneric" || c.Object.FullName() != "(*github.com/openapi-golang/openapi/testdata/helpergeneric.Channel).Emit" {
+		if c.Object == nil || c.Object.Pkg() == nil || c.Object.Pkg().Path() != "github.com/go-devtools/openapi/testdata/helpergeneric" || c.Object.FullName() != "(*github.com/go-devtools/openapi/testdata/helpergeneric.Channel).Emit" {
 			return nil, nil
 		}
 		status := ""
@@ -162,7 +162,7 @@ func TestGenericHelperBranchesAndOrigins(t *testing.T) {
 	if validator.JSON([]byte(`{"Data":7}`)) == nil {
 		t.Fatal("separate helper instantiations broadened their branch schemas")
 	}
-	explanation, err := result.Explain(core.ExplainQuery{Symbol: "github.com/openapi-golang/openapi/testdata/helpergeneric.fieldContract.Value"})
+	explanation, err := result.Explain(core.ExplainQuery{Symbol: "github.com/go-devtools/openapi/testdata/helpergeneric.fieldContract.Value"})
 	if err != nil {
 		t.Fatal(err)
 	}

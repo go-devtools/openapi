@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
-	"github.com/openapi-golang/openapi/testdata/helpersummary"
+	"github.com/go-devtools/openapi"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
+	"github.com/go-devtools/openapi/testdata/helpersummary"
 )
 
 // Register neutral protocol rules by complete package and receiver identity, with test-only observation counts.
@@ -22,13 +22,13 @@ func summaryFrontend(counts map[string]int) core.Frontend {
 	return core.Frontend{Name: "neutral-helper-summary-v1", Match: func(f core.Function) bool { return strings.HasPrefix(f.Object.Name(), "H") }, Entry: func(f core.Function) []core.Effect {
 		return []core.Effect{{Kind: core.ResponseStatus, Status: "200", Source: f.Source}}
 	}, CallOutcomes: func(c core.CallContext) ([]core.CallOutcome, error) {
-		if c.Object == nil || c.Object.FullName() != "(*github.com/openapi-golang/openapi/testdata/helpersummary.Channel).IsGet" {
+		if c.Object == nil || c.Object.FullName() != "(*github.com/go-devtools/openapi/testdata/helpersummary.Channel).IsGet" {
 			return nil, nil
 		}
 		counts[c.Function.Symbol+"/IsGet"]++
 		return []core.CallOutcome{{When: openapi.RequestCondition{Methods: []string{"GET"}}, Results: []core.Value{{Type: types.Typ[types.Bool], Constant: constant.MakeBool(true)}}}, {When: openapi.RequestCondition{ExceptMethods: []string{"GET"}}, Results: []core.Value{{Type: types.Typ[types.Bool], Constant: constant.MakeBool(false)}}}}, nil
 	}, Call: func(c core.CallContext) ([]core.Effect, error) {
-		if c.Object == nil || c.Object.Pkg() == nil || c.Object.Pkg().Path() != "github.com/openapi-golang/openapi/testdata/helpersummary" || !strings.HasPrefix(c.Object.FullName(), "(*github.com/openapi-golang/openapi/testdata/helpersummary.Channel).") {
+		if c.Object == nil || c.Object.Pkg() == nil || c.Object.Pkg().Path() != "github.com/go-devtools/openapi/testdata/helpersummary" || !strings.HasPrefix(c.Object.FullName(), "(*github.com/go-devtools/openapi/testdata/helpersummary.Channel).") {
 			return nil, nil
 		}
 		counts[c.Function.Symbol+"/"+c.Object.Name()]++
@@ -135,7 +135,7 @@ func TestHelperSummaryWireEquivalence(t *testing.T) {
 					t.Fatal("late header replaced the committed header")
 				}
 			}
-			explanation, err := cached.Explain(core.ExplainQuery{Symbol: "github.com/openapi-golang/openapi/testdata/helpersummary." + sample.name})
+			explanation, err := cached.Explain(core.ExplainQuery{Symbol: "github.com/go-devtools/openapi/testdata/helpersummary." + sample.name})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -150,7 +150,7 @@ func TestHelperSummaryWireEquivalence(t *testing.T) {
 			}
 		})
 	}
-	prefix := "github.com/openapi-golang/openapi/testdata/helpersummary."
+	prefix := "github.com/go-devtools/openapi/testdata/helpersummary."
 	for _, method := range []string{"deliver/Send", "choose/Trace", "committed/Commit", "leaf/Trace"} {
 		if counts[prefix+method] >= uncachedCounts[prefix+method] {
 			t.Errorf("effect summaries were not reused for %s: cached=%d uncached=%d", method, counts[prefix+method], uncachedCounts[prefix+method])
@@ -203,7 +203,7 @@ func TestHelperSummaryRequestConditions(t *testing.T) {
 			}
 		}
 	}
-	key := "github.com/openapi-golang/openapi/testdata/helpersummary.conditional/IsGet"
+	key := "github.com/go-devtools/openapi/testdata/helpersummary.conditional/IsGet"
 	if counts[key] != 1 || referenceCounts[key] != 2 {
 		t.Fatalf("conditional effects were not summarized: cached=%d uncached=%d", counts[key], referenceCounts[key])
 	}

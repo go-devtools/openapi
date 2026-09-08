@@ -35,7 +35,7 @@ Browser tests compile an isolated fixture, own an ephemeral loopback port, block
 
 ## Private module credentials
 
-The default GitHub Actions token reads only the current repository. While the core is private, the adapter repository needs a repository Actions secret named **`OPENAPI_READ_TOKEN`**, containing a fine-grained token with **Contents: read** for **`openapi-golang/openapi` only**. Organization policy may additionally require owner approval. Create and enter credentials through GitHub's trusted UI; never commit them or put them in module URLs.
+The default GitHub Actions token reads only the current repository. While the core is private, the adapter repository needs a repository Actions secret named **`OPENAPI_READ_TOKEN`**, containing a fine-grained token with **Contents: read** for **`go-devtools/openapi` only**. Organization policy may additionally require owner approval. Create and enter credentials through GitHub's trusted UI; never commit them or put them in module URLs.
 
 The workflow disables persisted checkout credentials. Its process-scoped Git credential helper returns credentials only for exact HTTPS paths under the two product repositories. The current repository uses its own Actions token; the adapter uses the separate read token only for the core. Unrelated hosts, repositories, nested paths and store/erase operations receive no credentials. Tests exercise the boundary using fake values. The helper never changes global Git configuration or stores credentials.
 

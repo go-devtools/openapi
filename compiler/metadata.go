@@ -8,8 +8,8 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/internal/comment"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/internal/comment"
 )
 
 // Keep physical directive offsets from the exact parsed bytes; AST comment text may normalize CR characters.

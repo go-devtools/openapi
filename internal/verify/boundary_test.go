@@ -40,7 +40,7 @@ func runGo(t *testing.T, dir string, args ...string) string {
 // Exclude product adapters and known HTTP frameworks from the core and its test dependency graph.
 func TestNoFrameworkDependencies(t *testing.T) {
 	out := runGo(t, rootDir(t), "list", "-deps", "-test", "-f", "{{.ImportPath}}", "./...")
-	for _, forbidden := range []string{"github.com/gin-gonic/", "github.com/gofiber/", "github.com/labstack/echo", "github.com/openapi-golang/gin-swagger"} {
+	for _, forbidden := range []string{"github.com/gin-gonic/", "github.com/gofiber/", "github.com/labstack/echo", "github.com/go-devtools/gin-swagger"} {
 		if strings.Contains(out, forbidden) {
 			t.Fatalf("core depends on %s", forbidden)
 		}
@@ -50,7 +50,7 @@ func TestNoFrameworkDependencies(t *testing.T) {
 // Keep compiler, independent validation engine, and UI assets out of the root package's dependencies.
 func TestRuntimeDependencyBoundary(t *testing.T) {
 	out := runGo(t, rootDir(t), "list", "-deps", "-f", "{{.ImportPath}}", ".")
-	for _, forbidden := range []string{"golang.org/x/tools", "github.com/openapi-golang/openapi/compiler", "github.com/openapi-golang/openapi/checkio", "github.com/openapi-golang/openapi/swaggerui", "github.com/openapi-golang/openapi/contracttest", "github.com/santhosh-tekuri/jsonschema"} {
+	for _, forbidden := range []string{"golang.org/x/tools", "github.com/go-devtools/openapi/compiler", "github.com/go-devtools/openapi/checkio", "github.com/go-devtools/openapi/swaggerui", "github.com/go-devtools/openapi/contracttest", "github.com/santhosh-tekuri/jsonschema"} {
 		if strings.Contains(out, forbidden) {
 			t.Fatalf("runtime contains optional dependency %s", forbidden)
 		}
@@ -94,12 +94,12 @@ func TestExternalFrontend(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	mod := "module example.test/consumer\n\ngo 1.27.1\n\nrequire github.com/openapi-golang/openapi " + version + "\n"
+	mod := "module example.test/consumer\n\ngo 1.27.1\n\nrequire github.com/go-devtools/openapi " + version + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if !remote {
-		runGo(t, dir, "mod", "edit", "-replace=github.com/openapi-golang/openapi="+root)
+		runGo(t, dir, "mod", "edit", "-replace=github.com/go-devtools/openapi="+root)
 		t.Log("Local SDK validation uses a temporary module with a local core replacement.")
 	}
 	runGo(t, dir, "mod", "tidy")
@@ -107,7 +107,7 @@ func TestExternalFrontend(t *testing.T) {
 		Version string
 		Replace *struct{}
 	}
-	if err := json.Unmarshal([]byte(runGo(t, dir, "list", "-m", "-json", "github.com/openapi-golang/openapi")), &module); err != nil {
+	if err := json.Unmarshal([]byte(runGo(t, dir, "list", "-m", "-json", "github.com/go-devtools/openapi")), &module); err != nil {
 		t.Fatal(err)
 	}
 	if remote && (module.Replace != nil || module.Version != version) {

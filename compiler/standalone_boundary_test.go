@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Reject invalid projections during export instead of emitting null schemas or dangling references.

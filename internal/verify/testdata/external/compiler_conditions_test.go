@@ -2,15 +2,15 @@ package consumer
 
 import (
 	"context"
-	. "github.com/openapi-golang/openapi/compiler"
+	. "github.com/go-devtools/openapi/compiler"
 	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Verify mutually exclusive conditions on consecutive calls intersect during compilation rather than runtime analysis.

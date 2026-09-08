@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Compare native object contracts with the public checker and the pinned official validator.

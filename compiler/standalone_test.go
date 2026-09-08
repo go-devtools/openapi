@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Preserve large integers in roots and examples; never rewrite business fields named $ref inside examples.

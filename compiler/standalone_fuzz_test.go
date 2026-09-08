@@ -7,8 +7,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Validate component URI and JSON Pointer escaping and resource identity with an independent engine.

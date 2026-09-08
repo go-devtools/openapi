@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Test nested statements and status commits using a neutral effect carrier.

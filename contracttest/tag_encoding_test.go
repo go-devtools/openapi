@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Compare native field shapes and combinations with the independent official schema.

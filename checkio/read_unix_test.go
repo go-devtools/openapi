@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/openapi-golang/openapi/checkio"
+	"github.com/go-devtools/openapi/checkio"
 )
 
 // Reject a FIFO without opening it, while allowing explicitly selected regular symlink targets.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Build a native document without relying on the product's serialization or route discovery.

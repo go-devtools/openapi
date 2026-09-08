@@ -11,7 +11,7 @@ import (
     "context"
     "os"
 
-    "github.com/openapi-golang/openapi/compiler"
+    "github.com/go-devtools/openapi/compiler"
 )
 
 // Export a request contract from an actual type with an explicit portable resource identity.

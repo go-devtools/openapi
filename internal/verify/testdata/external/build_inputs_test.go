@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	. "github.com/openapi-golang/openapi/compiler"
+	. "github.com/go-devtools/openapi/compiler"
 	"os"
 	"path/filepath"
 	"strings"

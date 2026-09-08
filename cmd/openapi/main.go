@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Cancel on interruption without running project scripts.
@@ -48,7 +48,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 				}
 			}
 		}
-		_ = json.NewEncoder(stdout).Encode(map[string]any{"module": "github.com/openapi-golang/openapi", "version": version, "revision": revision, "go": runtime.Version(), "bundle": openapi.BundleFormatVersion, "openapi": "3.2.0"})
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"module": "github.com/go-devtools/openapi", "version": version, "revision": revision, "go": runtime.Version(), "bundle": openapi.BundleFormatVersion, "openapi": "3.2.0"})
 		return 0
 	case "check", "check-spec":
 		flags := flag.NewFlagSet("check", flag.ContinueOnError)

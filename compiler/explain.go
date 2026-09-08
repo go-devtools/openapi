@@ -6,9 +6,9 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/internal/comment"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/internal/comment"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Select a fully qualified Go symbol and optionally one response status.

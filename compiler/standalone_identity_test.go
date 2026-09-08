@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"testing"
 )

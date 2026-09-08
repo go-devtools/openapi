@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Expand an explicit object projection into named parameters, reusing field annotations and component references.

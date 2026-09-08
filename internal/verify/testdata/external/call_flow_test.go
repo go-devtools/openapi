@@ -2,7 +2,7 @@ package consumer
 
 import (
 	"context"
-	. "github.com/openapi-golang/openapi/compiler"
+	. "github.com/go-devtools/openapi/compiler"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Verify call branches, tuples, and short-circuit evaluation preserve their response commits.

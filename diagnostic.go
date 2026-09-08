@@ -4,7 +4,7 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/openapi-golang/openapi/internal/validate"
+	"github.com/go-devtools/openapi/internal/validate"
 )
 
 // Identify diagnostic severity.

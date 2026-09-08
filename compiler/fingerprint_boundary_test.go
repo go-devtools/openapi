@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Change each build selector independently so one change cannot hide another missing input.

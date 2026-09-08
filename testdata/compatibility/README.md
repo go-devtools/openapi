@@ -1,5 +1,7 @@
 # Published Bundle writer fixtures
 
+The organization is now `go-devtools`. Historical writer versions and reproduction imports below intentionally retain their original `github.com/openapi-golang/openapi` module identity; their archived bytes and checksums are unchanged. Current integrations use `github.com/go-devtools/openapi`.
+
 These are actual format-1 outputs from the public compiler SDK, not manually composed OpenAPI JSON. [Source types](source/api/user.go) define a tag-free `(Request) (Response, error)` handler. The [generator](source/generate/main.go) registers a framework-neutral return-value frontend and compiles that source without executing the handler.
 
 | Fixture | Published writer | SHA-256 of Bundle bytes |

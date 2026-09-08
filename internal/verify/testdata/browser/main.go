@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/swaggerui"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/swaggerui"
 )
 
 // Keep the schema-first fixture limited to browser verification of shared resources.

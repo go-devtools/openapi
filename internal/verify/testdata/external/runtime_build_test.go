@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Load real source and build an independent executable to verify binary metadata rather than runtime environment variables.
@@ -25,7 +25,7 @@ func TestRuntimeBuildFromExecutable(t *testing.T) {
 		fingerprintFile(t, dir, name, string(raw))
 	}
 	fingerprintFile(t, dir, "main.go", `package main
-import("encoding/json";"os";"github.com/openapi-golang/openapi")
+import("encoding/json";"os";"github.com/go-devtools/openapi")
 // Return a statically analyzable payload.
 func H() int { return 1 }
 // Output public build diagnostics for this program without executing the analyzer.

@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Represent a propagated static value without inventing unknown payloads.

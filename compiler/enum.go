@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Aggregate descriptions for Go aliases sharing one wire value without duplicating enum values.

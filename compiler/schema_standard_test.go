@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
-	"github.com/openapi-golang/openapi/spec"
-	"github.com/openapi-golang/openapi/testdata/jsonstandard"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
+	"github.com/go-devtools/openapi/spec"
+	"github.com/go-devtools/openapi/testdata/jsonstandard"
 )
 
 // Ensure projection does not invoke standard-profile fixture methods.

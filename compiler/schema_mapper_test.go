@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Reuse mapper-owned nested values across projections without sharing later consumer mutations.

@@ -16,7 +16,7 @@ concurrency:
 env:
   GOWORK: 'off'
   GOTOOLCHAIN: local
-  GOPRIVATE: github.com/openapi-golang/*
+  GOPRIVATE: github.com/go-devtools/*
   GIT_TERMINAL_PROMPT: '0'
   CI_REPOSITORY: ${{ github.repository }}
   CI_REPOSITORY_TOKEN: ${{ github.token }}

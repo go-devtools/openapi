@@ -2,7 +2,7 @@
 
 > Framework-neutral Go source contract compilation, native OpenAPI 3.2 models, offline checks, and optional Swagger UI.
 
-The module is github.com/openapi-golang/openapi. Use Go 1.27.1 and pin a module version. Source types and actual codecs determine structure; ordinary comments add meaning. Runtime linking does not read application source. Framework behavior belongs in adapters through the public SDK. English diagnostics retain stable codes and source provenance.
+The module is github.com/go-devtools/openapi. Use Go 1.27.1 and pin a module version. Source types and actual codecs determine structure; ordinary comments add meaning. Runtime linking does not read application source. Framework behavior belongs in adapters through the public SDK. English diagnostics retain stable codes and source provenance.
 
 ## Integration
 

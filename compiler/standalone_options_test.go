@@ -1,8 +1,8 @@
 package compiler_test
 
 import (
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/spec"
 	"testing"
 )
 

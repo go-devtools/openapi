@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/internal/comment"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/internal/comment"
 	"golang.org/x/tools/go/packages"
 )
 

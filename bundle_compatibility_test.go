@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/contracttest"
 )
 
 // Read authentic older writer output and preserve its independently validated wire contract.

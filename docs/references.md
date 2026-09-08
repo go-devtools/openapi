@@ -12,7 +12,7 @@ package main
 import (
     "fmt"
 
-    "github.com/openapi-golang/openapi"
+    "github.com/go-devtools/openapi"
 )
 
 // Check only documents and schemas explicitly provided in memory.
@@ -100,7 +100,7 @@ Missing files, duplicate URIs, unknown fields or kinds, and trailing JSON are re
 
 ## Explicit local input reads
 
-The optional `github.com/openapi-golang/openapi/checkio` package exposes `ReadFile(ctx, filename, maxBytes)`. Both product CLIs use it for caller-selected regular files. It never derives filenames from `$ref` or `externalValue`, opens a remote URL, or imports a framework. The root `openapi` package does not depend on it.
+The optional `github.com/go-devtools/openapi/checkio` package exposes `ReadFile(ctx, filename, maxBytes)`. Both product CLIs use it for caller-selected regular files. It never derives filenames from `$ref` or `externalValue`, opens a remote URL, or imports a framework. The root `openapi` package does not depend on it.
 
 `ReadFile` accepts an exact byte boundary and permits an empty file when its limit is zero. Negative limits, known oversized files and growth beyond the limit return an error matching `checkio.ErrByteLimit`. Directories and devices return `checkio.ErrNotRegular`; Unix tests also verify that existing FIFOs are rejected before opening. A caller-selected symlink to a regular file is allowed. Checkers still validate the file contents separately.
 

@@ -10,10 +10,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/internal/comment"
-	"github.com/openapi-golang/openapi/internal/validate"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/internal/comment"
+	"github.com/go-devtools/openapi/internal/validate"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Identify input and output wire projections.

@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export GOWORK=off GOTOOLCHAIN=local GIT_TERMINAL_PROMPT=0
 ci_private="$(go env GOPRIVATE)"
-export GOPRIVATE="${ci_private:+$ci_private,}github.com/openapi-golang/*"
+export GOPRIVATE="${ci_private:+$ci_private,}github.com/go-devtools/*"
 ci_module="$(go list -m)"
 ci_artifacts="${CI_ARTIFACT_DIR:-}"
 if [[ -z "$ci_artifacts" ]]; then
@@ -12,8 +12,8 @@ if [[ -z "$ci_artifacts" ]]; then
 fi
 mkdir -p "$ci_artifacts"
 [[ "$(go env GOVERSION)" == go1.27.1 ]] || { echo 'ci.toolchain: Go 1.27.1 is required'; exit 2; }
-if [[ "$ci_module" == github.com/openapi-golang/gin-swagger && "${GITHUB_ACTIONS:-}" == true && -z "${OPENAPI_READ_TOKEN:-}" ]]; then
-  echo 'ci.auth.missing: Configure OPENAPI_READ_TOKEN with read-only Contents access to openapi-golang/openapi; the default token is scoped to this repository.'
+if [[ "$ci_module" == github.com/go-devtools/gin-swagger && "${GITHUB_ACTIONS:-}" == true && -z "${OPENAPI_READ_TOKEN:-}" ]]; then
+  echo 'ci.auth.missing: Configure OPENAPI_READ_TOKEN with read-only Contents access to go-devtools/openapi; the default token is scoped to this repository.'
   exit 2
 fi
 
@@ -43,7 +43,7 @@ case "${1:-test}" in
     go mod download
     go mod verify | tee "$ci_artifacts/modules.txt"
     go list -m -json all > "$ci_artifacts/module-graph.json"
-    if [[ "$ci_module" == github.com/openapi-golang/gin-swagger ]]; then
+    if [[ "$ci_module" == github.com/go-devtools/gin-swagger ]]; then
       [[ "$(go list -m -f '{{.Version}}' github.com/gin-gonic/gin)" == v1.12.0 ]] || { echo 'ci.gin.version: Gin v1.12.0 is required'; exit 2; }
       # The committed example uses the documented Darwin/arm64 generation profile.
       if [[ "$(go env GOOS)/$(go env GOARCH)" == darwin/arm64 ]]; then
@@ -58,7 +58,7 @@ case "${1:-test}" in
     go test -race -count=1 -json ./... | tee "$ci_artifacts/race.json"
     go vet ./... 2>&1 | tee "$ci_artifacts/vet.txt"
     go build ./...
-    if [[ "$ci_module" == github.com/openapi-golang/openapi ]]; then
+    if [[ "$ci_module" == github.com/go-devtools/openapi ]]; then
       required_tests ./internal/verify 'TestNoFrameworkDependencies|TestRuntimeDependencyBoundary|TestNoLocalReplace|TestExternalFrontend|TestCICredentialScope'
       go run ./cmd/openapi check --spec ./testdata/golden/openapi32-full.json
       go test ./swaggerui -run '^TestBundledAssetLicenses$' -count=1 -v | tee "$ci_artifacts/asset-licenses.txt"
@@ -69,7 +69,7 @@ case "${1:-test}" in
     fi
     ;;
   fuzz)
-    if [[ "$ci_module" == github.com/openapi-golang/openapi ]]; then
+    if [[ "$ci_module" == github.com/go-devtools/openapi ]]; then
       fuzz_target ./internal/comment FuzzDirective
       fuzz_target ./internal/validate FuzzReferenceGraph
       fuzz_target ./internal/validate FuzzSchemaNumberTraits
@@ -92,11 +92,11 @@ case "${1:-test}" in
     trap 'rm -rf "$ci_consumer"' EXIT
     cp -R internal/verify/testdata/external/. "$ci_consumer/"
     cp go.sum "$ci_consumer/go.sum"
-    if [[ "$ci_module" == github.com/openapi-golang/openapi ]]; then
+    if [[ "$ci_module" == github.com/go-devtools/openapi ]]; then
       printf 'module example.test/consumer\n\ngo 1.27.1\n\nrequire %s %s\n' "$ci_module" "$ci_version" > "$ci_consumer/go.mod"
       ci_cli=openapi
     else
-      sed 's|module github.com/openapi-golang/gin-swagger|module example.test/gin-consumer|' go.mod > "$ci_consumer/go.mod"
+      sed 's|module github.com/go-devtools/gin-swagger|module example.test/gin-consumer|' go.mod > "$ci_consumer/go.mod"
       ci_cli=gin-swagger
     fi
     export GOBIN="$ci_consumer/bin"

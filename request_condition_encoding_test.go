@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 	"testing"
 )
 

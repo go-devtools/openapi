@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/compiler"
 )
 
 // Export schemas from actual source, using only explicitly listed external resources.

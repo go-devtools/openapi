@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/openapi-golang/openapi/checkio"
+	"github.com/go-devtools/openapi/checkio"
 )
 
 // Verify actual local bytes, exact boundaries, public error identities, and cancellation precedence.

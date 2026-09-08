@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Identify a source template independently of the final operationId.

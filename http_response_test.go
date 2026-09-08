@@ -2,7 +2,7 @@ package openapi
 
 import (
 	"encoding/json"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 	"testing"
 )
 

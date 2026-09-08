@@ -5,7 +5,7 @@ import (
 	"testing"
 	"testing/iotest"
 
-	ct "github.com/openapi-golang/openapi/contracttest"
+	ct "github.com/go-devtools/openapi/contracttest"
 )
 
 // Replace malformed UTF-8 subparts independently; one-byte reads must preserve BOM, line endings, and data joining.

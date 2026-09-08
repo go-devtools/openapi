@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/compiler"
 )
 
 // Retain returned snapshots so allocation measurements include their public defensive copies.

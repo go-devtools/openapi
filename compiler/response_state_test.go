@@ -2,7 +2,7 @@ package compiler
 
 import (
 	"context"
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 	"go/constant"
 	"go/types"
 	"os"

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Distinguish normative XML naming from structural acceptance and JSON-only use.

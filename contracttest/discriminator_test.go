@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Context rules must reject unusable dispatch targets while accepting standard union and inheritance forms.

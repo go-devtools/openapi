@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Build a neutral template without an HTTP framework.

@@ -5,8 +5,8 @@ import (
 	"go/types"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Consumer edits to one replay cannot alter stored values, protocol state, or the next replay.

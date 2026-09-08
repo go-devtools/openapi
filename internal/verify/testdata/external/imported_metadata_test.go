@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
 )
 
 // Build a real imported DTO package while selecting only the application's package as a source root.

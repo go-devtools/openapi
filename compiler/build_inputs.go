@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )

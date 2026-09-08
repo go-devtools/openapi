@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Compare known selectors, report unknown settings, and permit patch-only toolchain differences.

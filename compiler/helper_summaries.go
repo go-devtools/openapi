@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/openapi-golang/openapi"
+	"github.com/go-devtools/openapi"
 )
 
 // Retain summaries only for immutable parameter contexts within one candidate's analysis.

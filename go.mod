@@ -1,4 +1,4 @@
-module github.com/openapi-golang/openapi
+module github.com/go-devtools/openapi
 
 go 1.27.1
 

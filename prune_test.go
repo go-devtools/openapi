@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Retain complete reachable components without allowing example data to make unrelated models reachable.

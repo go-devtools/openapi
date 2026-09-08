@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/openapi-golang/openapi/internal/comment"
-	"github.com/openapi-golang/openapi/spec"
+	"github.com/go-devtools/openapi/internal/comment"
+	"github.com/go-devtools/openapi/spec"
 )
 
 // Defer annotation checks until the component graph is complete to include named types and recursion.

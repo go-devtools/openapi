@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/go-devtools/openapi/contracttest"
 )
 
 // Verify serialized decision tables link only contracts and diagnostics for the actual method and media type.

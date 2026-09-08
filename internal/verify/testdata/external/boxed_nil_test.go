@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openapi-golang/openapi"
-	core "github.com/openapi-golang/openapi/compiler"
-	"github.com/openapi-golang/openapi/contracttest"
+	"github.com/go-devtools/openapi"
+	core "github.com/go-devtools/openapi/compiler"
+	"github.com/go-devtools/openapi/contracttest"
 )
 
 // Interface boxing preserves both non-nil interface identity and its nil payload for correct branching and serialization.

@@ -8,8 +8,8 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/openapi-golang/openapi"
-	"github.com/openapi-golang/openapi/checkio"
+	"github.com/go-devtools/openapi"
+	"github.com/go-devtools/openapi/checkio"
 )
 
 // Explicitly map retrieval URIs to local files; never load files from URIs found in the specification.
