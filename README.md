@@ -6,6 +6,19 @@ Framework-independent Go source contract compilation and native OpenAPI 3.2 tool
 
 This pre-1.0 SDK evolves between pinned versions. Use the public APIs and check the documented capability boundaries before depending on advanced behavior.
 
+## Installation and versions
+
+The first release is **v0.0.1**. Import the public Go module directly; no token, workspace or local replacement is needed:
+
+```sh
+go get github.com/go-devtools/openapi@v0.0.1
+go install github.com/go-devtools/openapi/cmd/openapi@v0.0.1
+```
+
+Run `openapi version` to inspect the installed version. Prebuilt CLIs, source archives and SHA-256 checksums are available in [GitHub Releases](https://github.com/go-devtools/openapi/releases). Pin the library and CLI to the same version.
+
+See [contribution and release rules](CONTRIBUTING.md) for main, develop, release and hotfix branches. The v0 API is evolving; review release notes before upgrading.
+
 ## Requirements
 
 - Go 1.27.1 for development and verification.
@@ -103,7 +116,7 @@ Start with [llms.txt](llms.txt) for a compact documentation index and the [AI in
 
 See the [performance guide](docs/performance.md) for reproducible 100/1000-route generation, startup Build, document-read, and allocation benchmarks.
 
-See the [independent CI guide](docs/ci.md) for pinned tools, private module access, offline browser checks, actual platform jobs, and fixed remote-version consumption.
+See the [independent CI guide](docs/ci.md) for pinned tools, public module consumption, offline browser checks, actual platform jobs, and fixed remote-version consumption.
 
 See the [security model guide](docs/security-models.md) for typed OAuth flows, native 3.2 fields, presence, validation, and UI boundaries.
 

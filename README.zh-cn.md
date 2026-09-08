@@ -6,6 +6,19 @@
 
 当前 SDK 尚处于 1.0 之前，接口可能随固定版本更新而变化。请使用公开 API，并先核对各功能指南中的支持范围。
 
+## 安装与版本
+
+首个版本为 **v0.0.1**。可直接引入公开 Go module，无需令牌、workspace 或本地 replace：
+
+```sh
+go get github.com/go-devtools/openapi@v0.0.1
+go install github.com/go-devtools/openapi/cmd/openapi@v0.0.1
+```
+
+运行 `openapi version` 查看实际版本。下载预编译 CLI、源码和 SHA-256 校验和请访问 [GitHub Releases](https://github.com/go-devtools/openapi/releases)。库依赖和 CLI 应固定到相同版本。
+
+main、develop、release 和 hotfix 分工见 [贡献与发版说明](CONTRIBUTING.zh-cn.md)。v0 API 仍在演进，请阅读发布说明后升级。
+
 ## 环境要求
 
 - 开发和验证使用 Go 1.27.1。

@@ -3,8 +3,9 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export GOWORK=off GOTOOLCHAIN=local GIT_TERMINAL_PROMPT=0
-ci_private="$(go env GOPRIVATE)"
-export GOPRIVATE="${ci_private:+$ci_private,}github.com/go-devtools/*"
+# 公开模块使用代理与校验数据库，不依赖仓库凭据。
+# Public modules use the proxy and checksum database without repository credentials.
+export GOPRIVATE= GONOPROXY= GONOSUMDB= GOSUMDB=sum.golang.org
 ci_module="$(go list -m)"
 ci_artifacts="${CI_ARTIFACT_DIR:-}"
 if [[ -z "$ci_artifacts" ]]; then
@@ -12,10 +13,6 @@ if [[ -z "$ci_artifacts" ]]; then
 fi
 mkdir -p "$ci_artifacts"
 [[ "$(go env GOVERSION)" == go1.27.1 ]] || { echo 'ci.toolchain: Go 1.27.1 is required'; exit 2; }
-if [[ "$ci_module" == github.com/go-devtools/gin-swagger && "${GITHUB_ACTIONS:-}" == true && -z "${OPENAPI_READ_TOKEN:-}" ]]; then
-  echo 'ci.auth.missing: Configure OPENAPI_READ_TOKEN with read-only Contents access to go-devtools/openapi; the default token is scoped to this repository.'
-  exit 2
-fi
 
 # Verify that required named gates exist before executing their real tests.
 required_tests() {
@@ -86,7 +83,12 @@ case "${1:-test}" in
     ;;
   remote)
     [[ "${CI_COMMIT_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo 'ci.remote.commit: an actual published full commit SHA is required'; exit 2; }
-    ci_version="$(go list -m -f '{{.Version}}' "$ci_module@$CI_COMMIT_SHA")"
+    ci_version="$(go list -m -f '{{.Version}}' "$ci_module@${CI_VERSION:-$CI_COMMIT_SHA}")"
+    if [[ -n "${CI_VERSION:-}" ]]; then
+      [[ "$ci_version" == "$CI_VERSION" ]] || { echo 'ci.remote.version: requested tag was not selected'; exit 2; }
+    fi
+    go mod download -json "$ci_module@$ci_version" > "$ci_artifacts/module-origin.json"
+    grep -Fq "\"Hash\": \"$CI_COMMIT_SHA\"" "$ci_artifacts/module-origin.json" || { echo 'ci.remote.origin: selected version does not match the expected commit'; exit 2; }
     [[ -n "$ci_version" ]] || exit 2
     ci_consumer="$(mktemp -d "${TMPDIR:-/tmp}/openapi-ci-consumer.XXXXXX")"
     trap 'rm -rf "$ci_consumer"' EXIT

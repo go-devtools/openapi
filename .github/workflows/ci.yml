@@ -2,7 +2,7 @@ name: Independent module CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'release/**', 'hotfix/**']
   pull_request:
   workflow_dispatch:
 
@@ -16,17 +16,12 @@ concurrency:
 env:
   GOWORK: 'off'
   GOTOOLCHAIN: local
-  GOPRIVATE: github.com/go-devtools/*
+  GOPRIVATE: ''
+  GONOPROXY: ''
+  GONOSUMDB: ''
+  GOPROXY: https://proxy.golang.org,direct
+  GOSUMDB: sum.golang.org
   GIT_TERMINAL_PROMPT: '0'
-  CI_REPOSITORY: ${{ github.repository }}
-  CI_REPOSITORY_TOKEN: ${{ github.token }}
-  GIT_CONFIG_COUNT: '3'
-  GIT_CONFIG_KEY_0: credential.helper
-  GIT_CONFIG_VALUE_0: ''
-  GIT_CONFIG_KEY_1: credential.useHttpPath
-  GIT_CONFIG_VALUE_1: 'true'
-  GIT_CONFIG_KEY_2: credential.helper
-  GIT_CONFIG_VALUE_2: "!bash '${{ github.workspace }}/scripts/git-credential-ci.sh'"
 
 jobs:
   test:
@@ -155,7 +150,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   remote:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -188,3 +183,43 @@ jobs:
           path: ${{ runner.temp }}/ci-artifacts
           if-no-files-found: warn
           retention-days: 14
+
+  policy:
+    name: Release policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Exercise release safety and branch rules
+        run: |
+          node --test scripts/release.test.mjs
+          node scripts/release.mjs policy
+  required:
+    name: Required checks
+    if: always()
+    needs: [test, fuzz, security, browser, remote, policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CHECK_RESULTS: ${{ toJSON(needs) }}
+      IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Require all applicable gates
+        run: |
+          node <<'JS'
+          const results = JSON.parse(process.env.CHECK_RESULTS);
+          for (const [name, gate] of Object.entries(results)) {
+            if (name === 'remote' && process.env.IS_PULL_REQUEST === 'true' && gate.result === 'skipped') continue;
+            if (gate.result !== 'success') throw new Error(`${name}: ${gate.result}`);
+          }
+          JS

@@ -12,7 +12,7 @@ Every job starts with separate module and build cache paths under runner tempora
 
 ## Local commands
 
-Use the pinned tools and configure read access to any private modules first:
+Use the pinned tools; both product modules are public and require no credentials:
 
 ```sh
 GOWORK=off go mod download
@@ -33,17 +33,15 @@ The adapter's committed basic example uses a Darwin/arm64 generation profile. Th
 
 Browser tests compile an isolated fixture, own an ephemeral loopback port, block unexpected network origins, require rendered documentation, and reject console/runtime errors. They check safe submission defaults, explicitly enabled submission with a Bearer token, readable component names, enum descriptions, definition selection and mobile rendering. Screenshots and failure traces are retained outside source. These focused flows do not claim that every OpenAPI 3.2 object has full Swagger UI rendering support.
 
-## Private module credentials
+## Public module access and permissions
 
-The default GitHub Actions token reads only the current repository. While the core is private, the adapter repository needs a repository Actions secret named **`OPENAPI_READ_TOKEN`**, containing a fine-grained token with **Contents: read** for **`go-devtools/openapi` only**. Organization policy may additionally require owner approval. Create and enter credentials through GitHub's trusted UI; never commit them or put them in module URLs.
+Default CI uses the public Go proxy and checksum database with `GOPRIVATE`, `GONOPROXY` and `GONOSUMDB` empty. Checkout credentials are not persisted. Fork pull requests require no secrets; `OPENAPI_READ_TOKEN` is no longer required. The optional path-scoped credential helper and its fake-value boundary tests remain available for separately configured private mirrors; they are not enabled by public CI.
 
-The workflow disables persisted checkout credentials. Its process-scoped Git credential helper returns credentials only for exact HTTPS paths under the two product repositories. The current repository uses its own Actions token; the adapter uses the separate read token only for the core. Unrelated hosts, repositories, nested paths and store/erase operations receive no credentials. Tests exercise the boundary using fake values. The helper never changes global Git configuration or stores credentials.
-
-The adapter fails explicitly when the required secret is absent. Untrusted fork pull requests do not receive repository secrets; this workflow does not use `pull_request_target` to work around that boundary. Do not upload personal SSH keys or broaden repository visibility to make CI pass.
+Only preparation, promotion and release jobs receive the minimum write permissions for their own repository. They never execute fork PR code through `pull_request_target`. See [release automation](../CONTRIBUTING.md).
 
 ## Published module consumption
 
-The `remote` jobs run only for published `main` commits on push or manual dispatch. They resolve the actual full commit SHA to its remote Go module version, install the CLI at that fixed version, create a separate consumer outside the checkout, and verify that no selected module is replaced. The adapter also checks first generation, repeated generation, unchanged business source, runtime export and a stripped executable. Ordinary pull requests run source validation without treating an unpublished merge commit as a published module.
+The `remote` jobs run for published branch commits on push or manual dispatch. They resolve the actual full commit SHA to its remote Go module version, install the CLI at that fixed version, create a separate consumer outside the checkout, and verify that no selected module is replaced. The adapter also checks first generation, repeated generation, unchanged business source, runtime export and a stripped executable. Ordinary pull requests run source validation without treating an unpublished merge commit as a published module.
 
 To verify an already published commit locally:
 
@@ -52,3 +50,13 @@ CI_COMMIT_SHA=<full-published-commit-sha> bash scripts/ci.sh remote
 ```
 
 Successful local runs do not establish that GitHub jobs passed. Inspect the actual run and uploaded evidence. Artifacts are retained for 14 days; failures in environment provisioning or authorization remain failures, not skipped acceptance gates.
+
+## Tagged release acceptance
+
+`Release policy` tests real isolated Git histories and rejects invalid versions, incompatible merge directions, moved/lightweight tags, local replacements, unstable core dependencies, missing CI gates and edits to published releases. `Required checks` aggregates every applicable gate; only unpublished PR merge commits may skip remote consumption.
+
+The release workflow repeats independent consumption on Linux and macOS with `CI_VERSION` set to the exact tag and the public proxy as the only source. It checks the module origin against the expected full SHA, keeping checksum verification enabled and caches empty. The downloaded CLI assets are separately executed on Linux/amd64, macOS/arm64 and Windows/amd64. This Windows smoke check validates the version and document checker, not the full library matrix.
+
+```sh
+GOPROXY=https://proxy.golang.org CI_VERSION=v0.0.1 CI_COMMIT_SHA=<tag-commit-sha> bash scripts/ci.sh remote
+```

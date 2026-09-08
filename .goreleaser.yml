@@ -1,0 +1,71 @@
+version: 2
+project_name: openapi
+
+before:
+  hooks:
+    - go mod download
+    - node scripts/release-assets.mjs notices
+
+builds:
+  - id: cli
+    main: ./cmd/openapi
+    binary: openapi
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - '-s -w -X main.releaseVersion={{ .Tag }} -X main.releaseCommit={{ .FullCommit }}'
+
+archives:
+  - id: cli
+    formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - README.zh-cn.md
+      - src: release-notices/THIRD_PARTY_NOTICES.txt
+        dst: .
+        strip_parent: true
+
+source:
+  enabled: true
+  format: tar.gz
+  name_template: '{{ .ProjectName }}_{{ .Version }}_source'
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ['^chore: prepare', '^chore: merge']
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))?:'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))?:'
+      order: 1
+    - title: Documentation and maintenance
+      order: 2
+
+release:
+  draft: true
+  use_existing_draft: true
+  prerelease: auto
+  name_template: '{{ .Tag }}'
+  header: |
+    Install the Go module with `go get github.com/go-devtools/openapi@{{ .Tag }}`.
+    Install the CLI with `go install github.com/go-devtools/openapi/cmd/openapi@{{ .Tag }}`.
+    Requires Go 1.27.1 or later. Both modules start at v0.0.1; v0 APIs may evolve.
+  footer: |
+    CLI archives cover Linux, macOS and Windows on amd64 and arm64.
+    Release gates execute the downloaded CLI on Linux/amd64, macOS/arm64 and Windows/amd64.
+    The standalone public Go module is tested on Linux/amd64 and macOS/arm64 with GOWORK=off, the public Go proxy and checksum database, and no credentials or local replacements.
+    Verify downloads against checksums.txt. Archives include MIT and third-party license notices.
