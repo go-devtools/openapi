@@ -67,7 +67,10 @@ function smoke(tag) {
   const expected = readFileSync(join(dir, 'checksums.txt'), 'utf8').split('\n').find(line => line.endsWith(`  ${archive}`))?.split(' ')[0];
   assert(expected, 'Archive is missing from checksums');
   assert.equal(createHash('sha256').update(readFileSync(join(dir, archive))).digest('hex'), expected);
-  run('tar', ['-xf', join(dir, archive), '-C', dir]);
+  // Windows 使用自带的 BSD tar；相对文件名避免盘符被当成远端主机。
+  // Use native Windows BSD tar and relative archive names to avoid drive-letter parsing.
+  const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+  run(tar, ['-xf', archive], { cwd: dir });
   const binary = join(dir, product + (os === 'windows' ? '.exe' : ''));
   const actual = JSON.parse(run(binary, ['version']));
   assert.equal(actual.version, tag);
