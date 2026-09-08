@@ -108,6 +108,13 @@ test('successful main promotion creates one annotated tag and explicitly dispatc
   const object = git('rev-parse', 'v0.0.1'); assert.equal(command('promote').status, 0); assert.equal(git('rev-parse', 'v0.0.1'), object);
 }));
 
+test('a release line already integrated into main publishes without an empty promotion PR', () => fixture(({ command, event, git, calls }) => {
+  event('release/0.0');
+  const result = command('promote'); assert.equal(result.status, 0, result.stderr);
+  assert.equal(git('cat-file', '-t', 'v0.0.1'), 'tag');
+  assert(!readFileSync(calls, 'utf8').includes('/pulls'));
+}));
+
 test('release preparation opens the correct maintenance PR and updates both install commands', () => fixture(({ command, git, calls }) => {
   git('switch', '-c', 'hotfix/0.0.2'); writeFileSync('VERSION', 'v0.0.2-dev\n'); git('commit', '-am', 'chore: prepare next patch'); git('push', 'origin', 'hotfix/0.0.2');
   const prepared = command('prepare', 'v0.0.2'); assert.equal(prepared.status, 0, prepared.stderr);

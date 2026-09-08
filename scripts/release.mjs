@@ -150,7 +150,7 @@ function promote() {
   const parsed = validate(tag, false);
   requireCI(repo, source.head_sha);
   const main = version(git('show', 'origin/main:VERSION'), true);
-  if (source.head_branch !== 'main' && !parsed.prerelease && (parsed.major > main.major || (parsed.major === main.major && parsed.minor >= main.minor))) {
+  if (source.head_branch !== 'main' && !ancestor(source.head_sha, 'origin/main') && !parsed.prerelease && (parsed.major > main.major || (parsed.major === main.major && parsed.minor >= main.minor))) {
     openPR(repo, source.head_branch, 'main', `chore: release ${tag}`, `Promote the reviewed **${tag}** release line to main.\n\nSource CI: ${source.html_url}\n\nAfter merge, main CI must pass before automation creates the immutable tag and release assets.`, false);
     return;
   }
