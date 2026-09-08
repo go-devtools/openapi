@@ -5,7 +5,9 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { version, compare, branchAllowed, validate } from './release.mjs';
+import { verifyAssets } from './release-assets.mjs';
 
 const script = fileURLToPath(new URL('./release.mjs', import.meta.url));
 const gates = ['test (ubuntu-24.04)', 'test (macos-15)', 'remote (ubuntu-24.04)', 'remote (macos-15)', 'fuzz', 'security', 'browser', 'Release policy', 'Required checks'];
@@ -139,4 +141,16 @@ test('published releases cannot be edited and older maintenance patches cannot b
   mock.release.draft = true; mock.releases = [{ tag_name: 'v0.1.0', draft: false, prerelease: false }]; save();
   const result = command('publish', 'v0.0.1'); assert.equal(result.status, 0, result.stderr);
   assert(readFileSync(calls, 'utf8').includes('"--latest=false"'));
+}));
+
+test('draft reuse requires all seven archives and rejects tampering on a non-native platform', () => fixture(({ root }) => {
+  const names = ['linux', 'darwin', 'windows'].flatMap(os => ['amd64', 'arm64'].map(arch => `openapi_0.0.1_${os}_${arch}.${os === 'windows' ? 'zip' : 'tar.gz'}`));
+  names.push('openapi_0.0.1_source.tar.gz');
+  const hashes = names.map(name => { writeFileSync(join(root, name), name); return `${createHash('sha256').update(name).digest('hex')}  ${name}`; });
+  writeFileSync(join(root, 'checksums.txt'), hashes.join('\n') + '\n');
+  assert.equal(verifyAssets('v0.0.1', root, 'openapi').length, 7);
+  writeFileSync(join(root, 'openapi_0.0.1_windows_arm64.zip'), 'tampered');
+  assert.throws(() => verifyAssets('v0.0.1', root, 'openapi'), /Checksum mismatch/);
+  writeFileSync(join(root, 'checksums.txt'), hashes.slice(1).join('\n'));
+  assert.throws(() => verifyAssets('v0.0.1', root, 'openapi'), /Incomplete/);
 }));

@@ -4,6 +4,24 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
+
+// 校验所有发布文件，防止缺少未在本机执行的平台附件。
+// Verify every archive, including platforms outside the native smoke matrix.
+export function verifyAssets(tag, dir, product) {
+  assert(/^v\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?$/.test(tag));
+  assert(['openapi', 'gin-swagger'].includes(product));
+  const names = ['linux', 'darwin', 'windows'].flatMap(os => ['amd64', 'arm64'].map(arch => `${product}_${tag.slice(1)}_${os}_${arch}.${os === 'windows' ? 'zip' : 'tar.gz'}`));
+  names.push(`${product}_${tag.slice(1)}_source.tar.gz`);
+  const entries = readFileSync(join(dir, 'checksums.txt'), 'utf8').trim().split('\n');
+  assert.equal(entries.length, names.length, 'Incomplete or unexpected checksum manifest');
+  for (const name of names) {
+    const rows = entries.filter(line => line.endsWith(`  ${name}`));
+    assert.equal(rows.length, 1, `Missing or repeated checksum for ${name}`);
+    assert.equal(createHash('sha256').update(readFileSync(join(dir, name))).digest('hex'), rows[0].split(' ')[0], `Checksum mismatch: ${name}`);
+  }
+  return names;
+}
 
 // 用参数数组调用工具，保留失败的原始退出状态。
 // Invoke tools without shell interpolation and preserve failures.
@@ -45,6 +63,7 @@ function smoke(tag) {
   const archive = `${product}_${tag.slice(1)}_${os}_${arch}.${os === 'windows' ? 'zip' : 'tar.gz'}`;
   const dir = process.env.RELEASE_ASSET_DIR || mkdtempSync(join(tmpdir(), 'release-smoke-'));
   if (!process.env.RELEASE_ASSET_DIR) run('gh', ['release', 'download', tag, '--repo', repo, '--dir', dir, '--pattern', archive, '--pattern', 'checksums.txt']);
+  if (process.env.RELEASE_ASSET_DIR) verifyAssets(tag, dir, product);
   const expected = readFileSync(join(dir, 'checksums.txt'), 'utf8').split('\n').find(line => line.endsWith(`  ${archive}`))?.split(' ')[0];
   assert(expected, 'Archive is missing from checksums');
   assert.equal(createHash('sha256').update(readFileSync(join(dir, archive))).digest('hex'), expected);
@@ -64,6 +83,8 @@ function smoke(tag) {
   console.log(JSON.stringify({ archive, sha256: expected, ...actual, nativeCheck: 'passed' }));
 }
 
-if (process.argv[2] === 'notices') notices();
-else if (process.argv[2] === 'smoke') smoke(process.argv[3]);
-else throw new Error('Usage: release-assets.mjs {notices|smoke TAG}');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (process.argv[2] === 'notices') notices();
+  else if (process.argv[2] === 'smoke') smoke(process.argv[3]);
+  else throw new Error('Usage: release-assets.mjs {notices|smoke TAG}');
+}

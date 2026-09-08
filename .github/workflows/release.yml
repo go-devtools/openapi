@@ -121,15 +121,18 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Reject changes to an already published release
+      - name: Reject published releases and reuse existing drafts
+        id: existing
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: |
           if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/existing-release.json" 2>/dev/null; then
             node -e 'if (!JSON.parse(require("fs").readFileSync(process.argv[1])).isDraft) process.exit(1)' "$RUNNER_TEMP/existing-release.json"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
           fi
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        if: steps.existing.outputs.draft != 'true'
         with:
           distribution: goreleaser
           version: v2.18.1
